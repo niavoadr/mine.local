@@ -1531,7 +1531,7 @@ function confirmLogout() {
 
 <?php
 session_start();
-include("./conection.php");
+include("./connection.php");
 
 // Constante pour le rôle à rediriger (assurez-vous que ce libellé correspond exactement à votre BDD)
 /*define('CHEF_DEPT_LABEL', "Administrateur Département");
@@ -1551,13 +1551,13 @@ if (isset($_POST['username'])) {
   // Requête pour récupérer les données de l'utilisateur et le libellé du rôle
   $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  $stmt = $conection->prepare($sql);
+  $stmt = $conn->prepare($sql);
   
   // Utilisez un contrôle d'erreur basique pour bind_param et execute (bonne pratique)
   if ($stmt === false || $stmt->bind_param("s", $_POST['username']) === false || $stmt->execute() === false) {
       // Gérer l'erreur de requête ou de connexion
       $msg = "Erreur de connexion à la base de données.";
-      // Vous pouvez ajouter error_log(print_r($conection->error_list, true)); pour le débogage.
+      // Vous pouvez ajouter error_log(print_r($conn->error_list, true)); pour le débogage.
   } else {
     
       $result = $stmt->get_result();

@@ -1,7 +1,7 @@
 <?php
 ob_start();
 session_start();
-include("./conection.php");
+include("./connection.php");
 
 define('CHEF_DEPT', 5);
 
@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
   
   $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  $stmt = $conection->prepare($sql);
+  $stmt = $conn->prepare($sql);
   
   if ($stmt === false) {
       $msg = "Erreur de préparation de la requête.";
