@@ -1577,12 +1577,12 @@ if (isset($_POST['username'])) {
           // LOGIQUE DE REDIRECTION
           // Définition de la constante de rôle
 
-          $target_page = "./dashboard.php"; // Redirection par défaut
+          $target_page = "./dashboard_admin.php"; // Redirection par défaut (sans restriction)
           
             // Si le rôle EST  l'Administrateur de Département (ID 5), on affiche le formulaire
                         if ($current_user_role_id == "ADMIN") { 
           
-              $target_page = "./admin.php"; 
+              $target_page = "./dashboard_user.php"; // Redirection pour administrateur avec restriction
           }
           
           header("Location: " . $target_page);

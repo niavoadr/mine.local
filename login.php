@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           
           // Déterminer la page de redirection
           if ($row['id_role'] == 5) {
-              $target_page = "admin.php"; 
+              $target_page = "dashboard_user.php"; 
           } else {
-              $target_page = "dashboard.php";
+              $target_page = "dashboard_admin.php";
           }
           
           // Vider le buffer et rediriger
