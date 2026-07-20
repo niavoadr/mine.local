@@ -1,0 +1,1689 @@
+
+// js/manager.js - Script AJAX pour la section Gestionnaire de Compte
+$(document).ready(function() {
+    // Initialisation uniquement quand on est sur l'onglet manager
+    initializeManager();
+
+    // Écouter les changements d'onglets
+    $('.nav-tab').on('click', function() {
+        if ($(this).text().includes('Gestionnaire de Compte')) {
+            setTimeout(initializeManager, 100); // Petit délai pour laisser l'onglet s'activer
+        }
+    });
+});
+
+function initializeManager() {
+    // Vérifier si on est sur l'onglet manager
+    if (!$('#manager-content').hasClass('active')) {
+        return;
+    }
+
+    // Modifier le HTML de la section manager pour AJAX
+    updateManagerHTML();
+    
+    // Charger les données initiales
+    loadManagerData();
+    
+    // Configurer les événements
+    setupManagerEvents();
+    
+    // Actualisation automatique
+    setupAutoRefresh();
+}
+
+function updateManagerHTML() {
+    const managerContent = $('#manager-content');
+    
+    // Remplacer le contenu par la version AJAX
+    managerContent.html(`
+        <h2 class="section-title">Gestionnaire de Compte</h2>
+        
+        <!-- Alertes -->
+        <div id="alert-success" class="alert alert-success" style="display: none;">
+            <strong>Succès :</strong> <span id="success-message"></span>
+        </div>
+        <div id="alert-error" class="alert alert-error" style="display: none;">
+            <strong>Erreur :</strong> <span id="error-message"></span>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total-users">-</div>
+                <div class="stat-label">Total Utilisateurs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-active-users">-</div>
+                <div class="stat-label">Utilisateurs Actifs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total-roles">-</div>
+                <div class="stat-label">Rôles Disponibles</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; margin-top: 30px;">
+            <!-- Formulaire de création -->
+            <div>
+                <h3>Créer un Nouveau Compte</h3>
+                <form id="ajax-user-form">
+                    <div class="form-group">
+                        <label>Nom d'utilisateur</label>
+                        <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" required placeholder="Entrez le nom d'utilisateur">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="ajax_email" name="email" required placeholder="utilisateur@entreprise.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" required placeholder="Mot de passe sécurisé">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Département</label>
+                        <select id="ajax_id_departement" name="id_departement" required>
+                            <option value="">Chargement...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Rôle</label>
+                        <select id="ajax_id_role" name="id_role" required>
+                            <option value="">Chargement...</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="ajax-btn-create">
+                        <span class="ajax-spinner" style="display: none;">⏳</span>
+                        Créer le Compte
+                    </button>
+                </form>
+            </div>
+
+            <!-- Liste des utilisateurs -->
+            <div>
+                <h3>Utilisateurs Existants 
+                    <button type="button" class="btn btn-success" id="ajax-btn-refresh" style="padding: 8px 15px; font-size: 0.9em; float: right;">
+                        🔄 Actualiser
+                    </button>
+                </h3>
+                
+                <div id="ajax-users-loading" class="ajax-loading" style="display: none; text-align: center; padding: 20px; color: #8B4513;">
+                    Chargement des utilisateurs...
+                </div>
+                
+                <div id="ajax-users-container">
+                    <!-- Les utilisateurs seront chargés ici -->
+                </div>
+            </div>
+        </div>
+    `);
+
+    // Ajouter les styles CSS spécifiques pour AJAX
+    if (!$('#ajax-styles').length) {
+        $('head').append(`
+            <style id="ajax-styles">
+                .alert-error {
+                    background: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #721c24;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                }
+                .ajax-spinner {
+                    display: inline-block;
+                    margin-right: 8px;
+                }
+                .ajax-users-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 20px;
+                    background: white;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                }
+                .ajax-users-table th {
+                    background: #8B4513;
+                    color: white;
+                    padding: 15px;
+                    text-align: left;
+                    font-weight: 600;
+                }
+                .ajax-users-table td {
+                    padding: 12px 15px;
+                    border-bottom: 1px solid #e9ecef;
+                }
+                .ajax-users-table tr:hover {
+                    background: #f8f9fa;
+                }
+                .ajax-fade-in {
+                    animation: ajaxFadeIn 0.5s ease;
+                }
+                @keyframes ajaxFadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+            </style>
+        `);
+    }
+}
+
+function loadManagerData() {
+    loadStats();
+    loadDepartements();
+    loadRoles();
+    loadUsers();
+}
+
+function setupManagerEvents() {
+    // Gestionnaire du formulaire de création
+    $('#ajax-user-form').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        createUser();
+    });
+
+    // Bouton actualiser
+    $('#ajax-btn-refresh').off('click').on('click', function() {
+        loadUsers();
+    });
+
+    // Gestionnaire des actions sur les utilisateurs (délégation d'événements)
+    $(document).off('click', '.ajax-btn-status').on('click', '.ajax-btn-status', function() {
+        const userId = $(this).data('user-id');
+        const newStatus = $(this).data('new-status');
+        updateUserStatus(userId, newStatus, $(this));
+    });
+}
+
+function setupAutoRefresh() {
+    // Vérifier s'il n'y a pas déjà un timer en cours
+    if (window.managerRefreshTimer) {
+        clearInterval(window.managerRefreshTimer);
+    }
+    
+    // Actualisation automatique toutes les 30 secondes
+    window.managerRefreshTimer = setInterval(function() {
+        if ($('#manager-content').hasClass('active')) {
+            loadStats();
+            loadUsers();
+        }
+    }, 30000);
+}
+
+// Fonctions AJAX
+function loadStats() {
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_stats' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                animateNumber('#stat-total-users', response.data.total_users);
+                animateNumber('#stat-active-users', response.data.active_users);
+                animateNumber('#stat-total-roles', response.data.total_roles);
+            }
+        },
+        error: function() {
+            console.error('Erreur lors du chargement des statistiques');
+        }
+    });
+}
+
+function loadDepartements() {
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_departements' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#ajax_id_departement');
+                select.html('<option value="">Sélectionnez un département</option>');
+                
+                response.data.forEach(function(dept) {
+                    select.append(`<option value="${dept.id}">${dept.nom}</option>`);
+                });
+            }
+        },
+        error: function() {
+            showError('Erreur lors du chargement des départements');
+        }
+    });
+}
+
+function loadRoles() {
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_roles' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#ajax_id_role');
+                select.html('<option value="">Sélectionnez un rôle</option>');
+                
+                response.data.forEach(function(role) {
+                    select.append(`<option value="${role.id}">${role.nom}</option>`);
+                });
+            }
+        },
+        error: function() {
+            showError('Erreur lors du chargement des rôles');
+        }
+    });
+}
+
+function loadUsers() {
+    $('#ajax-users-loading').show();
+    $('#ajax-users-container').hide();
+    
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_users' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                let tableHTML = `
+                    <table class="ajax-users-table">
+                        <thead>
+                            <tr>
+                                <th>Utilisateur</th>
+                                <th>Email</th>
+                                <th>Département</th>
+                                <th>Rôle</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                response.data.forEach(function(user) {
+                    const statusClass = `status-${user.statut}`;
+                    const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
+                    
+                    let actionButton = '';
+                    if (user.statut === 'actif') {
+                        actionButton = `<button class="btn btn-warning ajax-btn-status" data-user-id="${user.id}" data-new-status="suspendu" style="padding: 5px 10px; font-size: 0.8em;">Suspendre</button>`;
+                    } else if (user.statut === 'suspendu') {
+                        actionButton = `<button class="btn btn-success ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="padding: 5px 10px; font-size: 0.8em;">Activer</button>`;
+                    } else {
+                        actionButton = `<button class="btn btn-success ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="padding: 5px 10px; font-size: 0.8em;">Approuver</button>`;
+                    }
+                    
+                    tableHTML += `
+                        <tr class="ajax-fade-in">
+                            <td>${user.nom_utilisateur}</td>
+                            <td>${user.email}</td>
+                            <td>${user.nom_departement || 'N/A'}</td>
+                            <td>${user.nom_role || 'N/A'}</td>
+                            <td><span class="${statusClass}">${statusText}</span></td>
+                            <td>${actionButton}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                        </tbody>
+                    </table>
+                `;
+                
+                $('#ajax-users-container').html(tableHTML);
+                $('#ajax-users-loading').hide();
+                $('#ajax-users-container').show();
+            }
+        },
+        error: function() {
+            $('#ajax-users-loading').hide();
+            $('#ajax-users-container').show();
+            showError('Erreur lors du chargement des utilisateurs');
+        }
+    });
+}
+
+function createUser() {
+    const btn = $('#ajax-btn-create');
+    const spinner = btn.find('.ajax-spinner');
+    
+    // Désactiver le bouton et afficher le spinner
+    btn.prop('disabled', true);
+    spinner.show();
+    
+    const formData = {
+        action: 'create_user',
+        nom_utilisateur: $('#ajax_nom_utilisateur').val(),
+        email: $('#ajax_email').val(),
+        mot_de_passe: $('#ajax_mot_de_passe').val(),
+        id_departement: $('#ajax_id_departement').val(),
+        id_role: $('#ajax_id_role').val()
+    };
+
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showSuccess(response.message);
+                $('#ajax-user-form')[0].reset();
+                loadStats();
+                loadUsers();
+            } else {
+                showError(response.message);
+            }
+        },
+        error: function() {
+            showError('Erreur lors de la création de l\'utilisateur');
+        },
+        complete: function() {
+            // Réactiver le bouton et masquer le spinner
+            btn.prop('disabled', false);
+            spinner.hide();
+        }
+    });
+}
+
+function updateUserStatus(userId, newStatus, button) {
+    const originalText = button.text();
+    button.prop('disabled', true).text('...');
+    
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: {
+            action: 'update_status',
+            user_id: userId,
+            new_status: newStatus
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showSuccess(response.message);
+                loadStats();
+                loadUsers();
+            } else {
+                showError(response.message);
+                button.prop('disabled', false).text(originalText);
+            }
+        },
+        error: function() {
+            showError('Erreur lors de la mise à jour du statut');
+            button.prop('disabled', false).text(originalText);
+        }
+    });
+}
+
+// Fonctions utilitaires
+function showSuccess(message) {
+    $('#success-message').text(message);
+    $('#alert-success').fadeIn().delay(5000).fadeOut();
+}
+
+function showError(message) {
+    $('#error-message').text(message);
+    $('#alert-error').fadeIn().delay(5000).fadeOut();
+}
+
+function animateNumber(selector, finalNumber) {
+    const element = $(selector);
+    const current = parseInt(element.text()) || 0;
+    
+    if (current !== finalNumber) {
+        $({ counter: current }).animate({ counter: finalNumber }, {
+            duration: 1000,
+            easing: 'swing',
+            step: function() {
+                element.text(Math.floor(this.counter));
+            },
+            complete: function() {
+                element.text(finalNumber);
+            }
+        });
+    }
+}
+
+// Nettoyer les timers quand on change d'onglet
+$(document).on('click', '.nav-tab', function() {
+    if (!$(this).text().includes('Gestionnaire de Compte')) {
+        if (window.managerRefreshTimer) {
+            clearInterval(window.managerRefreshTimer);
+        }
+    }
+});
+
+
+
+
+<div id="hosts-content" class="content-section active">
+                <iframe
+                    src="radius_interface.php" 
+                    width="100%" 
+                    height="800" 
+                    frameborder="0"
+                    style="border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                    Chargement de l'interface RADIUS...
+                </iframe>
+            </div>
+
+
+
+
+            <?php
+// radius_interface.php
+// Définition de la constante de rôle
+define('CHEF_DEPT', 5);
+
+// Récupérer le rôle de l'utilisateur depuis les paramètres GET de l'iframe
+$current_user_role_id = (int)($_GET['role_id'] ?? 0); 
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Appareils RADIUS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .department-badge {
+            font-size: 0.8em;
+            padding: 0.3rem 0.6rem;
+        }
+        .mac-address {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .loading {
+            display: none;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body style="background-color: #F5F5DC;"> <style>
+        /* Couleurs du thème marron et blanc */
+        :root {
+            --marron-fonce: #5C4033;
+            --marron-moyen: #8B4513;
+            --marron-clair: #A0522D;
+            --blanc-creme: #FFFAF0;
+            --blanc-casse: #F5F5DC;
+            --couleur-texte: #333333;
+        }
+
+        .bg-marron-fonce { background-color: var(--marron-fonce) !important; color: var(--blanc-creme) !important; }
+        .bg-marron-moyen { background-color: var(--marron-moyen) !important; color: var(--blanc-creme) !important; }
+        .bg-marron-clair { background-color: var(--marron-clair) !important; color: var(--blanc-creme) !important; }
+        .btn-marron {
+            background-color: var(--marron-moyen);
+            color: var(--blanc-creme);
+            border: 1px solid var(--marron-fonce);
+        }
+        .btn-marron:hover {
+            background-color: var(--marron-fonce);
+            color: white;
+        }
+        .card-header { border-bottom: 2px solid var(--marron-fonce); }
+        .table-marron thead { background-color: var(--marron-fonce); color: white; }
+        .table-marron { border: 1px solid var(--marron-fonce); }
+        .table-marron tr:hover { background-color: rgba(92, 64, 51, 0.1); } /* Survol léger */
+
+        /* Couleurs des badges de département */
+        .badge-finance { background-color: #A0522D; }
+        .badge-rh { background-color: #8B4513; }
+        .badge-daj { background-color: #5C4033; }
+        .badge-communication { background-color: #D2B48C; color: var(--marron-fonce); } /* Couleur claire pour la lisibilité */
+        .badge-sg { background-color: #8B5A2B; }
+        
+        .card.shadow-sm {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+        }
+    </style>
+    
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm" style="background-color: var(--blanc-creme); border: 1px solid var(--marron-fonce);">
+                    <div class="card-body">
+                        <h1 class="card-title mb-0" style="color: var(--marron-fonce);">
+                            <i class="fas fa-network-wired" style="color: var(--marron-moyen);"></i>
+                            Gestion des Appareils de l'entreprise
+                        </h1>
+                        <p class="card-text" style="color: var(--marron-moyen);">Authentification MAC par département avec priorisation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm" style="background-color: var(--blanc-creme); border: 1px solid var(--marron-fonce);">
+                    <div class="card-header bg-marron-moyen">
+                        <h5 class="mb-0"><i class="fas fa-plus"></i> Ajouter un appareil</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="addDeviceForm">
+                            <div class="mb-3">
+                                <label for="mac_address" class="form-label" style="color: var(--marron-fonce);">Adresse MAC</label>
+                                <input type="text" class="form-control" id="mac_address" 
+                                       placeholder="aa:bb:cc:dd:ee:ff" pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$" required>
+                                <div class="form-text" style="color: var(--marron-clair);">Format: aa:bb:cc:dd:ee:ff ou aa-bb-cc-dd-ee-ff</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="department" class="form-label" style="color: var(--marron-fonce);">Département</label>
+                                <select class="form-select" id="department" required>
+                                    <option value="">Sélectionner un département</option>
+                                    <option value="finance">Finance (DAF)</option>
+                                    <option value="rh">Ressources Humaines (RH)</option>
+                                    <option value="daj">Direction des Affaires Juridiques (DAJ)</option>
+                                    <option value="communication">Communication</option>
+                                    <option value="sg">Secrétariat Général (SG)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-marron">
+                                <span class="loading"><i class="fas fa-spinner fa-spin"></i></span>
+                                <i class="fas fa-plus"></i> Ajouter l'appareil
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm" style="background-color: var(--blanc-creme); border: 1px solid var(--marron-fonce);">
+                    <div class="card-header bg-marron-clair">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiques</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="stats" class="row text-center" style="color: var(--marron-fonce);">
+                            <div class="col">
+                                <div class="spinner-border" style="color: var(--marron-moyen);" role="status"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm" style="background-color: var(--blanc-creme); border: 1px solid var(--marron-fonce);">
+                    <div class="card-header bg-marron-fonce d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Appareils configurés</h5>
+                        <button class="btn btn-light btn-sm" onclick="loadDevices()" style="background-color: var(--blanc-creme); color: var(--marron-fonce);">
+                            <i class="fas fa-sync-alt"></i> Actualiser
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 table-marron">
+                                <thead>
+                                    <tr>
+                                        <th>Adresse MAC</th>
+                                        <th>Département</th>
+                                        <th>Groupe</th>
+                                        <th>Bande passante</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="devicesTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4" style="color: var(--marron-moyen);">
+                                            <div class="spinner-border" style="color: var(--marron-moyen);" role="status"></div>
+                                            <div class="mt-2">Chargement des appareils...</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            loadDevices();
+            loadStats();
+        });
+
+        // Charger la liste des appareils
+        function loadDevices() {
+            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+                if (response.success) {
+                    displayDevices(response.data);
+                } else {
+                    $('#devicesTable').html('<tr><td colspan="5" class="text-center text-danger" style="color: var(--marron-fonce);">Erreur: ' + response.error + '</td></tr>');
+                }
+            }, 'json').fail(function() {
+                $('#devicesTable').html('<tr><td colspan="5" class="text-center text-danger" style="color: var(--marron-fonce);">Erreur de communication avec le serveur</td></tr>');
+            });
+        }
+
+        // Afficher les appareils
+        function displayDevices(devices) {
+            let html = '';
+            if (devices.length === 0) {
+                html = '<tr><td colspan="5" class="text-center" style="color: var(--marron-fonce); font-weight: bold;">Aucun appareil configuré</td></tr>';
+            } else {
+                devices.forEach(function(device) {
+                    const departmentColors = {
+                        'finance': 'badge-finance',
+                        'rh': 'badge-rh', 
+                        'daj': 'badge-daj',
+                        'communication': 'badge-communication',
+                        'sg': 'badge-sg'
+                    };
+                    
+                    html += `
+                        <tr>
+                            <td class="mac-address">${device.mac_address}</td>
+                            <td><span class="badge ${departmentColors[device.department]} department-badge">${device.department.toUpperCase()}</span></td>
+                            <td>${device.group}</td>
+                            <td><strong>${device.bandwidth}</strong></td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.mac_address}')" style="background-color: var(--marron-moyen); color: white; border-color: var(--marron-fonce);">
+                                    <i class="fas fa-trash"></i> Supprimer
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            $('#devicesTable').html(html);
+        }
+
+        // Ajouter un appareil
+        $('#addDeviceForm').submit(function(e) {
+            e.preventDefault();
+            
+            const mac = $('#mac_address').val();
+            const department = $('#department').val();
+            
+            // Animation de chargement
+            $('.loading').show();
+            $('button[type="submit"]').prop('disabled', true);
+            
+            $.post('radius_devices.php', {
+                action: 'add_device',
+                mac_address: mac,
+                department: department
+            }, function(response) {
+                if (response.success) {
+                    alert('✅ Appareil ajouté avec succès !');
+                    $('#addDeviceForm')[0].reset();
+                    loadDevices();
+                    loadStats();
+                } else {
+                    alert('❌ Erreur: ' + response.error);
+                }
+            }, 'json').fail(function() {
+                alert('❌ Erreur de communication avec le serveur');
+            }).always(function() {
+                $('.loading').hide();
+                $('button[type="submit"]').prop('disabled', false);
+            });
+        });
+
+        // Supprimer un appareil
+        function deleteDevice(mac) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?\n\nMAC: ' + mac)) {
+                $.post('radius_devices.php', {
+                    action: 'delete_device',
+                    mac_address: mac
+                }, function(response) {
+                    if (response.success) {
+                        alert('✅ Appareil supprimé avec succès !');
+                        loadDevices();
+                        loadStats();
+                    } else {
+                        alert('❌ Erreur: ' + response.error);
+                    }
+                }, 'json').fail(function() {
+                    alert('❌ Erreur de communication avec le serveur');
+                });
+            }
+        }
+
+        // Charger les statistiques
+        function loadStats() {
+            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+                if (response.success) {
+                    const devices = response.data;
+                    const stats = {};
+                    
+                    devices.forEach(function(device) {
+                        stats[device.department] = (stats[device.department] || 0) + 1;
+                    });
+                    
+                    let html = `
+                        <div class="col"><h6 style="color: var(--marron-fonce);">Total</h6><h4 style="color: var(--marron-moyen);">${devices.length}</h4></div>
+                        <div class="col"><h6 style="color: var(--marron-fonce);">Finance</h6><h4 style="color: var(--marron-fonce);">${stats.finance || 0}</h4></div>
+                        <div class="col"><h6 style="color: var(--marron-fonce);">RH</h6><h4 style="color: var(--marron-fonce);">${stats.rh || 0}</h4></div>
+                        <div class="col"><h6 style="color: var(--marron-fonce);">DAJ</h6><h4 style="color: var(--marron-fonce);">${stats.daj || 0}</h4></div>
+                        <div class="col"><h6 style="color: var(--marron-fonce);">Comm</h6><h4 style="color: var(--marron-fonce);">${stats.communication || 0}</h4></div>
+                        <div class="col"><h6 style="color: var(--marron-fonce);">SG</h6><h4 style="color: var(--marron-fonce);">${stats.sg || 0}</h4></div>
+                    `;
+                    
+                    $('#stats').html(html);
+                }
+            }, 'json');
+        }
+    </script>
+</body>
+</html>
+
+
+dashboard avec condition:::
+
+
+
+<?php
+// PHP : Assurez-vous que la session est démarrée au tout début du script
+session_start();
+
+// Définition de l'ID de l'utilisateur connecté
+$user_role_id = $_SESSION['role_lib'] ?? "";
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RADIUS Dashboard - Tableau de Bord Ministére des Mines</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #F4A460 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            color: #8B4513;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            text-align: center;
+            color: #A0522D;
+            font-size: 1.1em;
+        }
+
+        .navigation {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            border-bottom: 4px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #8B4513;
+            border-bottom-color: #D2691E;
+            transform: translateY(-2px);
+        }
+
+        .content {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            min-height: 600px;
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 2em;
+            color: #8B4513;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #D2691E;
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #F4A460 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .device-list {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .device-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #D2691E;
+            box-shadow: 0 2px 5px rgba(139, 69, 19, 0.1);
+        }
+
+        .device-mac {
+            font-weight: bold;
+            color: #8B4513;
+        }
+
+        .device-dept {
+            color: #A0522D;
+            font-size: 0.9em;
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #8B4513;
+            color: white;
+        }
+
+        .btn-success {
+            background: #D2691E;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #F4A460;
+            color: #8B4513;
+        }
+
+        .btn-danger {
+            background: #CD853F;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .access-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .access-table th {
+            background: #8B4513;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .access-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .access-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-online {
+            color: #D2691E;
+            font-weight: bold;
+        }
+
+        .status-offline {
+            color: #CD853F;
+            font-weight: bold;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #F5DEB3;
+            border: 1px solid #D2691E;
+            color: #8B4513;
+        }
+    </style>
+</head>
+<!-- Avant </body> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="manager.js"></script>
+<body>
+    <div class="container">
+        <!-- En-tête -->
+        <div class="header">
+            <div class="header-content">
+                <img src="images/logomine.jpg" alt="Logo Ministère des Mines" class="header-logo">
+                <h1>Tableau de Bord Ministére des Mines</h1>
+            </div>
+            <p>Système de Gestion des Accès Réseau </p>
+        </div>
+
+        <!-- Barre de navigation -->
+        <div class="navigation">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchTab('hosts')">
+                    🏢 Hôtes de l'Entreprise
+                </button>
+                <button class="nav-tab" onclick="switchTab('strangers')">
+                    👥 Étrangers
+                </button>
+                <button class="nav-tab" onclick="switchTab('manager')">
+                    ⚙️ Gestionnaire de Compte
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenu dynamique -->
+<!-- Section Hôtes de l'Entreprise2 - Interface RADIUS Existante -->
+            <div id="hosts-content" class="content-section active">
+    <iframe
+        src="radius_interface.php?role_lib=<?php echo $user_role_id; ?>" 
+        width="100%" 
+        height="800" 
+        frameborder="0"
+        style="border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+        Chargement de l'interface RADIUS...
+    </iframe>
+</div>
+
+
+            <!-- Section Étrangers -->
+           
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Styles personnalisés pour correspondre à votre thème */
+        body {
+            background-color: #F5F5DC; /* Couleur de fond de votre thème */
+        }
+        .content-section {
+            padding: 20px;
+            background-color: #FFFFFF; /* Fond blanc pour la carte */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #ced4da; /* Bordure légère */
+        }
+        .section-title {
+            color: #5C4033; /* Marron foncé pour le titre */
+            margin-bottom: 20px;
+            border-bottom: 2px solid #8B4513; /* Marron moyen pour la ligne */
+            padding-bottom: 10px;
+        }
+        .form-label {
+            color: #5C4033; /* Couleur de texte des labels */
+            font-weight: bold;
+        }
+        .form-control[type="date"] {
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            height: calc(1.5em + 0.75rem + 2px);
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        }
+        .form-control[type="date"]:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .btn-primary {
+            background-color: #8B4513; /* Marron moyen pour les boutons */
+            border-color: #8B4513;
+        }
+        .btn-primary:hover {
+            background-color: #5C4033; /* Marron foncé au survol */
+            border-color: #5C4033;
+        }
+        .table-responsive {
+            margin-top: 20px;
+        }
+        .table thead th {
+            background-color: #5C4033; /* En-tête de tableau marron foncé */
+            color: #fff;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f0f0f0; /* Effet de survol */
+        }
+        .text-success { color: #28a745 !important; }
+        .text-danger { color: #dc3545 !important; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+    <div id="strangers-content" class="content-section">
+        <h2 class="section-title">Historique des Accès Étrangers</h2>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label for="startDate" class="form-label">Date de début</label>
+                <input type="date" class="form-control" id="startDate">
+            </div>
+            <div class="col-md-4">
+                <label for="endDate" class="form-label">Date de fin</label>
+                <input type="date" class="form-control" id="endDate">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" id="filter-btn">
+                    <i class="fas fa-filter"></i> Filtrer
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered">
+                <thead>
+                    <tr>
+                        <th>Nom d'utilisateur</th>
+                        <th>Adresse MAC</th>
+                        <th>Adresse IP</th>
+                        <th>Début de session</th>
+                        <th>Fin de session</th>
+                        <th>Durée</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Chargement des données...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        loadHistory();
+        $("#filter-btn").on('click', function() {
+            loadHistory();
+        });
+    });
+
+    function loadHistory() {
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+        
+        $('#history-table').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Chargement des données...</td></tr>');
+        
+        $.ajax({
+            url: 'history.php',
+            type: 'POST',
+            data: {
+                action: 'get_history',
+                start_date: startDate,
+                end_date: endDate
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    displayHistory(response.data);
+                } else {
+                    $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Erreur: ' + response.message + '</td></tr>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Erreur AJAX: " + status + ", " + error);
+                $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-times-circle me-2"></i>Une erreur de communication est survenue.</td></tr>');
+            }
+        });
+    }
+    
+    function displayHistory(records) {
+        let html = '';
+        if (records.length === 0) {
+            html = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Aucune connexion trouvée pour la période sélectionnée.</td></tr>';
+        } else {
+            records.forEach(function(record) {
+                const status = record.acctstoptime ? 'Déconnecté' : 'Actif';
+                const statusClass = record.acctstoptime ? 'text-danger' : 'text-success';
+                const timeLeft = calculateTimeLeft(record.acctstarttime, record.acctstoptime);
+                
+                html += `
+                    <tr>
+                        <td>${record.username}</td>
+                        <td>${record.callingstationid}</td>
+                        <td>${record.framedipaddress || 'N/A'}</td>
+                        <td>${record.acctstarttime}</td>
+                        <td>${record.acctstoptime || 'En cours'}</td>
+                        <td>${formatDuration(record.acctsessiontime)}</td>
+                        <td class="${statusClass}">
+                            ${status}
+                            ${status === 'Actif' ? `<br/><small>(${timeLeft} restants)</small>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        $('#history-table').html(html);
+    }
+
+    function calculateTimeLeft(startTime, stopTime) {
+        if (stopTime) return '';
+        const sessionDuration = 2 * 60;
+        const now = new Date();
+        const start = new Date(startTime);
+        const elapsedSeconds = (now - start) / 1000;
+        const remainingSeconds = sessionDuration - elapsedSeconds;
+        if (remainingSeconds <= 0) {
+            return 'Expiré';
+        }
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = Math.floor(remainingSeconds % 60);
+        return `${minutes}min ${seconds}s`;
+    }
+    
+    function formatDuration(seconds) {
+        if (seconds === null || seconds === undefined || isNaN(seconds)) return 'N/A';
+        const totalSeconds = parseInt(seconds);
+        if (totalSeconds < 0) return 'N/A';
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const sec = totalSeconds % 60;
+        let result = [];
+        if (hours > 0) result.push(`${hours}h`);
+        if (minutes > 0 || hours > 0) result.push(`${minutes}min`);
+        result.push(`${sec}s`);
+        return result.join(' ');
+    }
+</script>
+
+</body>
+</html>
+
+                <!-- Section Gestionnaire de Compte -->
+     <!-- Bouton de déconnexion avec confirmation JavaScript -->
+<button onclick="confirmLogout()" class="btn btn-danger">
+    <i class="fas fa-sign-out-alt"></i> Déconnexion
+</button>
+
+<script>
+function confirmLogout() {
+    if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
+        window.location.href = "logout.php";
+    }
+}
+</script>           
+                    
+    <div id="manager-content" class="content-section active">
+    <h2 class="section-title">Gestionnaire de Compte</h2>
+    
+    <div id="alert-success" class="alert alert-success" style="display: none;">
+        <strong>Succès :</strong> <span id="success-message"></span>
+    </div>
+    <div id="alert-error" class="alert alert-error" style="display: none;">
+        <strong>Erreur :</strong> <span id="error-message"></span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number" id="stat-total-users">-</div>
+            <div class="stat-label">Total Utilisateurs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="stat-active-users">-</div>
+            <div class="stat-label">Utilisateurs Actifs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="stat-total-roles">-</div>
+            <div class="stat-label">Rôles Disponibles</div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; margin-top: 30px;">
+        <div>
+            <h3>Créer un Nouveau Compte</h3>
+            <form id="ajax-user-form">
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" required placeholder="Entrez le nom d'utilisateur">
+                </div>
+                
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="ajax_email" name="email" required placeholder="utilisateur@entreprise.com">
+                </div>
+                
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" required placeholder="Mot de passe sécurisé">
+                </div>
+                
+                <div class="form-group">
+                    <label>Département</label>
+                    <select id="ajax_id_departement" name="id_departement" required>
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Rôle</label>
+                    <select id="ajax_id_role" name="id_role" required>
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="ajax-btn-create">
+                    <span class="ajax-spinner" style="display: none;">⏳</span>
+                    Créer le Compte
+                </button>
+            </form>
+        </div>
+        
+      
+
+    <div>
+
+        <div>
+            <h3>Utilisateurs Existants 
+                <button type="button" class="btn btn-success" id="ajax-btn-refresh" style="padding: 8px 15px; font-size: 0.9em; float: right;">
+                    🔄 Actualiser
+                </button>
+            </h3>
+            
+            <div id="ajax-users-loading" class="ajax-loading" style="display: none; text-align: center; padding: 20px; color: #8B4513;">
+                Chargement des utilisateurs...
+            </div>
+            
+            <div id="ajax-users-container">
+                </div>
+        </div>
+    </div>
+</div>
+
+    <script>
+        function switchTab(tabName) {
+            // Masquer toutes les sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => section.classList.remove('active'));
+            
+            // Désactiver tous les onglets
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Activer la section et l'onglet sélectionnés
+            document.getElementById(tabName + '-content').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Animation des statistiques au chargement
+        window.addEventListener('load', function() {
+            const statNumbers = document.querySelectorAll('.stat-number');
+            statNumbers.forEach(stat => {
+                const finalNumber = stat.textContent;
+                stat.textContent = '0';
+                
+                // Animation simple des nombres
+                let current = 0;
+                const increment = parseInt(finalNumber) / 50;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= parseInt(finalNumber)) {
+                        stat.textContent = finalNumber;
+                        clearInterval(timer);
+                    } else {
+                        stat.textContent = Math.floor(current);
+                    }
+                }, 30);
+            });
+        });
+
+        // Simulation de données en temps réel
+        setInterval(() => {
+            const activeDevices = document.querySelector('.stat-number');
+            if (activeDevices) {
+                let current = parseInt(activeDevices.textContent);
+                // Variation aléatoire de ±2
+                let variation = Math.floor(Math.random() * 5) - 2;
+                let newValue = Math.max(140, Math.min(150, current + variation));
+                activeDevices.textContent = newValue;
+            }
+        }, 10000);
+    </script>
+    <!-- Avant </body> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="manager.js"></script>
+
+</script>
+
+</body>
+</html>
+
+
+
+<?php
+session_start();
+include("./conection.php");
+
+// Constante pour le rôle à rediriger (assurez-vous que ce libellé correspond exactement à votre BDD)
+/*define('CHEF_DEPT_LABEL', "Administrateur Département");
+
+$msg = ''; // Initialisation du message d'erreur*/
+
+define('CHEF_DEPT', 5);
+// Récupérer le rôle de l'utilisateur depuis les paramètres GET de l'iframe
+$current_user_role_id = $_GET['role_lib'] ?? ""; 
+echo "chef dept".$current_user_role_id."</BR>";
+
+    
+
+
+if (isset($_POST['username'])) {
+  
+  // Requête pour récupérer les données de l'utilisateur et le libellé du rôle
+  $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
+          WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
+  $stmt = $conection->prepare($sql);
+  
+  // Utilisez un contrôle d'erreur basique pour bind_param et execute (bonne pratique)
+  if ($stmt === false || $stmt->bind_param("s", $_POST['username']) === false || $stmt->execute() === false) {
+      // Gérer l'erreur de requête ou de connexion
+      $msg = "Erreur de connexion à la base de données.";
+      // Vous pouvez ajouter error_log(print_r($conection->error_list, true)); pour le débogage.
+  } else {
+    
+      $result = $stmt->get_result();
+      
+      if ($result->num_rows > 0) {
+        
+        $row = $result->fetch_assoc();
+        
+        // Vérification du mot de passe
+        if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
+          
+          // CONNEXION RÉUSSIE
+          $_SESSION["user"] = $row['nom_utilisateur'];
+          $_SESSION['role_lib'] = $row['lib_role'];
+          
+         
+          // LOGIQUE DE REDIRECTION
+          // Définition de la constante de rôle
+
+          $target_page = "./dashboard.php"; // Redirection par défaut
+          
+            // Si le rôle EST  l'Administrateur de Département (ID 5), on affiche le formulaire
+                        if ($current_user_role_id == "ADMIN") { 
+          
+              $target_page = "./admin.php"; 
+          }
+          
+          header("Location: " . $target_page);
+          exit();
+          
+        } else {
+          $msg = "Login ou mot de passe incorrect";
+        }
+      } else {
+        $msg = "Login ou mot de passe incorrect";
+      }
+      $stmt->close();
+  }
+}
+?>
+<!doctype html>
+<html lang="en" data-bs-theme="auto">
+
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+  <meta name="generator" content="Hugo 0.122.0">
+  <title>Signin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" 
+  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+  <style>
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background: linear-gradient(135deg,rgb(41, 17, 1), #D2B48C); /* fond marron doré */
+    font-family: Arial, sans-serif;
+  }
+
+  .login-container {
+    display: flex;
+    height: 100%;
+  }
+
+  .login-left {
+    flex: 1;
+    background: url('images/logomine.jpg') center center no-repeat;
+    background-size: contain;
+  }
+
+  .login-right {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .login-form {
+    background-color: rgba(255, 255, 255, 0.95); /* blanc semi-transparent */
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    max-width: 280px;
+    width: 100%;
+    margin-top: 100px;
+  }
+</style>
+</head>
+<body>
+<div class="login-container">
+  <div class="login-left"></div>
+  <div class="login-right">
+    <form method="POST" action="login.php" class="login-form">
+      <h1 class="h4 mb-3 fw-bold text-center">Veuillez vous connecter </h1>
+      <p class="text-danger text-center"><?php echo $msg ?? ''; ?></p>
+
+      <div class="form-floating mb-3">
+        <input required type="text" class="form-control" id="floatingInput" placeholder="Username" name="username" value="<?php echo $_POST['username'] ?? ''; ?>">
+        <label for="floatingInput">Nom d'utilisateur</label>
+      </div>
+
+      <div class="form-floating mb-3">
+        <input required type="password" class="form-control" id="floatingPassword" placeholder="Password" name="pass">
+        <label for="floatingPassword">Mot de passe</label>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="remember-me" id="flexCheckDefault" name="forget">
+        <label class="form-check-label" for="flexCheckDefault">
+          Se souvenir de moi
+        </label>
+      </div>
+
+      <button class="btn btn-primary w-100 mb-2" type="submit" name="ok">Connexion</button>
+      <button type="button" class="btn btn-outline-secondary w-100">S'inscrire</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
+
+
+
+
+
