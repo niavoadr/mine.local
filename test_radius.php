@@ -1,5 +1,6 @@
 <?php
 // Fichier de test pour diagnostiquer les problèmes RADIUS
+require_once __DIR__ . '/env.php';
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
@@ -33,12 +34,13 @@ header('Content-Type: text/html; charset=utf-8');
         <h3>🔌 Test 1: Connexion à la base de données</h3>
         <?php
         try {
-            $host = 'localhost';
-            $username = 'root';
-            $password = '123456';
-            $database = 'radius';
+            $host     = env('TEST_DB_HOST', env('RADIUS_DB_HOST', 'localhost'));
+            $username = env('TEST_DB_USER', 'root');
+            $password = env('TEST_DB_PASS', '123456');
+            $database = env('TEST_DB_NAME', env('RADIUS_DB_NAME', 'radius'));
+            $port     = (int) env('RADIUS_DB_PORT', 3306);
             
-            $conn = mysqli_connect($host, $username, $password, $database);
+            $conn = mysqli_connect($host, $username, $password, $database, $port);
             
             if (!$conn) {
                 echo "<div class='error'>❌ Erreur de connexion: " . mysqli_connect_error() . "</div>";

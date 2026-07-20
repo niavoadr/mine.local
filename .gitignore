@@ -1,0 +1,9 @@
+# Fichiers d'environnement contenant des informations sensibles (mots de passe, clés, API)
+.env
+.env.local
+*.env
+!.env.example
+
+# Logs et fichiers temporaires
+*.log
+*.tmp
