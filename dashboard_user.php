@@ -1,492 +1,529 @@
 <?php
-// PHP : Assurez-vous que la session est démarrée au tout début du script
 session_start();
 
 // Définition de l'ID de l'utilisateur connecté
 $user_role_id = $_SESSION['role_lib'] ?? "";
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADIUS Dashboard - Tableau de Bord Ministére des Mines</title>
+    <title>RADIUS Dashboard - Tableau de Bord Administration Restreinte</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
+        :root {
+            --bg-dark-1: #0a0a0c;
+            --bg-dark-2: #141418;
+            --bg-card: rgba(24, 24, 30, 0.8);
+            --gold-primary: #DAA520;
+            --gold-dark: #B8860B;
+            --gold-glow: rgba(218, 165, 32, 0.25);
+            --border-gold: rgba(218, 165, 32, 0.28);
+            --text-muted: #9ca3af;
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #F4A460 100%);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-dark-1);
+            background-image: 
+                radial-gradient(circle at 15% 10%, rgba(184, 134, 11, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(218, 165, 32, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(20, 20, 25, 1) 0%, var(--bg-dark-1) 100%);
+            color: #e5e7eb;
+            margin: 0;
+            padding: 0;
             min-height: 100vh;
-            color: #333;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        /* ===== BARRE DE STATUT MINISTÉRIELLE ===== */
+        .ministry-status-bar {
+            background: rgba(10, 10, 12, 0.95);
+            border-bottom: 1px solid var(--border-gold);
+            padding: 0.45rem 1.5rem;
+            font-size: 0.75rem;
+            color: var(--gold-primary);
+            font-weight: 600;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .header {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #FFD700;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            box-shadow: 0 0 8px #FFD700;
+            animation: pulseGold 2s infinite;
+        }
+
+        @keyframes pulseGold {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.15); }
+        }
+
+        /* ===== EN-TÊTE DU DASHBOARD ===== */
+        .dashboard-header {
+            background: rgba(18, 18, 24, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-logo-box {
+            width: 50px;
+            height: 50px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
+            border: 2px solid var(--gold-primary);
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.25);
         }
 
-        .header-content {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .header-logo {
-            width: 60px;
-            height: 60px;
+        .header-logo-box img {
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
         }
 
-        .header h1 {
-            color: #8B4513;
-            font-size: 2.5em;
-            text-align: center;
-            margin-bottom: 10px;
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0;
         }
 
-        .header p {
-            text-align: center;
-            color: #A0522D;
-            font-size: 1.1em;
+        .header-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
         }
 
-        .navigation {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .nav-tabs {
-            display: flex;
-            background: #f8f9fa;
+        /* ===== NAVIGATION BAR (ONGLETS) ===== */
+        .nav-tabs-container {
+            background: rgba(14, 14, 18, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50px;
+            padding: 6px;
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .nav-tab {
-            flex: 1;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            border: none;
             background: transparent;
-            font-size: 1.1em;
+            border: none;
+            border-radius: 50px;
+            color: var(--text-muted);
+            padding: 0.55rem 1.25rem;
             font-weight: 600;
-            color: #6c757d;
-            transition: all 0.3s ease;
-            border-bottom: 4px solid transparent;
+            font-size: 0.88rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
         }
 
         .nav-tab:hover {
-            background: #e9ecef;
-            color: #495057;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .nav-tab.active {
-            background: white;
-            color: #8B4513;
-            border-bottom-color: #D2691E;
-            transform: translateY(-2px);
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
+            color: #000000 !important;
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.4);
         }
 
-        .content {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 30px;
-            min-height: 600px;
+        .user-profile-pill {
+            background: rgba(218, 165, 32, 0.12);
+            border: 1px solid var(--border-gold);
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
         }
 
+        .btn-logout-modern {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #f87171;
+            padding: 0.45rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-logout-modern:hover {
+            background: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* ===== CONTENU PRINCIPAL ===== */
         .content-section {
             display: none;
-            animation: fadeIn 0.5s ease;
+            animation: fadeInTab 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         .content-section.active {
             display: block;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
+        @keyframes fadeInTab {
+            from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .section-title {
-            font-size: 2em;
-            color: #8B4513;
-            margin-bottom: 20px;
-            border-bottom: 3px solid #D2691E;
-            padding-bottom: 10px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #F4A460 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.3);
-            transition: transform 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-number {
-            font-size: 2.5em;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .stat-label {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .device-list {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .device-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid #D2691E;
-            box-shadow: 0 2px 5px rgba(139, 69, 19, 0.1);
-        }
-
-        .device-mac {
-            font-weight: bold;
-            color: #8B4513;
-        }
-
-        .device-dept {
-            color: #A0522D;
-            font-size: 0.9em;
-        }
-
-        .action-buttons {
-            margin-top: 20px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: #8B4513;
-            color: white;
-        }
-
-        .btn-success {
-            background: #D2691E;
-            color: white;
-        }
-
-        .btn-warning {
-            background: #F4A460;
-            color: #8B4513;
-        }
-
-        .btn-danger {
-            background: #CD853F;
-            color: white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-
-        .form-group input,
-        .form-group select {
+        .glass-iframe {
+            border-radius: 18px;
+            background: transparent;
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: border-color 0.3s ease;
+            height: 860px;
+            border: 1px solid var(--border-gold);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         }
 
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #007bff;
-        }
-
-        .access-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
-            border-radius: 10px;
+        .card-custom {
+            background: var(--bg-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 1.5rem;
             overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        .access-table th {
-            background: #8B4513;
-            color: white;
-            padding: 15px;
-            text-align: left;
+        .card-custom-header {
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.15) 0%, rgba(184, 134, 11, 0.08) 100%);
+            border-bottom: 1px solid var(--border-gold);
+            padding: 1rem 1.5rem;
+            color: #FFD700;
             font-weight: 600;
         }
 
-        .access-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e9ecef;
+        .card-custom-body {
+            padding: 1.5rem;
         }
 
-        .access-table tr:hover {
-            background: #f8f9fa;
+        .form-control {
+            background: rgba(18, 18, 22, 0.9) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 12px !important;
+            color: #ffffff !important;
+            padding: 0.65rem 1rem !important;
         }
 
-        .status-online {
-            color: #D2691E;
-            font-weight: bold;
+        .form-control:focus {
+            border-color: var(--gold-primary) !important;
+            box-shadow: 0 0 0 4px var(--gold-glow) !important;
         }
 
-        .status-offline {
-            color: #CD853F;
-            font-weight: bold;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .alert-info {
-            background: #F5DEB3;
-            border: 1px solid #D2691E;
-            color: #8B4513;
-        }
-    </style>
-</head>
-<!-- Avant </body> -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js"></script>
-<body>
-    <div class="container">
-        <!-- En-tête -->
-        <div class="header">
-            <div class="header-content">
-                <img src="images/logomine.jpg" alt="Logo Ministère des Mines" class="header-logo">
-                <h1>Tableau de Bord Ministére des Mines</h1>
-            </div>
-            <p>Système de Gestion des Accès Réseau </p>
-        </div>
-
-        <!-- Barre de navigation -->
-        <div class="navigation">
-            <div class="nav-tabs">
-                <button class="nav-tab active" onclick="switchTab('hosts')">
-                    🏢 Hôtes de l'Entreprise
-                </button>
-                <button class="nav-tab" onclick="switchTab('strangers')">
-                    👥 Étrangers
-                </button>
-                <button class="nav-tab" onclick="switchTab('manager')">
-                    ⚙️ Gestionnaire de Compte
-                </button>
-            </div>
-        </div>
-
-        <!-- Contenu dynamique -->
-         
-<!-- Section Hôtes de l'Entreprise2 - Interface RADIUS Existante -->
-            <div id="hosts-content" class="content-section active">
-    <iframe
-        src="radius_interface_admin.php?role_lib=<?php echo $user_role_id; ?>" 
-        width="100%" 
-        height="800" 
-        frameborder="0"
-        style="border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-        Chargement de l'interface RADIUS...
-    </iframe>
-</div>
-
-
-            <!-- Section Étrangers -->
-           
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    
-    <style>
-        /* Styles personnalisés pour correspondre à votre thème */
-        body {
-            background-color: #F5F5DC; /* Couleur de fond de votre thème */
-        }
-        .content-section {
-            padding: 20px;
-            background-color: #FFFFFF; /* Fond blanc pour la carte */
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #ced4da; /* Bordure légère */
-        }
-        .section-title {
-            color: #5C4033; /* Marron foncé pour le titre */
-            margin-bottom: 20px;
-            border-bottom: 2px solid #8B4513; /* Marron moyen pour la ligne */
-            padding-bottom: 10px;
-        }
-        .form-label {
-            color: #5C4033; /* Couleur de texte des labels */
-            font-weight: bold;
-        }
-        .form-control[type="date"] {
-            border: 1px solid #ced4da;
-            border-radius: 0.25rem;
-            padding: 0.375rem 0.75rem;
-            height: calc(1.5em + 0.75rem + 2px);
-            font-size: 1rem;
-            line-height: 1.5;
-            color: #495057;
-            background-color: #fff;
-            background-clip: padding-box;
-            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-        }
-        .form-control[type="date"]:focus {
-            border-color: #80bdff;
-            outline: 0;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-        .btn-primary {
-            background-color: #8B4513; /* Marron moyen pour les boutons */
-            border-color: #8B4513;
-        }
-        .btn-primary:hover {
-            background-color: #5C4033; /* Marron foncé au survol */
-            border-color: #5C4033;
-        }
         .table-responsive {
-            margin-top: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
         }
+
+        .table {
+            margin-bottom: 0;
+            color: #e5e7eb;
+        }
+
         .table thead th {
-            background-color: #5C4033; /* En-tête de tableau marron foncé */
-            color: #fff;
+            background: rgba(218, 165, 32, 0.15);
+            color: #FFD700;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.82rem;
+            letter-spacing: 0.5px;
+            border: none;
+            padding: 14px 18px;
         }
-        .table-hover tbody tr:hover {
-            background-color: #f0f0f0; /* Effet de survol */
+
+        .table tbody tr td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
+            vertical-align: middle;
+            font-size: 0.92rem;
         }
-        .text-success { color: #28a745 !important; }
-        .text-danger { color: #dc3545 !important; }
+
+        .table tbody tr:hover td {
+            background: rgba(218, 165, 32, 0.08);
+        }
+
+        /* ===== SURCHARGES SPÉCIFIQUES POUR LE GESTIONNAIRE DE COMPTE (#manager-content) ===== */
+        #manager-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 22px;
+            padding: 2.5rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        #manager-content .section-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+        }
+
+        #manager-content .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        #manager-content .stat-card {
+            background: rgba(30, 30, 38, 0.8) !important;
+            border: 1px solid var(--border-gold) !important;
+            border-radius: 18px !important;
+            padding: 1.5rem !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+            transition: transform 0.3s ease !important;
+        }
+
+        #manager-content .stat-card:hover {
+            transform: translateY(-4px) !important;
+            border-color: var(--gold-primary) !important;
+        }
+
+        #manager-content .stat-number {
+            color: #FFD700 !important;
+            font-size: 2.5rem !important;
+            font-weight: 700 !important;
+        }
+
+        #manager-content .stat-label {
+            color: var(--text-muted) !important;
+            font-size: 0.85rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        #manager-content .ajax-users-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 1.5rem;
+        }
+
+        #manager-content .ajax-users-table th {
+            background: rgba(218, 165, 32, 0.15);
+            color: #FFD700;
+            padding: 14px 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.82rem;
+            letter-spacing: 0.5px;
+            border: none;
+        }
+
+        #manager-content .ajax-users-table td {
+            background: rgba(30, 30, 38, 0.7);
+            color: #e5e7eb;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #manager-content .ajax-users-table tr:hover td {
+            background: rgba(45, 45, 55, 0.85);
+        }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
-<div class="container mt-4">
-    <div id="strangers-content" class="content-section">
-        <h2 class="section-title">Historique des Accès Étrangers</h2>
-        
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <label for="startDate" class="form-label">Date de début</label>
-                <input type="date" class="form-control" id="startDate">
-            </div>
-            <div class="col-md-4">
-                <label for="endDate" class="form-label">Date de fin</label>
-                <input type="date" class="form-control" id="endDate">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button class="btn btn-primary w-100" id="filter-btn">
-                    <i class="fas fa-filter"></i> Filtrer
-                </button>
-            </div>
+    <!-- BARRE DE STATUT MINISTÉRIELLE -->
+    <div class="ministry-status-bar">
+        <div class="d-flex align-items-center">
+            <span class="status-indicator"></span>
+            <span>SYSTÈME SÉCURISÉ | TABLEAU DE BORD ADMINISTRATION RESTREINTE — MINISTÈRE DES MINES</span>
         </div>
-
-        <div class="table-responsive">
-            <table class="table table-hover table-bordered">
-                <thead>
-                    <tr>
-                        <th>Nom d'utilisateur</th>
-                        <th>Adresse MAC</th>
-                        <th>Adresse IP</th>
-                        <th>Début de session</th>
-                        <th>Fin de session</th>
-                        <th>Durée</th>
-                        <th>Statut</th>
-                    </tr>
-                </thead>
-                <tbody id="history-table">
-                    <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <i class="fas fa-spinner fa-spin me-2"></i>Chargement des données...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="d-none d-md-block text-muted">
+            <i class="fa-regular fa-clock me-1"></i> <span id="clock-display"><?php echo date('d/m/Y H:i'); ?></span>
         </div>
     </div>
-</div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- EN-TÊTE ET NAVIGATION -->
+    <header class="dashboard-header">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-logo-box">
+                    <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+                </div>
+                <div>
+                    <h1 class="header-title">Tableau de Bord Départemental</h1>
+                    <span class="header-subtitle">Ministère des Mines — Vue Administrateur Restreint</span>
+                </div>
+            </div>
 
-<script>
+            <!-- ONGLETS DE NAVIGATION -->
+            <nav class="nav-tabs-container">
+                <button class="nav-tab active" onclick="switchTab('hosts')">
+                    <i class="fa-solid fa-building-shield"></i> <span>Hôtes de l'Entreprise</span>
+                </button>
+                <button class="nav-tab" onclick="switchTab('strangers')">
+                    <i class="fa-solid fa-users-viewfinder"></i> <span>Accès Étrangers</span>
+                </button>
+                <button class="nav-tab" onclick="switchTab('manager')">
+                    <i class="fa-solid fa-users-gear"></i> <span>Gestionnaire de Compte</span>
+                </button>
+            </nav>
+
+            <!-- UTILISATEUR & DECONNEXION -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
+                    <i class="fa-solid fa-user-shield text-warning"></i>
+                    <span class="fw-semibold"><?php echo htmlspecialchars($_SESSION['user'] ?? 'Chef Dept'); ?></span>
+                    <span class="badge bg-warning text-dark ms-1">Restreint</span>
+                </div>
+                <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span class="d-none d-sm-inline">Déconnexion</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENU PRINCIPAL DES ONGLETS -->
+    <main class="container-fluid py-4 px-3 px-md-4">
+
+        <!-- 1. ONGLET HÔTES / RADIUS INTERFACE (LECTURE SEULE) -->
+        <div id="hosts-content" class="content-section active">
+            <iframe
+                src="radius_interface_admin.php?role_lib=<?php echo $user_role_id; ?>" 
+                class="glass-iframe">
+                Chargement de l'interface RADIUS...
+            </iframe>
+        </div>
+
+        <!-- 2. ONGLET ACCÈS ÉTRANGERS (HISTORIQUE VISITEURS SEULEMENT) -->
+        <div id="strangers-content" class="content-section">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-white"><i class="fas fa-history text-warning me-2"></i>Historique des Accès Étrangers</h2>
+                <p class="text-muted">Consultation en lecture seule des connexions visiteurs enregistrées sur le réseau.</p>
+            </div>
+
+            <div class="card-custom">
+                <div class="card-custom-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-search me-2"></i> Filtrer les connexions par date</span>
+                    <small class="text-muted">Données radacct</small>
+                </div>
+                <div class="card-custom-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="startDate" class="form-label text-muted small">Date de début</label>
+                            <input type="date" class="form-control" id="startDate">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="endDate" class="form-label text-muted small">Date de fin</label>
+                            <input type="date" class="form-control" id="endDate">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-warning w-100 fw-bold" id="filter-btn" style="border-radius: 12px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
+                                <i class="fas fa-filter me-1"></i> Filtrer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nom d'utilisateur</th>
+                                    <th>Adresse MAC</th>
+                                    <th>Adresse IP</th>
+                                    <th>Début de session</th>
+                                    <th>Fin de session</th>
+                                    <th>Durée</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table">
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        <i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement de l'historique...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ONGLET GESTIONNAIRE DE COMPTE (LECTURE RESTREINTE) -->
+        <div id="manager-content" class="content-section">
+            <div class="text-center py-5">
+                <div class="spinner-border text-warning mb-3" role="status"></div>
+                <h4>Chargement du Gestionnaire de Comptes...</h4>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="managerAdmin.js"></script>
+
+    <script>
     $(document).ready(function() {
         loadHistory();
-        $("#filter-btn").on('click', function() {
-            loadHistory();
-        });
+        $("#filter-btn").on('click', loadHistory);
     });
+
+    function confirmLogout() {
+        if (confirm("⚠️ Êtes-vous sûr de vouloir vous déconnecter du tableau de bord ?")) {
+            window.location.href = "logout.php";
+        }
+    }
+
+    function switchTab(tabName) {
+        const sections = document.querySelectorAll('.content-section');
+        sections.forEach(section => section.classList.remove('active'));
+        
+        const tabs = document.querySelectorAll('.nav-tab');
+        tabs.forEach(tab => tab.classList.remove('active'));
+        
+        const targetSection = document.getElementById(tabName + '-content');
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('active');
+        }
+    }
 
     function loadHistory() {
         const startDate = $('#startDate').val();
         const endDate = $('#endDate').val();
         
-        $('#history-table').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Chargement des données...</td></tr>');
+        $('#history-table').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement des données...</td></tr>');
         
         $.ajax({
             url: 'history.php',
@@ -501,12 +538,11 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
                 if (response.success) {
                     displayHistory(response.data);
                 } else {
-                    $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Erreur: ' + response.message + '</td></tr>');
+                    $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4">Erreur: ' + response.message + '</td></tr>');
                 }
             },
-            error: function(xhr, status, error) {
-                console.error("Erreur AJAX: " + status + ", " + error);
-                $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-times-circle me-2"></i>Une erreur de communication est survenue.</td></tr>');
+            error: function() {
+                $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4">Une erreur de communication est survenue.</td></tr>');
             }
         });
     }
@@ -518,20 +554,20 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
         } else {
             records.forEach(function(record) {
                 const status = record.acctstoptime ? 'Déconnecté' : 'Actif';
-                const statusClass = record.acctstoptime ? 'text-danger' : 'text-success';
+                const statusClass = record.acctstoptime ? 'badge bg-secondary' : 'badge bg-success text-dark fw-bold';
                 const timeLeft = calculateTimeLeft(record.acctstarttime, record.acctstoptime);
                 
                 html += `
                     <tr>
-                        <td>${record.username}</td>
-                        <td>${record.callingstationid}</td>
+                        <td class="fw-semibold text-white">${record.username}</td>
+                        <td><code>${record.callingstationid}</code></td>
                         <td>${record.framedipaddress || 'N/A'}</td>
                         <td>${record.acctstarttime}</td>
                         <td>${record.acctstoptime || 'En cours'}</td>
                         <td>${formatDuration(record.acctsessiontime)}</td>
-                        <td class="${statusClass}">
-                            ${status}
-                            ${status === 'Actif' ? `<br/><small>(${timeLeft} restants)</small>` : ''}
+                        <td>
+                            <span class="${statusClass}">${status}</span>
+                            ${status === 'Actif' ? `<br/><small class="text-warning">(${timeLeft} restants)</small>` : ''}
                         </td>
                     </tr>
                 `;
@@ -547,9 +583,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
         const start = new Date(startTime);
         const elapsedSeconds = (now - start) / 1000;
         const remainingSeconds = sessionDuration - elapsedSeconds;
-        if (remainingSeconds <= 0) {
-            return 'Expiré';
-        }
+        if (remainingSeconds <= 0) return 'Expiré';
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = Math.floor(remainingSeconds % 60);
         return `${minutes}min ${seconds}s`;
@@ -568,116 +602,6 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
         result.push(`${sec}s`);
         return result.join(' ');
     }
-</script>
-
-</body>
-</html>
-
-                <!-- Section Gestionnaire de Compte -->
-    <button onclick="confirmLogout()" class="btn btn-danger">
-    <i class="fas fa-sign-out-alt"></i> Déconnexion
-</button>
-
-<script>
-function confirmLogout() {
-    if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
-        window.location.href = "logout.php";
-    }
-}
-</script>           
-                    
-<div id="manager-content" class="content-section active">
-    <h2 class="section-title">Gestionnaire de Compte</h2>
-    
-    <div id="alert-success" class="alert alert-success" style="display: none;">
-        <strong>Succès :</strong> <span id="success-message"></span>
-    </div>
-    <div id="alert-error" class="alert alert-error" style="display: none;">
-        <strong>Erreur :</strong> <span id="error-message"></span>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-number" id="stat-total-users">-</div>
-            <div class="stat-label">Total Utilisateurs</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="stat-active-users">-</div>
-            <div class="stat-label">Utilisateurs Actifs</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="stat-total-roles">-</div>
-            <div class="stat-label">Rôles Disponibles</div>
-        </div>
-    </div>
-
-    <div style="margin-top: 30px;">
-        <div>
-            <h3>Utilisateurs Existants 
-                <button type="button" class="btn btn-success" id="ajax-btn-refresh" style="padding: 8px 15px; font-size: 0.9em; float: right;">
-                    🔄 Actualiser
-                </button>
-            </h3>
-            
-            <div id="ajax-users-loading" class="ajax-loading" style="display: none; text-align: center; padding: 20px; color: #8B4513;">
-                Chargement des utilisateurs...
-            </div>
-            
-            <div id="ajax-users-container">
-                </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function switchTab(tabName) {
-        // Masquer toutes les sections
-        const sections = document.querySelectorAll('.content-section');
-        sections.forEach(section => section.classList.remove('active'));
-        
-        // Désactiver tous les onglets
-        const tabs = document.querySelectorAll('.nav-tab');
-        tabs.forEach(tab => tab.classList.remove('active'));
-        
-        // Activer la section et l'onglet sélectionnés
-        document.getElementById(tabName + '-content').classList.add('active');
-        event.target.classList.add('active');
-    }
-
-    // Animation des statistiques au chargement (conservée pour l'esthétique)
-    window.addEventListener('load', function() {
-        const statNumbers = document.querySelectorAll('.stat-number');
-        statNumbers.forEach(stat => {
-            const finalNumber = stat.textContent;
-            stat.textContent = '0';
-            
-            let current = 0;
-            const increment = parseInt(finalNumber) / 50;
-            const timer = setInterval(() => {
-                current += increment;
-                if (current >= parseInt(finalNumber)) {
-                    stat.textContent = finalNumber;
-                    clearInterval(timer);
-                } else {
-                    stat.textContent = Math.floor(current);
-                }
-            }, 30);
-        });
-    });
-
-    // Simulation de données en temps réel (conservée)
-    setInterval(() => {
-        const activeDevices = document.querySelector('.stat-number');
-        if (activeDevices) {
-            let current = parseInt(activeDevices.textContent);
-            let variation = Math.floor(Math.random() * 5) - 2;
-            let newValue = Math.max(140, Math.min(150, current + variation));
-            activeDevices.textContent = newValue;
-        }
-    }, 10000);
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="managerAdmin.php"></script>
-
+    </script>
 </body>
 </html>
