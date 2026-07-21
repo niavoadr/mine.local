@@ -79,50 +79,45 @@ function updateManagerHTML() {
         </div>
 
         <div class="row g-4">
-            <!-- Formulaire de création -->
-            <div class="col-xl-4">
-                <div class="card-custom h-100">
-                    <div class="card-custom-header">
-                        <i class="fa-solid fa-user-plus me-2"></i> Créer un nouveau compte agent
+            <!-- Formulaire de création stylisé -->
+            <div class="col-xl-4 col-lg-5">
+                <div class="user-form-card h-100">
+                    <div class="user-form-header">
+                        <div class="icon-circle"><i class="fa-solid fa-user-plus"></i></div>
+                        <div>
+                            <h4 class="mb-0 text-white fw-bold fs-6">Créer un Nouveau Compte</h4>
+                            <span class="text-warning small" style="font-size: 0.75rem;">Habilitation Agent Ministère</span>
+                        </div>
                     </div>
-                    <div class="card-custom-body">
+                    <div class="user-form-body">
                         <form id="ajax-user-form">
-                            <div class="mb-3">
-                                <label class="form-label text-muted small">Nom d'utilisateur</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fa-regular fa-user"></i></span>
-                                    <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" class="form-control border-start-0 ps-0" required placeholder="Ex: j.dupont">
-                                </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-user text-warning me-2"></i>Nom d'utilisateur</label>
+                                <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" class="custom-form-input" required placeholder="Ex: j.dupont" autocomplete="off">
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label text-muted small">Adresse Email professionnelle</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fa-regular fa-envelope"></i></span>
-                                    <input type="email" id="ajax_email" name="email" class="form-control border-start-0 ps-0" required placeholder="agent@mines.gov.mg">
-                                </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-envelope text-warning me-2"></i>Adresse Email professionnelle</label>
+                                <input type="email" id="ajax_email" name="email" class="custom-form-input" required placeholder="agent@mines.gov.mg" autocomplete="off">
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label text-muted small">Mot de passe provisoire</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fa-solid fa-lock"></i></span>
-                                    <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" class="form-control border-start-0 ps-0" required placeholder="Mot de passe sécurisé (min. 6 car.)">
-                                </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-lock text-warning me-2"></i>Mot de passe provisoire</label>
+                                <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" class="custom-form-input" required placeholder="Mot de passe sécurisé (min. 6 car.)">
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label text-muted small">Département d'affectation</label>
-                                <select id="ajax_id_departement" name="id_departement" class="form-select" required>
-                                    <option value="">Chargement...</option>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-building text-warning me-2"></i>Département d'affectation</label>
+                                <select id="ajax_id_departement" name="id_departement" class="custom-form-select" required>
+                                    <option value="">Chargement des départements...</option>
                                 </select>
                             </div>
-                            <div class="mb-4">
-                                <label class="form-label text-muted small">Rôle d'administration</label>
-                                <select id="ajax_id_role" name="id_role" class="form-select" required>
-                                    <option value="">Chargement...</option>
+                            <div class="form-field-group mb-4">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-user-shield text-warning me-2"></i>Rôle et Habilitation</label>
+                                <select id="ajax_id_role" name="id_role" class="custom-form-select" required>
+                                    <option value="">Chargement des rôles...</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-warning w-100 fw-bold py-3" id="ajax-btn-create" style="border-radius: 12px; background: var(--gold-primary); border: none; color: #000; box-shadow: 0 4px 15px rgba(218,165,32,0.3);">
+                            <button type="submit" id="ajax-btn-create">
                                 <span class="ajax-spinner me-2" style="display: none;"><i class="fa-solid fa-spinner fa-spin"></i></span>
-                                <i class="fa-solid fa-check me-1"></i> Créer et activer le compte
+                                <i class="fa-solid fa-circle-check"></i> Créer et Activer le Compte
                             </button>
                         </form>
                     </div>
@@ -130,7 +125,7 @@ function updateManagerHTML() {
             </div>
 
             <!-- Liste des utilisateurs -->
-            <div class="col-xl-8">
+            <div class="col-xl-8 col-lg-7">
                 <div class="card-custom h-100">
                     <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes utilisateurs de l'organisation</span>
@@ -150,7 +145,7 @@ function updateManagerHTML() {
         </div>
     `);
 
-    // Ajouter les styles CSS modernes pour AJAX (remplace les anciens styles blancs)
+    // Ajouter les styles CSS modernes pour AJAX et le formulaire
     $('#ajax-styles').remove();
     $('head').append(`
         <style id="ajax-styles">
@@ -207,6 +202,103 @@ function updateManagerHTML() {
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
+            /* Styling de la carte de création d'utilisateur */
+            .user-form-card {
+                background: linear-gradient(145deg, rgba(26, 26, 34, 0.95) 0%, rgba(16, 16, 22, 0.98) 100%) !important;
+                border: 1.5px solid rgba(218, 165, 32, 0.35) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(218, 165, 32, 0.1) !important;
+                overflow: hidden;
+            }
+            .user-form-header {
+                background: linear-gradient(135deg, rgba(218, 165, 32, 0.22) 0%, rgba(184, 134, 11, 0.12) 100%) !important;
+                border-bottom: 1px solid rgba(218, 165, 32, 0.3) !important;
+                padding: 1.25rem 1.5rem !important;
+                display: flex;
+                align-items: center;
+                gap: 0.85rem;
+            }
+            .user-form-header .icon-circle {
+                width: 42px;
+                height: 42px;
+                background: var(--gold-primary, #DAA520);
+                color: #000;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.15rem;
+                box-shadow: 0 4px 12px rgba(218, 165, 32, 0.4);
+            }
+            .user-form-body {
+                padding: 1.75rem 1.5rem !important;
+            }
+            .form-field-group label {
+                color: #e5e7eb !important;
+                font-size: 0.85rem !important;
+                letter-spacing: 0.3px;
+            }
+            #ajax-user-form .custom-form-input,
+            #ajax-user-form .custom-form-select {
+                background-color: #101014 !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+                border-radius: 12px !important;
+                color: #ffffff !important;
+                font-size: 0.92rem !important;
+                padding: 0.8rem 1rem !important;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                width: 100% !important;
+                box-shadow: inset 0 2px 5px rgba(0,0,0,0.4) !important;
+            }
+            #ajax-user-form .custom-form-input:focus,
+            #ajax-user-form .custom-form-select:focus {
+                background-color: #16161e !important;
+                border-color: #DAA520 !important;
+                box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.25), inset 0 1px 2px rgba(0,0,0,0.2) !important;
+                outline: none !important;
+            }
+            #ajax-user-form .custom-form-input::placeholder {
+                color: #6b7280 !important;
+                opacity: 1 !important;
+            }
+            #ajax-user-form .custom-form-select option {
+                background-color: #16161e !important;
+                color: #ffffff !important;
+                padding: 10px !important;
+            }
+            #ajax-btn-create {
+                background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+                border: none !important;
+                border-radius: 14px !important;
+                color: #000000 !important;
+                font-weight: 700 !important;
+                font-size: 0.98rem !important;
+                padding: 0.95rem 1.5rem !important;
+                width: 100% !important;
+                cursor: pointer !important;
+                box-shadow: 0 8px 20px rgba(184, 134, 11, 0.4) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 0.6rem !important;
+                margin-top: 1.25rem !important;
+            }
+            #ajax-btn-create:hover {
+                background: linear-gradient(135deg, #e5b32e 0%, #c99312 100%) !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 12px 28px rgba(184, 134, 11, 0.6) !important;
+                color: #000000 !important;
+            }
+            #ajax-btn-create:active {
+                transform: translateY(0) !important;
+            }
+            #ajax-btn-create:disabled {
+                opacity: 0.7 !important;
+                cursor: not-allowed !important;
+                transform: none !important;
+            }
+            /* Table CSS */
             .ajax-users-table {
                 width: 100%;
                 border-collapse: separate !important;
