@@ -512,6 +512,15 @@ $current_user_role_id = (int)($_GET['role_id'] ?? 0);
             background-color: #f8f9fa;
         }
     </style>
+
+<style id="stock-manager-directory-override">
+#manager-content .ajax-users-table { border-collapse:separate !important; border-spacing:0 12px !important; }
+#manager-content .ajax-users-table tbody tr { background:#182231 !important; box-shadow:0 6px 18px rgba(0,0,0,.35) !important; }
+#manager-content .ajax-users-table tbody td { background:transparent !important; border-top:1px solid rgba(255,255,255,.1) !important; border-bottom:1px solid rgba(255,255,255,.1) !important; padding:17px !important; }
+#manager-content .ajax-users-table tbody td:first-child { border-left:4px solid #d9a928 !important; border-radius:12px 0 0 12px; }
+#manager-content .ajax-users-table tbody td:last-child { border-radius:0 12px 12px 0; }
+#manager-content .ajax-users-table tbody tr:hover { background:#263449 !important; transform:translateY(-3px); }
+</style>
 </head>
 <body style="background-color: #F5F5DC;"> <style>
         /* Couleurs du thème marron et blanc */
@@ -1113,7 +1122,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
 </head>
 <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js?v=20260721"></script>
+<script src="manager.js?v=20260722"></script>
 <body>
     <div class="container">
         <!-- En-tête -->
@@ -1520,7 +1529,7 @@ function confirmLogout() {
     </script>
     <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js?v=20260721"></script>
+<script src="manager.js?v=20260722"></script>
 
 </script>
 
