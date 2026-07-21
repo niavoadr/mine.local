@@ -429,6 +429,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
             color: #10b981;
         }
     </style>
+    <link rel="stylesheet" href="css/responsive.css?v=20260722">
 </head>
 <body>
 
@@ -762,7 +763,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="manager.js"></script>
+    <script src="manager.js?v=20260721"></script>
 
     <script>
     $(document).ready(function() {

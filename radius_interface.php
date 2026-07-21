@@ -213,6 +213,7 @@
             display: none;
         }
     </style>
+    <link rel="stylesheet" href="css/responsive.css?v=20260722">
 </head>
 <body>
     <div class="container-fluid">
