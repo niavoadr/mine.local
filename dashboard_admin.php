@@ -1,8 +1,13 @@
 <?php
 session_start();
 
-// Définition de l'ID de l'utilisateur connecté
-$user_role_id = $_SESSION['role_lib'] ?? "";
+// Informations de l'utilisateur connecté. Une session absente ne doit jamais afficher un nom par défaut.
+$connected_username = trim((string) ($_SESSION['user'] ?? $_SESSION['nom_utilisateur'] ?? ''));
+if ($connected_username === '') {
+    header('Location: login.php');
+    exit;
+}
+$user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
@@ -478,7 +483,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
             <div class="d-flex align-items-center gap-3">
                 <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
                     <i class="fa-solid fa-user-shield text-warning"></i>
-                    <span class="fw-semibold"><?php echo htmlspecialchars($_SESSION['user'] ?? 'Administrateur'); ?></span>
+                    <span class="fw-semibold"><?php echo htmlspecialchars($connected_username, ENT_QUOTES, 'UTF-8'); ?></span>
                     <span class="badge bg-warning text-dark ms-1">Admin</span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
