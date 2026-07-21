@@ -335,7 +335,10 @@ function updateManagerHTML() {
                 vertical-align: middle !important;
                 color: #e5e7eb !important;
             }
-            .ajax-users-table .action-cell { min-width: 145px; width: 145px; white-space: nowrap !important; padding-right: 22px !important; }
+            .ajax-users-table .action-cell { min-width: 165px; width: 165px; white-space: nowrap !important; padding-right: 22px !important; position: sticky; right: 0; z-index: 2; background: #181c24 !important; box-shadow: -8px 0 14px rgba(0,0,0,.22); }
+            .ajax-users-table thead th:last-child { position: sticky; right: 0; z-index: 3; min-width: 165px; background: #272116 !important; }
+            .ajax-users-table tbody tr:hover .action-cell { background: #272a22 !important; }
+            #ajax-users-container { overflow-x: auto !important; overflow-y: visible; padding-bottom: 4px; }
             .ajax-users-table .action-cell .btn { white-space: nowrap !important; display: inline-flex; align-items: center; }
             .ajax-users-table tr:hover td {
                 background: rgba(218, 165, 32, 0.08) !important;
