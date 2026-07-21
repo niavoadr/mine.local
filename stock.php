@@ -1113,7 +1113,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
 </head>
 <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js"></script>
+<script src="manager.js?v=20260721"></script>
 <body>
     <div class="container">
         <!-- En-tête -->
@@ -1520,7 +1520,7 @@ function confirmLogout() {
     </script>
     <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js"></script>
+<script src="manager.js?v=20260721"></script>
 
 </script>
 
