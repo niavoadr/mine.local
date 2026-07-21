@@ -1,147 +1,238 @@
-// js/manager.js - Script AJAX pour la section Gestionnaire de Compte
+// js/managerAdmin.js - Script AJAX pour le Gestionnaire de Compte (Mode Lecture Restreinte)
 $(document).ready(function() {
-    // Initialisation uniquement quand on est sur l'onglet manager
     initializeManager();
-    // Écouter les changements d'onglets
     $('.nav-tab').on('click', function() {
         if ($(this).text().includes('Gestionnaire de Compte')) {
-            setTimeout(initializeManager, 100); // Petit délai pour laisser l'onglet s'activer
+            setTimeout(initializeManager, 100);
         }
     });
 });
 
 function initializeManager() {
-    // Vérifier si on est sur l'onglet manager
     if (!$('#manager-content').hasClass('active')) {
         return;
     }
-    // Modifier le HTML de la section manager pour AJAX
     updateManagerHTML();
-    // Charger les données initiales
     loadManagerData();
-    
-    // Configurer l'événement du bouton Actualiser
     $('#ajax-btn-refresh').off('click').on('click', function() {
         loadUsers();
     });
-
-    // Actualisation automatique
     setupAutoRefresh();
 }
 
 function updateManagerHTML() {
     const managerContent = $('#manager-content');
-    // Remplacer le contenu par la version AJAX SANS le formulaire
     managerContent.html(`
-        <h2 class="section-title">Gestionnaire de Compte</h2>
-        <div id="alert-success" class="alert alert-success" style="display: none;">
-            <strong>Succès :</strong> <span id="success-message"></span>
-        </div>
-        <div id="alert-error" class="alert alert-error" style="display: none;">
-            <strong>Erreur :</strong> <span id="error-message"></span>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number" id="stat-total-users">-</div>
-                <div class="stat-label">Total Utilisateurs</div>
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes & Habilitations</h2>
+                <p class="text-muted mb-0">Consultation en lecture restreinte des comptes agents et rôles du Ministère.</p>
             </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-active-users">-</div>
-                <div class="stat-label">Utilisateurs Actifs</div>
+            <button type="button" class="btn btn-outline-warning fw-semibold px-4 py-2" id="ajax-btn-refresh" style="border-radius: 12px;">
+                <i class="fa-solid fa-rotate-right me-1"></i> Actualiser le répertoire
+            </button>
+        </div>
+
+        <!-- Alertes -->
+        <div id="alert-success" class="alert custom-alert-success" style="display: none;">
+            <i class="fa-solid fa-circle-check fs-5"></i>
+            <div><strong>Succès :</strong> <span id="success-message"></span></div>
+        </div>
+        <div id="alert-error" class="alert custom-alert-error" style="display: none;">
+            <i class="fa-solid fa-circle-exclamation fs-5"></i>
+            <div><strong>Erreur :</strong> <span id="error-message"></span></div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Total Utilisateurs</div>
+                            <div class="stat-number" id="stat-total-users">-</div>
+                        </div>
+                        <div class="stat-icon-box bg-warning-subtle text-warning"><i class="fa-solid fa-users fs-4"></i></div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-total-roles">-</div>
-                <div class="stat-label">Rôles Disponibles</div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Utilisateurs Actifs</div>
+                            <div class="stat-number" id="stat-active-users">-</div>
+                        </div>
+                        <div class="stat-icon-box bg-success-subtle text-success"><i class="fa-solid fa-user-check fs-4"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Rôles et Habilitations</div>
+                            <div class="stat-number" id="stat-total-roles">-</div>
+                        </div>
+                        <div class="stat-icon-box bg-info-subtle text-info"><i class="fa-solid fa-shield-halved fs-4"></i></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div style="margin-top: 30px;">
-            <div>
-                <h3>Utilisateurs Existants 
-                    <button type="button" class="btn btn-success" id="ajax-btn-refresh" style="padding: 8px 15px; font-size: 0.9em; float: right;">
-                        🔄 Actualiser
-                    </button>
-                </h3>
-                <div id="ajax-users-loading" class="ajax-loading" style="display: none; text-align: center; padding: 20px; color: #8B4513;">
-                    Chargement des utilisateurs...
+        <!-- Liste des utilisateurs -->
+        <div class="card-custom">
+            <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes utilisateurs de l'organisation</span>
+                <span class="badge bg-warning text-dark"><i class="fa-solid fa-lock me-1"></i> Lecture Seule</span>
+            </div>
+            <div class="card-custom-body p-0">
+                <div id="ajax-users-loading" class="text-center py-5 text-warning">
+                    <div class="spinner-border mb-2" role="status"></div>
+                    <div>Chargement du répertoire des agents...</div>
                 </div>
-        
-                <div id="ajax-users-container">
-                    </div>
+                <div id="ajax-users-container" class="table-responsive border-0 mb-0">
+                    <!-- Table chargée par AJAX -->
+                </div>
             </div>
         </div>
     `);
 
-    // Ajouter les styles CSS spécifiques pour AJAX
-    if (!$('#ajax-styles').length) {
-        $('head').append(`
-            <style id="ajax-styles">
-                .alert-error {
-                    background: #f8d7da;
-                    border: 1px solid #f5c6cb;
-                    color: #721c24;
-                    padding: 15px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                }
-                .ajax-spinner {
-                    display: inline-block;
-                    margin-right: 8px;
-                }
-                .ajax-users-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20px;
-                    background: white;
-                    border-radius: 10px;
-                    overflow: hidden;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-                }
-                .ajax-users-table th {
-                    background: #8B4513;
-                    color: white;
-                    padding: 15px;
-                    text-align: left;
-                    font-weight: 600;
-                }
-                .ajax-users-table td {
-                    padding: 12px 15px;
-                    border-bottom: 1px solid #e9ecef;
-                }
-                .ajax-users-table tr:hover {
-                    background: #f8f9fa;
-                }
-                .ajax-fade-in {
-                    animation: ajaxFadeIn 0.5s ease;
-                }
-                @keyframes ajaxFadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-            </style>
-        `);
-    }
+    // Ajouter les styles CSS modernes pour AJAX (remplace les anciens styles blancs)
+    $('#ajax-styles').remove();
+    $('head').append(`
+        <style id="ajax-styles">
+            .custom-alert-success {
+                background: rgba(16, 185, 129, 0.15) !important;
+                border: 1px solid rgba(16, 185, 129, 0.4) !important;
+                color: #10b981 !important;
+                padding: 1rem 1.25rem;
+                border-radius: 14px;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            .custom-alert-error {
+                background: rgba(239, 68, 68, 0.15) !important;
+                border: 1px solid rgba(239, 68, 68, 0.4) !important;
+                color: #f87171 !important;
+                padding: 1rem 1.25rem;
+                border-radius: 14px;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            .stat-icon-box {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .stat-card {
+                background: rgba(24, 24, 30, 0.85) !important;
+                border: 1px solid rgba(218, 165, 32, 0.25) !important;
+                border-radius: 18px !important;
+                padding: 1.5rem !important;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
+                transition: transform 0.3s ease, border-color 0.3s ease !important;
+            }
+            .stat-card:hover {
+                transform: translateY(-3px) !important;
+                border-color: #DAA520 !important;
+            }
+            .stat-number {
+                color: #FFD700 !important;
+                font-size: 2.2rem !important;
+                font-weight: 700 !important;
+            }
+            .stat-label {
+                color: #9ca3af !important;
+                font-size: 0.82rem !important;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .ajax-users-table {
+                width: 100%;
+                border-collapse: separate !important;
+                border-spacing: 0 !important;
+                background: transparent !important;
+                color: #e5e7eb !important;
+                margin: 0 !important;
+            }
+            .ajax-users-table th {
+                background: rgba(218, 165, 32, 0.15) !important;
+                color: #FFD700 !important;
+                padding: 15px 18px !important;
+                text-align: left !important;
+                font-weight: 600 !important;
+                text-transform: uppercase;
+                font-size: 0.8rem;
+                letter-spacing: 0.5px;
+                border-bottom: 1px solid rgba(218, 165, 32, 0.3) !important;
+            }
+            .ajax-users-table td {
+                padding: 15px 18px !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+                vertical-align: middle !important;
+                color: #e5e7eb !important;
+            }
+            .ajax-users-table tr:hover td {
+                background: rgba(218, 165, 32, 0.08) !important;
+            }
+            .ajax-fade-in {
+                animation: ajaxFadeIn 0.4s ease;
+            }
+            @keyframes ajaxFadeIn {
+                from { opacity: 0; transform: translateY(8px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .status-actif {
+                background: rgba(16, 185, 129, 0.2);
+                color: #10b981;
+                border: 1px solid rgba(16, 185, 129, 0.4);
+                padding: 0.35rem 0.8rem;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 0.78rem;
+                display: inline-block;
+            }
+            .status-suspendu {
+                background: rgba(239, 68, 68, 0.2);
+                color: #f87171;
+                border: 1px solid rgba(239, 68, 68, 0.4);
+                padding: 0.35rem 0.8rem;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 0.78rem;
+                display: inline-block;
+            }
+            .status-en_attente {
+                background: rgba(245, 158, 11, 0.2);
+                color: #fbbf24;
+                border: 1px solid rgba(245, 158, 11, 0.4);
+                padding: 0.35rem 0.8rem;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 0.78rem;
+                display: inline-block;
+            }
+        </style>
+    `);
 }
 
 function loadManagerData() {
     loadStats();
-    // loadDepartements() et loadRoles() retirés
     loadUsers();
 }
 
-// setupManagerEvents() retiré, son unique événement (Actualiser) est dans initializeManager()
-
 function setupAutoRefresh() {
-    // Vérifier s'il n'y a pas déjà un timer en cours
     if (window.managerRefreshTimer) {
         clearInterval(window.managerRefreshTimer);
     }
-    
-    // Actualisation automatique toutes les 30 secondes
     window.managerRefreshTimer = setInterval(function() {
         if ($('#manager-content').hasClass('active')) {
             loadStats();
@@ -149,8 +240,6 @@ function setupAutoRefresh() {
         }
     }, 30000);
 }
-
-// Fonctions AJAX
 
 function loadStats() {
     $.ajax({
@@ -170,8 +259,6 @@ function loadStats() {
         }
     });
 }
-
-// loadDepartements() et loadRoles() sont retirés
 
 function loadUsers() {
     $('#ajax-users-loading').show();
@@ -193,7 +280,7 @@ function loadUsers() {
                                 <th>Département</th>
                                 <th>Rôle</th>
                                 <th>Statut</th>
-                                </tr>
+                            </tr>
                         </thead>
                         <tbody>
                 `;
@@ -204,12 +291,12 @@ function loadUsers() {
                     
                     tableHTML += `
                         <tr class="ajax-fade-in">
-                            <td>${user.nom_utilisateur}</td>
+                            <td class="fw-semibold text-white">${user.nom_utilisateur}</td>
                             <td>${user.email}</td>
                             <td>${user.nom_departement || 'N/A'}</td>
-                            <td>${user.nom_role || 'N/A'}</td>
+                            <td><span class="badge bg-dark border border-secondary">${user.nom_role || 'N/A'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
-                            </tr>
+                        </tr>
                     `;
                 });
                 
@@ -230,10 +317,6 @@ function loadUsers() {
         }
     });
 }
-
-// createUser() et updateUserStatus() sont retirés
-
-// Fonctions utilitaires
 
 function showSuccess(message) {
     $('#success-message').text(message);
@@ -262,12 +345,3 @@ function animateNumber(selector, finalNumber) {
         });
     }
 }
-
-// Nettoyer les timers quand on change d'onglet
-$(document).on('click', '.nav-tab', function() {
-    if (!$(this).text().includes('Gestionnaire de Compte')) {
-        if (window.managerRefreshTimer) {
-            clearInterval(window.managerRefreshTimer);
-        }
-    }
-});

@@ -1,12 +1,14 @@
 <?php
+require_once __DIR__ . '/env.php';
 header('Content-Type: application/json');
 
 // Les identifiants de connexion à la base de données
 // Assurez-vous que l'utilisateur 'rosa' existe et a les droits SELECT sur la base 'radius'
-$host = 'localhost';
-$dbname = 'radius'; 
-$username = 'rosa';    
-$password = '12345';   
+$host     = env('RADIUS_DB_HOST', 'localhost');
+$port     = (int) env('RADIUS_DB_PORT', 3306);
+$dbname   = env('RADIUS_DB_NAME', 'radius'); 
+$username = env('RADIUS_DB_USER', 'rosa');    
+$password = env('RADIUS_DB_PASS', '12345');   
 
 // Fonction utilitaire pour retourner une réponse JSON et arrêter le script
 function jsonResponse($success, $message = '', $data = null) {
@@ -16,7 +18,7 @@ function jsonResponse($success, $message = '', $data = null) {
 
 try {
     // Connexion à la base de données via PDO
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch(PDOException $e) {
     // En cas d'échec de la connexion

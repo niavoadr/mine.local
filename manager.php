@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/env.php';
 
 // manager.php
 
@@ -8,17 +9,15 @@ header('Cache-Control: no-cache, must-revalidate');
 
 // Configuration de la base de données
 
-$host = 'localhost';
-
-$dbname = 'radius_ministere_mines';
-
-$username = 'rosa'; // Remplacez par votre nom d'utilisateur
-
-$password = '12345';     // Remplacez par votre mot de passe
+$host     = env('DB_HOST', 'localhost');
+$port     = (int) env('DB_PORT', 3306);
+$dbname   = env('DB_NAME', 'radius_ministere_mines');
+$username = env('DB_USER', 'rosa'); // Remplacez par votre nom d'utilisateur
+$password = env('DB_PASS', '12345');     // Remplacez par votre mot de passe
 
 try {
 
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch(PDOException $e) {
     echo json_encode([

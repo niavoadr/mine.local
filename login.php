@@ -1,7 +1,7 @@
 <?php
 ob_start();
 session_start();
-include("./conection.php");
+include("./connection.php");
 
 define('CHEF_DEPT', 5);
 
@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
   
   $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  $stmt = $conection->prepare($sql);
+  $stmt = $conn->prepare($sql);
   
   if ($stmt === false) {
       $msg = "Erreur de préparation de la requête.";
@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           
           // Déterminer la page de redirection
           if ($row['id_role'] == 5) {
-              $target_page = "admin.php"; 
+              $target_page = "dashboard_user.php"; 
           } else {
-              $target_page = "dashboard.php";
+              $target_page = "dashboard_admin.php";
           }
           
           // Vider le buffer et rediriger
@@ -48,10 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           die();
           
         } else {
-          $msg = "Login ou mot de passe incorrect";
+          $msg = "Login ou mot de passe incorrect.";
         }
       } else {
-        $msg = "Utilisateur non trouvé ou inactif";
+        $msg = "Utilisateur non trouvé ou inactif.";
       }
       
       $stmt->close();
@@ -59,439 +59,637 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
 }
 ?>
 <!doctype html>
-<html lang="fr" data-bs-theme="auto">
+<html lang="fr" data-bs-theme="dark">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Connexion">
-  <meta name="author" content="">
-  <title>Connexion - Portail Mines</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" 
-  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <meta name="description" content="Portail de Connexion - Administration RADIUS">
+  <title>Connexion - Ministère des Mines</title>
+  
+  <!-- Bootstrap 5 & FontAwesome & Google Fonts -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
   :root {
-    --noir-principal: #000000;
-    --noir-secondaire: #1a1a1a;
-    --marron-dore: #B8860B;
-    --marron-clair: #DAA520;
-    --gris-fonce: #2d2d2d;
-    --blanc: #ffffff;
+    --bg-dark-1: #0a0a0c;
+    --bg-dark-2: #141418;
+    --bg-card: rgba(24, 24, 30, 0.75);
+    --gold-primary: #DAA520;
+    --gold-dark: #B8860B;
+    --gold-glow: rgba(218, 165, 32, 0.25);
+    --border-gold: rgba(218, 165, 32, 0.3);
+    --text-muted: #9ca3af;
   }
 
   * {
-    border-radius: 0 !important;
-  }
-
-  @keyframes slideBackground {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  @keyframes fadeInDown {
-    from {
-      opacity: 0;
-      transform: translateY(-30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slideInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-100px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(100px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 8px 24px rgba(184, 134, 11, 0.3); }
-    50% { box-shadow: 0 12px 32px rgba(184, 134, 11, 0.5); }
+    box-sizing: border-box;
   }
 
   body {
     margin: 0;
     padding: 0;
-    height: 100vh;
-    background: linear-gradient(135deg, var(--noir-principal) 0%, var(--noir-secondaire) 30%, #3d2a1a 70%, var(--noir-principal) 100%);
-    background-size: 300% 300%;
-    animation: slideBackground 15s ease infinite;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
-  }
-
-  .login-container {
+    min-height: 100vh;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-dark-1);
+    background-image: 
+      radial-gradient(circle at 15% 20%, rgba(184, 134, 11, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(218, 165, 32, 0.12) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(20, 20, 25, 1) 0%, var(--bg-dark-1) 100%);
     display: flex;
-    height: 100%;
-    position: relative;
-  }
-
-  .login-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--marron-dore), var(--marron-clair), var(--marron-dore));
-    overflow: hidden;
-  }
-
-  .login-container::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, transparent, var(--blanc), transparent);
-    animation: shimmer 2s infinite;
-  }
-
-  .login-left {
-    flex: 1;
-    background: url('images/logomine.jpg') center center no-repeat;
-    background-size: contain;
-    background-color: var(--noir-secondaire);
-    border-right: 3px solid var(--marron-dore);
-    animation: slideInLeft 0.8s ease-out;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .login-left::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(184, 134, 11, 0.1) 0%, transparent 70%);
-    animation: pulse 4s ease-in-out infinite;
-  }
-
-  .login-right {
-    flex: 1;
-    display: flex;
+    align-items: center;
     justify-content: center;
-    align-items: flex-start;
-    background-color: var(--noir-principal);
-    animation: slideInRight 0.8s ease-out;
+    overflow-x: hidden;
+    padding: 1.5rem;
   }
 
-  .login-form {
-    background-color: var(--gris-fonce);
-    padding: 3rem 2.5rem;
-    border: 2px solid var(--marron-dore);
-    box-shadow: 0 8px 24px rgba(184, 134, 11, 0.3);
-    max-width: 400px;
+  /* Orbes lumineux en arrière-plan */
+  .bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+    animation: floatOrb 12s ease-in-out infinite alternate;
+  }
+
+  .orb-1 {
+    width: 350px;
+    height: 350px;
+    background: rgba(218, 165, 32, 0.12);
+    top: -50px;
+    left: -50px;
+  }
+
+  .orb-2 {
+    width: 450px;
+    height: 450px;
+    background: rgba(184, 134, 11, 0.1);
+    bottom: -100px;
+    right: -100px;
+    animation-delay: -6s;
+  }
+
+  @keyframes floatOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(40px, 30px) scale(1.1); }
+  }
+
+  /* Conteneur principal Glassmorphism */
+  .login-card {
+    position: relative;
+    z-index: 1;
     width: 100%;
-    margin-top: 100px;
-    animation: fadeInDown 1s ease-out;
+    max-width: 1000px;
+    background: var(--bg-card);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid var(--border-gold);
+    border-radius: 24px;
+    box-shadow: 
+      0 25px 50px -12px rgba(0, 0, 0, 0.8),
+      0 0 40px rgba(184, 134, 11, 0.15);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    animation: fadeInScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes fadeInScale {
+    0% {
+      opacity: 0;
+      transform: scale(0.95) translateY(15px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Section de marque à gauche */
+  .brand-panel {
+    background: linear-gradient(135deg, rgba(20, 20, 24, 0.8) 0%, rgba(28, 20, 12, 0.85) 100%);
+    border-right: 1px solid rgba(218, 165, 32, 0.2);
+    padding: 3rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     position: relative;
     overflow: hidden;
   }
 
-  .login-form::before {
+  .brand-panel::after {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(184, 134, 11, 0.1), transparent);
-    animation: shimmer 3s infinite;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top right, rgba(218, 165, 32, 0.1), transparent 60%);
+    pointer-events: none;
   }
 
-  .login-form h1 {
-    font-size: 1.5rem;
+  .logo-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 2rem;
-    color: var(--marron-dore);
-    text-transform: uppercase;
-    letter-spacing: 2px;
+  }
+
+  .logo-img-box {
+    width: 76px;
+    height: 76px;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(218, 165, 32, 0.3);
+    border: 2px solid var(--gold-primary);
+  }
+
+  .logo-img-box img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .brand-title h3 {
     font-weight: 700;
-    border-bottom: 2px solid var(--marron-dore);
-    padding-bottom: 1rem;
-    animation: fadeInUp 1.2s ease-out;
+    font-size: 1.3rem;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.5px;
   }
 
+  .brand-title span {
+    font-size: 0.85rem;
+    color: var(--gold-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .brand-hero {
+    margin: 2rem 0;
+  }
+
+  .brand-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #ffffff;
+    margin-bottom: 1rem;
+  }
+
+  .brand-hero h1 span {
+    background: linear-gradient(135deg, #FFF 0%, var(--gold-primary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .brand-hero p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .feature-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .feature-pill {
+    background: rgba(218, 165, 32, 0.1);
+    border: 1px solid rgba(218, 165, 32, 0.25);
+    color: #e5e7eb;
+    padding: 0.45rem 0.9rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .feature-pill i {
+    color: var(--gold-primary);
+  }
+
+  .brand-footer {
+    font-size: 0.8rem;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 1.25rem;
+  }
+
+  /* Section de formulaire à droite */
+  .form-panel {
+    padding: 3.5rem 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .form-header {
+    margin-bottom: 2.25rem;
+  }
+
+  .form-header h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.5px;
+  }
+
+  .form-header p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    margin: 0;
+  }
+
+  /* Alertes d'erreur */
+  .custom-alert {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: shake 0.4s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+  }
+
+  /* Floating labels & inputs modernes */
   .form-floating {
-    animation: fadeInUp 1.4s ease-out;
+    margin-bottom: 1.25rem;
+    position: relative;
   }
 
-  .form-floating:nth-child(3) {
-    animation-delay: 0.1s;
+  .form-floating .form-control {
+    background-color: rgba(30, 30, 36, 0.7) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 14px !important;
+    color: #ffffff !important;
+    font-size: 0.95rem;
+    padding: 1.1rem 1rem 0.5rem 2.8rem !important;
+    height: 58px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .form-floating > .form-control,
-  .form-floating > .form-control:focus {
-    background-color: var(--noir-secondaire);
-    border: 2px solid var(--marron-dore);
-    color: var(--blanc);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  .form-floating .form-control:focus {
+    border-color: var(--gold-primary) !important;
+    box-shadow: 0 0 0 4px var(--gold-glow) !important;
+    background-color: rgba(36, 36, 44, 0.85) !important;
   }
 
-  .form-floating > .form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25);
-    transform: translateY(-2px);
-    border-color: var(--marron-clair);
-  }
-
-  .form-floating > label {
-    color: var(--marron-clair);
-    transition: all 0.3s ease;
-  }
-
-  .form-floating > .form-control:focus ~ label {
-    color: var(--marron-dore);
-  }
-
-  .form-check {
-    animation: fadeInUp 1.6s ease-out;
-  }
-
-  .form-check-input {
-    background-color: var(--noir-secondaire);
-    border: 2px solid var(--marron-dore);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-  }
-
-  .form-check-input:checked {
-    background-color: var(--marron-dore);
-    border-color: var(--marron-dore);
-    transform: scale(1.1);
-  }
-
-  .form-check-input:focus {
-    box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25);
-  }
-
-  .form-check-input:hover {
-    transform: scale(1.05);
-  }
-
-  .form-check-label {
-    color: var(--blanc);
+  .form-floating label {
+    color: var(--text-muted);
+    padding-left: 2.8rem;
     font-size: 0.9rem;
+    transition: all 0.25s ease;
+  }
+
+  .form-floating .form-control:focus ~ label,
+  .form-floating .form-control:not(:placeholder-shown) ~ label {
+    color: var(--gold-primary);
+    transform: scale(0.85) translateY(-0.6rem) translateX(-0.3rem);
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 1rem;
+    z-index: 5;
+    transition: color 0.25s ease;
+    pointer-events: none;
+  }
+
+  .form-floating .form-control:focus ~ .input-icon {
+    color: var(--gold-primary);
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 1rem;
+    z-index: 5;
     cursor: pointer;
     transition: color 0.2s ease;
   }
 
-  .form-check-label:hover {
-    color: var(--marron-clair);
+  .password-toggle:hover {
+    color: #ffffff;
   }
 
-  .btn-primary {
-    background-color: var(--marron-dore);
-    border: 2px solid var(--marron-dore);
-    color: var(--noir-principal);
+  /* Checkbox & Options */
+  .form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    font-size: 0.88rem;
+  }
+
+  .custom-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    user-select: none;
+    color: #d1d5db;
+    margin: 0;
+  }
+
+  .custom-checkbox input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: rgba(30, 30, 36, 0.8);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .custom-checkbox input[type="checkbox"]::before {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 10px;
+    color: #000;
+    transform: scale(0);
+    transition: transform 0.15s ease-in-out;
+  }
+
+  .custom-checkbox input[type="checkbox"]:checked {
+    background: var(--gold-primary);
+    border-color: var(--gold-primary);
+  }
+
+  .custom-checkbox input[type="checkbox"]:checked::before {
+    transform: scale(1);
+  }
+
+  /* Bouton principal */
+  .btn-submit {
+    width: 100%;
+    height: 52px;
+    background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
+    border: none;
+    border-radius: 14px;
+    color: #000000;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 0.75rem;
+    font-size: 0.98rem;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(184, 134, 11, 0.35);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    animation: fadeInUp 1.8s ease-out;
   }
 
-  .btn-primary::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(255, 255, 255, 0.2);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-  }
-
-  .btn-primary:hover::before {
-    width: 300px;
-    height: 300px;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--marron-clair);
-    border-color: var(--marron-clair);
-    color: var(--noir-principal);
-    box-shadow: 0 8px 20px rgba(184, 134, 11, 0.5);
-    transform: translateY(-3px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(-1px);
-  }
-
-  .btn-outline-secondary {
-    background-color: transparent;
-    border: 2px solid var(--marron-dore);
-    color: var(--marron-dore);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 0.75rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    animation: fadeInUp 2s ease-out;
-  }
-
-  .btn-outline-secondary::before {
+  .btn-submit::after {
     content: '';
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: var(--noir-secondaire);
-    transition: left 0.4s ease;
-    z-index: -1;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transition: left 0.5s ease;
   }
 
-  .btn-outline-secondary:hover::before {
-    left: 0;
+  .btn-submit:hover::after {
+    left: 100%;
   }
 
-  .btn-outline-secondary:hover {
-    border-color: var(--marron-clair);
-    color: var(--marron-clair);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(184, 134, 11, 0.3);
+  .btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(184, 134, 11, 0.55);
+    background: linear-gradient(135deg, #e5b32e 0%, #c99312 100%);
+    color: #000000;
   }
 
-  .btn-outline-secondary:active {
-    transform: translateY(-1px);
+  .btn-submit:active {
+    transform: translateY(0);
   }
 
-  .text-danger {
-    font-size: 0.875rem;
-    color: #ff6b6b !important;
-    background-color: rgba(255, 107, 107, 0.1);
-    padding: 0.5rem;
-    border-left: 3px solid #ff6b6b;
-    margin-bottom: 1rem;
-    animation: fadeInDown 0.5s ease-out;
+  /* Bouton secondaire */
+  .btn-ghost {
+    width: 100%;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    color: #d1d5db;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: 0.85rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
   }
 
-  @media (max-width: 768px) {
-    .login-container {
-      flex-direction: column;
+  .btn-ghost:hover {
+    background: rgba(218, 165, 32, 0.1);
+    border-color: rgba(218, 165, 32, 0.4);
+    color: var(--gold-primary);
+  }
+
+  /* Responsive Design */
+  @media (max-width: 900px) {
+    .login-card {
+      grid-template-columns: 1fr;
+      max-width: 480px;
     }
 
-    .login-left {
-      height: 200px;
+    .brand-panel {
+      padding: 2rem;
       border-right: none;
-      border-bottom: 3px solid var(--marron-dore);
+      border-bottom: 1px solid rgba(218, 165, 32, 0.2);
     }
 
-    .login-form {
-      margin-top: 2rem;
+    .brand-hero, .feature-pills, .brand-footer {
+      display: none;
+    }
+
+    .logo-wrapper {
+      margin-bottom: 0;
+    }
+
+    .form-panel {
+      padding: 2.5rem 2rem;
     }
   }
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0) translateX(0); }
-    25% { transform: translateY(-20px) translateX(10px); }
-    50% { transform: translateY(-10px) translateX(-10px); }
-    75% { transform: translateY(-30px) translateX(5px); }
-  }
+  @media (max-width: 480px) {
+    body {
+      padding: 1rem;
+    }
 
-  .login-right::before {
-    content: '';
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: var(--marron-dore);
-    top: 20%;
-    left: 30%;
-    animation: float 6s ease-in-out infinite;
-    opacity: 0.6;
-  }
+    .form-panel {
+      padding: 2rem 1.5rem;
+    }
 
-  .login-right::after {
-    content: '';
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: var(--marron-clair);
-    top: 60%;
-    right: 25%;
-    animation: float 8s ease-in-out infinite;
-    opacity: 0.4;
+    .form-header h2 {
+      font-size: 1.5rem;
+    }
   }
   </style>
 </head>
 
 <body>
-<div class="login-container">
-  <div class="login-left"></div>
-  <div class="login-right">
-    <form method="POST" action="login.php" class="login-form">
-      <h1 class="h4 mb-3 fw-bold text-center">Portail gestion</h1>
+  <!-- Orbes en arrière-plan -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <!-- Conteneur Glassmorphism -->
+  <div class="login-card">
+    
+    <!-- Panneau Marque / Gauche -->
+    <div class="brand-panel">
+      <div>
+        <div class="logo-wrapper">
+          <div class="logo-img-box">
+            <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+          </div>
+          <div class="brand-title">
+            <span>République de Madagascar</span>
+            <h3>Ministère des Mines</h3>
+          </div>
+        </div>
+
+        <div class="brand-hero">
+          <h1>Portail Central <span>RADIUS & Gestion</span></h1>
+          <p>Plateforme centralisée d'authentification, d'autorisation et de supervision du réseau et des comptes utilisateurs.</p>
+          
+          <div class="feature-pills">
+            <div class="feature-pill">
+              <i class="fa-solid fa-lock"></i> Sécurité Haute Précision
+            </div>
+            <div class="feature-pill">
+              <i class="fa-solid fa-network-wired"></i> Contrôle d'Accès
+            </div>
+            <div class="feature-pill">
+              <i class="fa-solid fa-shield-halved"></i> Audit en Temps Réel
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="brand-footer">
+        <span>© <?php echo date('Y'); ?> Ministère des Mines</span>
+        <span>Version Sécurisée 2.4</span>
+      </div>
+    </div>
+
+    <!-- Panneau Formulaire / Droite -->
+    <div class="form-panel">
+      <div class="form-header">
+        <h2>Authentification</h2>
+        <p>Veuillez saisir vos identifiants de session</p>
+      </div>
+
+      <!-- Message d'erreur -->
       <?php if (!empty($msg)): ?>
-        <p class="text-danger text-center"><?php echo htmlspecialchars($msg); ?></p>
+        <div class="custom-alert">
+          <i class="fa-solid fa-circle-exclamation fs-5"></i>
+          <span><?php echo htmlspecialchars($msg); ?></span>
+        </div>
       <?php endif; ?>
 
-      <div class="form-floating mb-3">
-        <input required type="text" class="form-control" id="floatingInput" placeholder="Username" name="username" value="<?php echo htmlspecialchars($username_value); ?>">
-        <label for="floatingInput">Nom d'utilisateur</label>
-      </div>
+      <form method="POST" action="login.php" id="loginForm">
+        
+        <!-- Nom d'utilisateur -->
+        <div class="form-floating">
+          <input required type="text" class="form-control" id="floatingInput" placeholder="Nom d'utilisateur" name="username" value="<?php echo htmlspecialchars($username_value); ?>" autocomplete="username">
+          <label for="floatingInput">Nom d'utilisateur</label>
+          <i class="fa-regular fa-user input-icon"></i>
+        </div>
 
-      <div class="form-floating mb-3">
-        <input required type="password" class="form-control" id="floatingPassword" placeholder="Password" name="pass">
-        <label for="floatingPassword">Mot de passe</label>
-      </div>
+        <!-- Mot de passe -->
+        <div class="form-floating">
+          <input required type="password" class="form-control" id="floatingPassword" placeholder="Mot de passe" name="pass" autocomplete="current-password">
+          <label for="floatingPassword">Mot de passe</label>
+          <i class="fa-solid fa-lock input-icon"></i>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" title="Afficher/Masquer">
+            <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
+          </button>
+        </div>
 
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" value="remember-me" id="flexCheckDefault" name="forget">
-        <label class="form-check-label" for="flexCheckDefault">
-          Se souvenir de moi
-        </label>
-      </div>
+        <!-- Options -->
+        <div class="form-options">
+          <label class="custom-checkbox" for="flexCheckDefault">
+            <input type="checkbox" value="remember-me" id="flexCheckDefault" name="forget">
+            <span>Se souvenir de moi</span>
+          </label>
+        </div>
 
-      <button class="btn btn-primary w-100 mb-2" type="submit" name="ok">Connexion</button>
-      <button type="button" class="btn btn-outline-secondary w-100">S'inscrire</button>
-    </form>
+        <!-- Boutons -->
+        <button class="btn-submit" type="submit" name="ok">
+          <span>Se connecter</span>
+          <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        </button>
+        
+        <button type="button" class="btn-ghost" onclick="alert('Veuillez contacter l\'administrateur système pour toute demande d\'accès ou de réinitialisation.');">
+          <i class="fa-regular fa-circle-question me-1"></i> S'inscrire / Assistance
+        </button>
+      </form>
+    </div>
+
   </div>
-</div>
+
+  <script>
+    function togglePasswordVisibility() {
+      const passwordInput = document.getElementById('floatingPassword');
+      const toggleIcon = document.getElementById('togglePasswordIcon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+      }
+    }
+  </script>
 </body>
 
 </html>

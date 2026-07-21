@@ -1,372 +1,164 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Appareils RADIUS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ===== VARIABLES DE COULEUR NOIR & MARRON DORÉ ===== */
         :root {
-            --noir-principal: #000000;
-            --noir-secondaire: #1a1a1a;
-            --noir-tertiaire: #2d2d2d;
-            --marron-dore: #B8860B;
-            --marron-clair: #DAA520;
-            --or-accent: #FFD700;
-            --or-pale: #F4A460;
-            --blanc: #ffffff;
-            --gris-clair: #f8f9fa;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* ===== RÉINITIALISATION & TYPOGRAPHIE ===== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            --bg-body: #0e0e12;
+            --bg-card: rgba(24, 24, 30, 0.85);
+            --border-gold: rgba(218, 165, 32, 0.25);
+            --gold-primary: #DAA520;
+            --gold-dark: #B8860B;
+            --text-muted: #9ca3af;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            font-weight: 300;
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-            color: var(--blanc);
-            min-height: 100vh;
-            letter-spacing: 0.3px;
-        }
-
-        /* ===== BARRE DE STATUT MINISTÉRIELLE ===== */
-        .ministry-status-bar {
-            background: var(--noir-principal);
-            border-bottom: 2px solid var(--marron-dore);
-            padding: 0.5rem 1.5rem;
-            font-size: 0.75rem;
-            color: var(--or-pale);
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--marron-clair);
-            margin-right: 0.5rem;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* ===== CONTENEUR PRINCIPAL ===== */
-        .container-fluid {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-body);
+            color: #e5e7eb;
+            margin: 0;
             padding: 1.5rem;
-            max-width: 1400px;
-            margin: 0 auto;
         }
 
-        /* ===== CARTES MODERNISÉES ===== */
         .card {
-            background: var(--noir-secondaire);
-            border: 1px solid var(--marron-dore);
-            border-radius: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 18px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             overflow: hidden;
-            transition: var(--transition);
-            box-shadow: 0 8px 32px rgba(184, 134, 11, 0.1);
+            transition: transform 0.3s ease, border-color 0.3s ease;
         }
 
         .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 48px rgba(184, 134, 11, 0.2);
-            border-color: var(--marron-clair);
+            border-color: var(--gold-primary);
+            box-shadow: 0 15px 35px rgba(218, 165, 32, 0.15);
         }
 
         .card-header {
-            background: linear-gradient(135deg, var(--marron-dore) 0%, var(--marron-clair) 100%);
-            color: var(--noir-principal);
-            font-weight: 500;
-            padding: 0.85rem 1.25rem;
-            border: none;
-            font-size: 0.95rem;
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.18) 0%, rgba(184, 134, 11, 0.1) 100%);
+            border-bottom: 1px solid var(--border-gold);
+            padding: 1rem 1.5rem;
+            color: #FFD700;
+            font-weight: 600;
         }
 
-        .card-header h5 {
-            margin: 0;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            font-size: 0.95rem;
-        }
-
-        .card-body {
-            padding: 1.25rem;
-            background: var(--noir-secondaire);
-        }
-
-        /* ===== EMBLÈME MINISTÉRIEL ===== */
-        .ministry-emblem {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, var(--marron-dore), var(--or-accent));
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-            border: 2px solid var(--or-accent);
-            position: relative;
-        }
-
-        .ministry-emblem::before {
-            content: '';
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 2px solid var(--noir-principal);
-            transform: rotate(45deg);
-        }
-
-        .ministry-header {
-            border-left: 4px solid var(--marron-dore);
-            padding-left: 1rem;
-        }
-
-        .ministry-subtitle {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--or-pale);
-            font-weight: 300;
-            margin-top: 0.25rem;
-        }
-
-        /* ===== EN-TÊTE PRINCIPAL ===== */
         .card-title {
-            font-size: 1.5rem;
-            font-weight: 500;
-            background: linear-gradient(135deg, var(--marron-dore), var(--or-accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .card-title i {
-            background: linear-gradient(135deg, var(--marron-dore), var(--marron-clair));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-right: 0.75rem;
+            color: var(--gold-primary);
         }
 
-        .card-text {
-            color: var(--or-pale);
-            font-weight: 300;
-            font-size: 0.95rem;
-        }
-
-        /* ===== FORMULAIRES ===== */
-        .form-label {
-            color: var(--marron-clair);
-            font-weight: 400;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            letter-spacing: 0.3px;
-        }
-
+        /* Formulaire */
         .form-control, .form-select {
-            background: var(--noir-tertiaire);
-            border: 1px solid var(--marron-dore);
-            border-radius: 0;
-            color: var(--blanc);
-            padding: 0.75rem 1rem;
-            font-weight: 300;
-            transition: var(--transition);
+            background: rgba(18, 18, 22, 0.9) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 12px !important;
+            color: #ffffff !important;
+            padding: 0.75rem 1rem !important;
         }
 
         .form-control:focus, .form-select:focus {
-            background: var(--noir-secondaire);
-            border-color: var(--marron-clair);
-            box-shadow: 0 0 0 4px rgba(184, 134, 11, 0.15);
-            color: var(--blanc);
-        }
-
-        .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-            font-weight: 300;
-        }
-
-        .form-select option {
-            background: var(--noir-tertiaire);
-            color: var(--blanc);
-        }
-
-        .form-text {
-            color: var(--or-pale);
-            font-size: 0.8rem;
-            font-weight: 300;
-        }
-
-        /* ===== BOUTONS MODERNISÉS ===== */
-        .btn {
-            border-radius: 0;
-            padding: 0.55rem 1.2rem;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            transition: var(--transition);
-            border: none;
-            font-size: 0.85rem;
+            border-color: var(--gold-primary) !important;
+            box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.2) !important;
         }
 
         .btn-marron {
-            background: linear-gradient(135deg, var(--marron-dore) 0%, var(--marron-clair) 100%);
-            color: var(--noir-principal);
-            box-shadow: 0 4px 15px rgba(184, 134, 11, 0.3);
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            box-shadow: 0 6px 16px rgba(184, 134, 11, 0.35);
+            transition: all 0.3s ease;
         }
 
         .btn-marron:hover {
-            background: linear-gradient(135deg, var(--marron-clair) 0%, var(--or-accent) 100%);
+            background: linear-gradient(135deg, #e5b32e 0%, #c99312 100%);
+            color: #000;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(184, 134, 11, 0.4);
-            color: var(--noir-principal);
+            box-shadow: 0 10px 22px rgba(184, 134, 11, 0.5);
         }
 
-        .btn-marron:active {
-            transform: translateY(0);
-        }
-
-        .btn-light {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--marron-clair);
-            border: 1px solid var(--marron-dore);
-            backdrop-filter: blur(10px);
-        }
-
-        .btn-light:hover {
-            background: rgba(184, 134, 11, 0.2);
-            color: var(--or-accent);
-            border-color: var(--marron-clair);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #8B0000 0%, #DC143C 100%);
-            color: var(--blanc);
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #DC143C 0%, #FF6347 100%);
-            transform: translateY(-2px);
-        }
-
-        /* ===== TABLE MODERNISÉE ===== */
+        /* Table */
         .table-responsive {
-            border-radius: 0;
+            border-radius: 12px;
             overflow: hidden;
         }
 
         .table {
-            margin: 0;
-            color: var(--blanc);
-        }
-
-        .table thead {
-            background: linear-gradient(135deg, var(--marron-dore) 0%, var(--marron-clair) 100%);
-            color: var(--noir-principal);
+            margin-bottom: 0;
+            color: #e5e7eb;
         }
 
         .table thead th {
-            font-weight: 500;
+            background: rgba(218, 165, 32, 0.15);
+            color: #FFD700;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.82rem;
             letter-spacing: 0.5px;
-            padding: 0.65rem 1rem;
             border: none;
-            font-size: 0.85rem;
-            text-transform: uppercase;
+            padding: 14px 18px;
         }
 
-        .table tbody {
-            background: var(--noir-secondaire);
-        }
-
-        .table tbody td {
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid rgba(184, 134, 11, 0.1);
+        .table tbody tr td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
             vertical-align: middle;
-            font-weight: 300;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
         }
 
-        .table tbody tr {
-            transition: var(--transition);
+        .table tbody tr:hover td {
+            background: rgba(218, 165, 32, 0.08);
         }
 
-        .table tbody tr:hover {
-            background: rgba(184, 134, 11, 0.1);
-            transform: scale(1.01);
-        }
-
-        .table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* ===== BADGES DÉPARTEMENTS ===== */
-        .badge {
-            padding: 0.35rem 0.75rem;
-            border-radius: 0;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
-
-        .badge-finance {
-            background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%);
-            color: var(--noir-principal);
-        }
-
-        .badge-rh {
-            background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-            color: var(--noir-principal);
-        }
-
-        .badge-daj {
-            background: linear-gradient(135deg, #8B6914 0%, #B8860B 100%);
-            color: var(--blanc);
-        }
-
-        .badge-communication {
-            background: linear-gradient(135deg, #F4A460 0%, #DAA520 100%);
-            color: var(--noir-principal);
-        }
-
-        .badge-sg {
-            background: linear-gradient(135deg, #CD853F 0%, #DAA520 100%);
-            color: var(--noir-principal);
-        }
-
-        /* ===== ADRESSE MAC ===== */
         .mac-address {
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-            color: var(--or-accent);
-            letter-spacing: 1px;
+            font-family: 'Plus Jakarta Sans', monospace;
+            font-weight: 600;
+            color: #6ea8fe;
         }
 
-        /* ===== STATISTIQUES - GRAPHIQUE CIRCULAIRE ===== */
+        /* Badges */
+        .department-badge {
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-finance { background: rgba(33, 150, 243, 0.2); color: #64b5f6; border: 1px solid rgba(33, 150, 243, 0.4); }
+        .badge-rh { background: rgba(255, 152, 0, 0.2); color: #ffb74d; border: 1px solid rgba(255, 152, 0, 0.4); }
+        .badge-daj { background: rgba(156, 39, 176, 0.2); color: #ba68c8; border: 1px solid rgba(156, 39, 176, 0.4); }
+        .badge-communication { background: rgba(244, 67, 54, 0.2); color: #e57373; border: 1px solid rgba(244, 67, 54, 0.4); }
+        .badge-sg { background: rgba(0, 188, 212, 0.2); color: #4dd0e1; border: 1px solid rgba(0, 188, 212, 0.4); }
+
+        /* Graphique & Légende */
         .chart-wrapper {
             display: flex;
             align-items: center;
-            gap: 20px;
-            padding: 15px;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 1.5rem;
         }
 
         .pie-chart-container {
             position: relative;
             width: 180px;
             height: 180px;
-            flex-shrink: 0;
         }
 
         .center-label {
@@ -375,79 +167,40 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            z-index: 10;
         }
 
         .total-number {
-            font-size: 36px;
-            font-weight: bold;
-            color: var(--marron-clair);
-            font-family: 'Courier New', monospace;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #FFD700;
+            line-height: 1;
         }
 
         .total-text {
-            font-size: 10px;
-            color: var(--or-pale);
+            font-size: 0.75rem;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .legend {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            flex: 1;
+            gap: 0.75rem;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px;
-            background-color: var(--noir-tertiaire);
-            border: 1px solid rgba(184, 134, 11, 0.2);
-            transition: var(--transition);
-            cursor: pointer;
-        }
-
-        .legend-item:hover {
-            transform: translateY(-1px);
-            background-color: rgba(184, 134, 11, 0.1);
-            border-color: var(--marron-dore);
+            gap: 0.5rem;
+            font-size: 0.85rem;
         }
 
         .legend-color {
-            width: 20px;
-            height: 20px;
-            flex-shrink: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 4px;
         }
 
-        .legend-info {
-            flex: 1;
-        }
-
-        .legend-label {
-            font-size: 10px;
-            color: var(--or-pale);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 400;
-        }
-
-        .legend-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--blanc);
-            font-family: 'Courier New', monospace;
-        }
-
-        .legend-percentage {
-            font-size: 10px;
-            color: var(--marron-clair);
-            margin-left: 4px;
-        }
-
-        /* Couleurs pour chaque département */
         .color-finance { background-color: #2196F3; }
         .color-rh { background-color: #FF9800; }
         .color-daj { background-color: #9C27B0; }
@@ -456,170 +209,75 @@
         .color-dsi { background-color: #4CAF50; }
         .color-dircab { background-color: #FFC107; }
 
-        /* ===== ANIMATIONS DE CHARGEMENT ===== */
         .loading {
             display: none;
-        }
-
-        .spinner-border {
-            color: var(--marron-clair);
-            width: 2.5rem;
-            height: 2.5rem;
-        }
-
-        /* ===== ANIMATIONS ===== */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .card {
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 768px) {
-            .card-title {
-                font-size: 1.5rem;
-            }
-            
-            .card-body {
-                padding: 1.25rem;
-            }
-            
-            .chart-wrapper {
-                flex-direction: column;
-            }
-
-            .pie-chart-container {
-                width: 160px;
-                height: 160px;
-            }
-
-            .total-number {
-                font-size: 30px;
-            }
-
-            .legend {
-                grid-template-columns: 1fr;
-                width: 100%;
-            }
-        }
-
-        /* ===== SCROLLBAR PERSONNALISÉE ===== */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--noir-tertiaire);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--marron-dore);
-            border-radius: 0;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--marron-clair);
-        }
-
-        /* ===== ICÔNES ===== */
-        .fa-network-wired,
-        .fa-plus,
-        .fa-chart-bar,
-        .fa-list,
-        .fa-sync-alt,
-        .fa-trash {
-            margin-right: 0.5rem;
         }
     </style>
 </head>
 <body>
-    
-    <!-- BARRE DE STATUT MINISTÉRIELLE -->
-    <div class="ministry-status-bar">
-        <span class="status-indicator"></span>
-        SYSTÈME SÉCURISÉ | MINISTÈRE DES MINES - RÉPUBLIQUE DE MADAGASCAR
-    </div>
-    
-    <div class="container-fluid py-4">
-        <!-- EN-TÊTE PRINCIPAL -->
+    <div class="container-fluid">
+        <!-- En-tête -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-body" style="padding: 1rem 1.5rem;">
-                        <div class="d-flex align-items-center">
-                            <div class="ministry-emblem">
-                                <i class="fas fa-gem" style="color: var(--noir-principal); font-size: 1.2rem;"></i>
-                            </div>
-                            <div class="ministry-header flex-grow-1">
-                                <h1 class="card-title mb-0">
-                                    Ministère des Mines - Système d'Authentification Réseau
-                                </h1>
-                                <div class="ministry-subtitle">
-                                    Direction des Systèmes d'Information | Gestion des Accès MAC
-                                </div>
-                            </div>
+                <div class="card">
+                    <div class="card-body p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div>
+                            <h1 class="card-title fs-3 mb-1">
+                                <i class="fas fa-network-wired"></i>
+                                Gestion des Appareils RADIUS
+                            </h1>
+                            <p class="text-muted mb-0">Enregistrement et autorisation des appareils par adresse MAC (pfSense / FreeRADIUS)</p>
                         </div>
+                        <span class="badge bg-success text-dark px-3 py-2 rounded-pill fw-bold">
+                            <i class="fa-solid fa-bolt me-1"></i> Mode Administrateur Actif
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- SECTION AJOUT & STATISTIQUES -->
-        <div class="row mb-3">
-            <!-- FORMULAIRE D'AJOUT -->
-            <div class="col-md-6 mb-3 mb-md-0">
-                <div class="card shadow-sm">
+        <div class="row mb-4 g-4">
+            <!-- Formulaire d'ajout -->
+            <div class="col-lg-6">
+                <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-plus"></i> Ajouter un appareil</h5>
+                        <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i> Ajouter et autoriser un nouvel appareil</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column justify-content-center">
                         <form id="addDeviceForm">
-                            <div class="mb-2">
-                                <label for="mac_address" class="form-label">Adresse MAC</label>
-                                <input type="text" class="form-control" id="mac_address" 
-                                       placeholder="AA-BB-CC-DD-EE-FF" required>
-                                <div class="form-text">Format attendu par pfSense: AA-BB-CC-DD-EE-FF (IETF)</div>
-                            </div>
                             <div class="mb-3">
-                                <label for="department" class="form-label">Département</label>
+                                <label for="mac_address" class="form-label text-muted">Adresse MAC de l'appareil</label>
+                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: AA:BB:CC:DD:EE:FF ou AA-BB-CC-DD-EE-FF" required>
+                                <div class="form-text text-muted small mt-1">Format automatique pfSense : AA-BB-CC-DD-EE-FF</div>
+                            </div>
+                            <div class="mb-4">
+                                <label for="department" class="form-label text-muted">Département affecté</label>
                                 <select class="form-select" id="department" required>
-                                    <option value="">Sélectionner un département</option>
-                                    <option value="finance">Direction Administratif (DAF)</option>
-                                    <option value="rh">Ressources Humaines (RH)</option>
-                                    <option value="daj">Direction des Affaires Juridiques (DAJ)</option>
+                                    <option value="">Sélectionner un département...</option>
+                                    <option value="finance">Finance & Comptabilité</option>
+                                    <option value="rh">Ressources Humaines</option>
+                                    <option value="daj">Direction des Affaires Juridiques</option>
                                     <option value="communication">Communication</option>
-                                    <option value="sg">Secrétariat Général (SG)</option>
-                                    <option value="dsi">Direction Service Info (DSI)</option>
-                                    <option value="dircab">Direction Cabinet (DIRCAB)</option>
+                                    <option value="sg">Secrétariat Général</option>
                                 </select>
                             </div>
                             <button type="submit" class="btn btn-marron w-100">
-                                <span class="loading"><i class="fas fa-spinner fa-spin"></i></span>
-                                <i class="fas fa-plus"></i> Ajouter l'appareil
+                                <span class="loading me-2"><i class="fas fa-spinner fa-spin"></i></span>
+                                <i class="fas fa-plus me-1"></i> Enregistrer dans RADIUS
                             </button>
-                        </form>                    
+                        </form>
                     </div>
                 </div>
             </div>
 
-            <!-- STATISTIQUES AVEC GRAPHIQUE CIRCULAIRE -->
-            <div class="col-md-6">
-                <div class="card shadow-sm">
+            <!-- Graphique et statistiques -->
+            <div class="col-lg-6">
+                <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiques</h5>
+                        <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> Répartition par Département</h5>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-wrapper">
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <div class="chart-wrapper w-100">
                             <div class="pie-chart-container">
                                 <canvas id="pieChart" width="180" height="180"></canvas>
                                 <div class="center-label">
@@ -627,11 +285,8 @@
                                     <div class="total-text">Total</div>
                                 </div>
                             </div>
-
                             <div class="legend" id="statsLegend">
-                                <div class="text-center">
-                                    <div class="spinner-border" role="status"></div>
-                                </div>
+                                <div class="text-muted small"><i class="fas fa-spinner fa-spin me-1"></i> Chargement...</div>
                             </div>
                         </div>
                     </div>
@@ -639,33 +294,33 @@
             </div>
         </div>
 
-        <!-- TABLEAU DES APPAREILS -->
+        <!-- Tableau des appareils -->
         <div class="row">
             <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-list"></i> Appareils configurés</h5>
-                        <button class="btn btn-light btn-sm" onclick="loadDevices()">
-                            <i class="fas fa-sync-alt"></i> Actualiser
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span><i class="fas fa-list me-2"></i> Appareils enregistrés sur le réseau</span>
+                        <button class="btn btn-sm btn-outline-light" onclick="loadDevices()" style="border-radius: 8px;">
+                            <i class="fas fa-sync-alt me-1"></i> Actualiser
                         </button>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table mb-0">
+                            <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
                                         <th>Adresse MAC</th>
                                         <th>Département</th>
                                         <th>Groupe</th>
                                         <th>Bande passante</th>
-                                        <th>Actions</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="devicesTable">
                                     <tr>
-                                        <td colspan="5" class="text-center py-4">
-                                            <div class="spinner-border" role="status"></div>
-                                            <div class="mt-2">Chargement des appareils...</div>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <div class="spinner-border text-warning mb-2" role="status"></div>
+                                            <div>Chargement des appareils...</div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -681,7 +336,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
-        // --- FONCTION DE CONVERSION IETF ---
         function formatToIETF(mac) {
             let clean = mac.replace(/[^a-fA-F0-9]/g, '');
             if (clean.length === 12) {
@@ -700,17 +354,17 @@
                 if (response.success) {
                     displayDevices(response.data);
                 } else {
-                    $('#devicesTable').html('<tr><td colspan="5" class="text-center text-danger">Erreur: ' + response.error + '</td></tr>');
+                    $('#devicesTable').html('<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Erreur: ' + response.error + '</td></tr>');
                 }
             }, 'json').fail(function() {
-                $('#devicesTable').html('<tr><td colspan="5" class="text-center text-danger">Erreur de communication</td></tr>');
+                $('#devicesTable').html('<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Erreur de communication</td></tr>');
             });
         }
 
         function displayDevices(devices) {
             let html = '';
             if (devices.length === 0) {
-                html = '<tr><td colspan="5" class="text-center py-4" style="color: var(--or-pale);">Aucun appareil configuré</td></tr>';
+                html = '<tr><td colspan="5" class="text-center py-4 text-muted">Aucun appareil configuré dans RADIUS.</td></tr>';
             } else {
                 devices.forEach(function(device) {
                     const departmentColors = {
@@ -724,12 +378,12 @@
                     html += `
                         <tr>
                             <td class="mac-address">${device.mac_address}</td>
-                            <td><span class="badge ${departmentColors[device.department]}">${device.department.toUpperCase()}</span></td>
+                            <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${device.department.toUpperCase()}</span></td>
                             <td>${device.group}</td>
-                            <td><strong>${device.bandwidth}</strong></td>
-                            <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.mac_address}')">
-                                    <i class="fas fa-trash"></i> Supprimer
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${device.bandwidth}</span></td>
+                            <td class="text-end">
+                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.mac_address}')" style="border-radius: 8px;">
+                                    <i class="fas fa-trash me-1"></i> Supprimer
                                 </button>
                             </td>
                         </tr>
@@ -812,10 +466,8 @@
                         }
                     });
                     
-                    // Mettre à jour le nombre total
                     $('#totalDevices').text(devices.length);
                     
-                    // Créer les données pour le graphique
                     const chartData = [
                         { label: 'Finance', value: stats.finance, color: '#2196F3' },
                         { label: 'RH', value: stats.rh, color: '#FF9800' },
@@ -826,10 +478,7 @@
                         { label: 'DirCab', value: stats.dircab, color: '#FFC107' }
                     ];
                     
-                    // Dessiner le graphique
                     drawPieChart(chartData, devices.length);
-                    
-                    // Mettre à jour la légende
                     updateLegend(chartData, devices.length);
                 }
             }, 'json');
@@ -837,37 +486,33 @@
 
         function drawPieChart(data, total) {
             const canvas = document.getElementById('pieChart');
+            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const radius = 80;
 
-            // Effacer le canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (total === 0) {
-                // Dessiner un cercle gris si aucune donnée
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.fillStyle = '#3a3a3a';
+                ctx.fillStyle = '#22222a';
                 ctx.fill();
                 
-                // Cercle intérieur
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, 50, 0, 2 * Math.PI);
-                ctx.fillStyle = '#1a1a1a';
+                ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
+                ctx.fillStyle = '#18181e';
                 ctx.fill();
                 return;
             }
 
-            // Filtrer les valeurs à 0
             const filteredData = data.filter(item => item.value > 0);
-            let currentAngle = -Math.PI / 2; // Commencer en haut
+            let currentAngle = -Math.PI / 2;
 
             filteredData.forEach(item => {
                 const sliceAngle = (item.value / total) * 2 * Math.PI;
 
-                // Dessiner le segment
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
                 ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
@@ -875,18 +520,16 @@
                 ctx.fillStyle = item.color;
                 ctx.fill();
 
-                // Bordure entre les segments
-                ctx.strokeStyle = '#1a1a1a';
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#18181e';
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
                 currentAngle += sliceAngle;
             });
 
-            // Dessiner le cercle intérieur (effet donut)
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 50, 0, 2 * Math.PI);
-            ctx.fillStyle = '#1a1a1a';
+            ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
+            ctx.fillStyle = '#18181e';
             ctx.fill();
         }
 
@@ -909,12 +552,8 @@
                 html += `
                     <div class="legend-item">
                         <div class="legend-color ${colorClass}"></div>
-                        <div class="legend-info">
-                            <div class="legend-label">${item.label}</div>
-                            <div>
-                                <span class="legend-value">${item.value}</span>
-                                <span class="legend-percentage">(${percentage}%)</span>
-                            </div>
+                        <div>
+                            <strong>${item.label}:</strong> ${item.value} <span class="text-muted small">(${percentage}%)</span>
                         </div>
                     </div>
                 `;
