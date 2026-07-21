@@ -17,6 +17,10 @@ function initializeManager() {
     $('#ajax-btn-refresh').off('click').on('click', function() {
         loadUsers();
     });
+    $('#ajax-user-search').off('input').on('input', function() {
+        const query = $(this).val().toLowerCase().trim();
+        $('#ajax-users-container tbody tr').each(function() { $(this).toggle($(this).text().toLowerCase().includes(query)); });
+    });
     setupAutoRefresh();
 }
 
@@ -83,8 +87,8 @@ function updateManagerHTML() {
         <!-- Liste des utilisateurs -->
         <div class="card-custom">
             <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes utilisateurs de l'organisation</span>
-                <span class="badge bg-warning text-dark"><i class="fa-solid fa-lock me-1"></i> Lecture Seule</span>
+                <div><span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes</span><small class="directory-subtitle">Agents de l'organisation</small></div>
+                <div class="directory-tools"><label class="directory-search" aria-label="Rechercher un utilisateur"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="ajax-user-search" placeholder="Rechercher…" autocomplete="off"></label><span class="live-badge"><span class="live-dot"></span>Lecture seule</span></div>
             </div>
             <div class="card-custom-body p-0">
                 <div id="ajax-users-loading" class="text-center py-5 text-warning">
@@ -190,6 +194,23 @@ function updateManagerHTML() {
                 from { opacity: 0; transform: translateY(8px); }
                 to { opacity: 1; transform: translateY(0); }
             }
+            .directory-subtitle { color:#8992a3; font-weight:400; margin-left:1.65rem; }
+            .directory-tools { display:flex; align-items:center; gap:.75rem; }
+            .directory-search { display:flex; align-items:center; gap:.5rem; background:#11151d; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:.4rem .7rem; color:#8992a3; }
+            .directory-search input { width:130px; border:0; outline:0; background:transparent; color:#fff; font-size:.82rem; }
+            .live-badge { color:#8be3bd; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); border-radius:999px; padding:.35rem .7rem; font-size:.72rem; font-weight:700; white-space:nowrap; }
+            .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; }
+            .user-identity { display:flex; align-items:center; gap:.7rem; min-width:145px; }
+            .user-avatar { display:grid; place-items:center; width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#e4b83b,#9d6e09); color:#16120a; font-weight:800; }
+            .user-identity strong { display:block; color:#f8fafc; font-size:.9rem; }
+            .user-identity small { display:block; color:#737d8d; font-size:.68rem; }
+            .user-email, .table-meta { display:flex; align-items:center; gap:.5rem; color:#b6bfce; font-size:.82rem; white-space:nowrap; }
+            .user-email i, .table-meta i { color:#c99a21; width:14px; text-align:center; }
+            .role-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); color:#d9dee8; font-size:.76rem; }
+            .role-badge i { color:#8ec5ff; }
+            .ajax-users-table tbody tr { transition:background .2s, transform .2s; }
+            .ajax-users-table tbody tr:hover { transform:translateX(2px); }
+            @media (max-width:700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } }
             .status-actif {
                 background: rgba(16, 185, 129, 0.2);
                 color: #10b981;
@@ -291,10 +312,10 @@ function loadUsers() {
                     
                     tableHTML += `
                         <tr class="ajax-fade-in">
-                            <td class="fw-semibold text-white">${user.nom_utilisateur}</td>
-                            <td>${user.email}</td>
-                            <td>${user.nom_departement || 'N/A'}</td>
-                            <td><span class="badge bg-dark border border-secondary">${user.nom_role || 'N/A'}</span></td>
+                            <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
+                            <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
+                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
+                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
                         </tr>
                     `;
