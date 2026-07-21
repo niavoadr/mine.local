@@ -90,6 +90,7 @@ function updateManagerHTML() {
                         </div>
                     </div>
                     <div class="user-form-body">
+                        <div class="form-intro"><i class="fa-solid fa-circle-info"></i><span>Renseignez les informations professionnelles du nouvel agent.</span></div>
                         <form id="ajax-user-form">
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-user text-warning me-2"></i>Nom d'utilisateur</label>
@@ -128,8 +129,17 @@ function updateManagerHTML() {
             <div class="col-xl-8 col-lg-7">
                 <div class="card-custom h-100">
                     <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <span><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes utilisateurs de l'organisation</span>
-                        <span class="badge bg-warning text-dark">Temps Réel</span>
+                        <div>
+                            <span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes</span>
+                            <small class="directory-subtitle">Agents de l'organisation</small>
+                        </div>
+                        <div class="directory-tools">
+                            <label class="directory-search" aria-label="Rechercher un utilisateur">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="search" id="ajax-user-search" placeholder="Rechercher…" autocomplete="off">
+                            </label>
+                            <span class="live-badge"><span class="live-dot"></span>Temps réel</span>
+                        </div>
                     </div>
                     <div class="card-custom-body p-0">
                         <div id="ajax-users-loading" class="text-center py-5 text-warning">
@@ -354,6 +364,30 @@ function updateManagerHTML() {
                 font-size: 0.78rem;
                 display: inline-block;
             }
+            .form-intro { display:flex; gap:.6rem; align-items:flex-start; color:#9ca5b5; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:.7rem .75rem; margin-bottom:1.35rem; font-size:.75rem; line-height:1.45; }
+            .form-intro i { color:#e4b83b; margin-top:2px; }
+            .empty-users { min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.45rem; color:#8d97a8; text-align:center; }
+            .empty-users i { color:#c99a21; font-size:2rem; margin-bottom:.35rem; }
+            .empty-users strong { color:#e5e7eb; font-size:.95rem; }
+            .empty-users span { font-size:.8rem; }
+            .directory-subtitle { color: #8992a3; font-weight: 400; margin-left: 1.65rem; }
+            .directory-tools { display:flex; align-items:center; gap:.75rem; }
+            .directory-search { display:flex; align-items:center; gap:.5rem; background:#11151d; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:.4rem .7rem; color:#8992a3; }
+            .directory-search input { width:130px; border:0; outline:0; background:transparent; color:#fff; font-size:.82rem; }
+            .live-badge { color:#8be3bd; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); border-radius:999px; padding:.35rem .7rem; font-size:.72rem; font-weight:700; white-space:nowrap; }
+            .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+            .user-identity { display:flex; align-items:center; gap:.7rem; min-width:145px; }
+            .user-avatar { display:grid; place-items:center; width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#e4b83b,#9d6e09); color:#16120a; font-weight:800; }
+            .user-identity strong { display:block; color:#f8fafc; font-size:.9rem; }
+            .user-identity small { display:block; color:#737d8d; font-size:.68rem; margin-top:2px; }
+            .user-email, .table-meta { display:flex; align-items:center; gap:.5rem; color:#b6bfce; font-size:.82rem; white-space:nowrap; }
+            .user-email i, .table-meta i { color:#c99a21; width:14px; text-align:center; }
+            .role-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); color:#d9dee8; font-size:.76rem; }
+            .role-badge i { color:#8ec5ff; }
+            .ajax-users-table tbody tr { transition:background .2s, transform .2s; }
+            .ajax-users-table tbody tr:hover { transform:translateX(2px); }
+            @media (max-width: 700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } .ajax-users-table th, .ajax-users-table td { padding:12px 14px !important; } }
+            /* Statuts et actions */
             .status-en_attente {
                 background: rgba(245, 158, 11, 0.2);
                 color: #fbbf24;
@@ -383,6 +417,13 @@ function setupManagerEvents() {
 
     $('#ajax-btn-refresh').off('click').on('click', function() {
         loadUsers();
+    });
+
+    $('#ajax-user-search').off('input').on('input', function() {
+        const query = $(this).val().toLowerCase().trim();
+        $('#ajax-users-container tbody tr').each(function() {
+            $(this).toggle($(this).text().toLowerCase().includes(query));
+        });
     });
 
     $(document).off('click', '.ajax-btn-status').on('click', '.ajax-btn-status', function() {
@@ -476,6 +517,12 @@ function loadUsers() {
         dataType: 'json',
         success: function(response) {
             if (response.success) {
+                if (!response.data || response.data.length === 0) {
+                    $('#ajax-users-container').html('<div class="empty-users"><i class="fa-solid fa-users-slash"></i><strong>Aucun compte trouvé</strong><span>Les comptes créés apparaîtront ici.</span></div>');
+                    $('#ajax-users-loading').hide();
+                    $('#ajax-users-container').show();
+                    return;
+                }
                 let tableHTML = `
                     <table class="ajax-users-table">
                         <thead>
@@ -506,10 +553,10 @@ function loadUsers() {
                     
                     tableHTML += `
                         <tr class="ajax-fade-in">
-                            <td class="fw-semibold text-white">${user.nom_utilisateur}</td>
-                            <td>${user.email}</td>
-                            <td>${user.nom_departement || 'N/A'}</td>
-                            <td><span class="badge bg-dark border border-secondary">${user.nom_role || 'N/A'}</span></td>
+                            <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
+                            <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
+                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
+                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
                             <td class="text-end">${actionButton}</td>
                         </tr>
