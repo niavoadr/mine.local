@@ -429,6 +429,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
             color: #10b981;
         }
     </style>
+    <link rel="stylesheet" href="css/responsive.css?v=20260722">
 </head>
 <body>
 
