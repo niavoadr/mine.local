@@ -1,8 +1,13 @@
 <?php
 session_start();
 
-// Définition de l'ID de l'utilisateur connecté
-$user_role_id = $_SESSION['role_lib'] ?? "";
+// Informations de l'utilisateur connecté. Une session absente ne doit jamais afficher un nom par défaut.
+$connected_username = trim((string) ($_SESSION['user'] ?? $_SESSION['nom_utilisateur'] ?? ''));
+if ($connected_username === '') {
+    header('Location: login.php');
+    exit;
+}
+$user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
@@ -356,6 +361,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
         }
     </style>
     <link rel="stylesheet" href="css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body>
 
@@ -364,9 +370,6 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
         <div class="d-flex align-items-center">
             <span class="status-indicator"></span>
             <span>SYSTÈME SÉCURISÉ | TABLEAU DE BORD ADMINISTRATION RESTREINTE — MINISTÈRE DES MINES</span>
-        </div>
-        <div class="d-none d-md-block text-muted">
-            <i class="fa-regular fa-clock me-1"></i> <span id="clock-display"><?php echo date('d/m/Y H:i'); ?></span>
         </div>
     </div>
 
@@ -400,8 +403,8 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
             <div class="d-flex align-items-center gap-3">
                 <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
                     <i class="fa-solid fa-user-shield text-warning"></i>
-                    <span class="fw-semibold"><?php echo htmlspecialchars($_SESSION['user'] ?? 'Chef Dept'); ?></span>
-                    <span class="badge bg-warning text-dark ms-1">Restreint</span>
+                    <span class="fw-semibold"><?php echo htmlspecialchars($connected_username, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="badge bg-warning text-dark ms-1">User</span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -490,7 +493,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="managerAdmin.js?v=20260721"></script>
+    <script src="managerUser.js?v=20260721"></script>
 
     <script>
     $(document).ready(function() {

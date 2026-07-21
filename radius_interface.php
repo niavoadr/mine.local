@@ -214,6 +214,7 @@
         }
     </style>
     <link rel="stylesheet" href="css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body>
     <div class="container-fluid">
@@ -229,9 +230,6 @@
                             </h1>
                             <p class="text-muted mb-0">Enregistrement et autorisation des appareils par adresse MAC (pfSense / FreeRADIUS)</p>
                         </div>
-                        <span class="badge bg-success text-dark px-3 py-2 rounded-pill fw-bold">
-                            <i class="fa-solid fa-bolt me-1"></i> Mode Administrateur Actif
-                        </span>
                     </div>
                 </div>
             </div>
