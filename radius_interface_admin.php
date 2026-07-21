@@ -174,9 +174,6 @@
                             </h1>
                             <p class="text-muted mb-0">Authentification MAC par département — Interface Administrateur restreinte (Lecture Seule)</p>
                         </div>
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">
-                            <i class="fa-solid fa-lock me-1"></i> Mode Lecture Seule
-                        </span>
                     </div>
                 </div>
             </div>

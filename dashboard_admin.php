@@ -479,7 +479,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
                 <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
                     <i class="fa-solid fa-user-shield text-warning"></i>
                     <span class="fw-semibold"><?php echo htmlspecialchars($_SESSION['user'] ?? 'Administrateur'); ?></span>
-                    <span class="badge bg-warning text-dark ms-1">Global</span>
+                    <span class="badge bg-warning text-dark ms-1">Admin</span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
