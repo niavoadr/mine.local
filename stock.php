@@ -524,6 +524,7 @@ $current_user_role_id = (int)($_GET['role_id'] ?? 0);
 #manager-content .ajax-users-table tbody tr:hover { background:#263449 !important; transform:translateY(-3px); }
 </style>
     <link rel="stylesheet" href="css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body style="background-color: #F5F5DC;"> <style>
         /* Couleurs du thème marron et blanc */

@@ -158,6 +158,7 @@
         }
     </style>
     <link rel="stylesheet" href="css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body>
     <div class="container-fluid">
