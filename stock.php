@@ -1,5 +1,5 @@
 
-// js/manager.js - Script AJAX pour la section Gestionnaire de Compte
+// js/managerAdmin.js - Script AJAX pour la section Gestionnaire de Compte
 $(document).ready(function() {
     // Initialisation uniquement quand on est sur l'onglet manager
     initializeManager();
@@ -482,8 +482,10 @@ $(document).on('click', '.nav-tab', function() {
 
             <?php
 // radius_interface.php
-// Définition de la constante de rôle
-define('CHEF_DEPT', 5);
+// Définition de la constante de rôle (le fichier peut inclure plusieurs sections PHP).
+if (!defined('CHEF_DEPT')) {
+    define('CHEF_DEPT', 5);
+}
 
 // Récupérer le rôle de l'utilisateur depuis les paramètres GET de l'iframe
 $current_user_role_id = (int)($_GET['role_id'] ?? 0); 
@@ -1123,7 +1125,7 @@ $user_role_id = $_SESSION['role_lib'] ?? "";
 </head>
 <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js?v=20260722"></script>
+<script src="managerAdmin.js?v=20260722"></script>
 <body>
     <div class="container">
         <!-- En-tête -->
@@ -1530,7 +1532,7 @@ function confirmLogout() {
     </script>
     <!-- Avant </body> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="manager.js?v=20260722"></script>
+<script src="managerAdmin.js?v=20260722"></script>
 
 </script>
 
@@ -1548,7 +1550,11 @@ include("./connection.php");
 
 $msg = ''; // Initialisation du message d'erreur*/
 
-define('CHEF_DEPT', 5);
+// La constante est déjà définie plus haut lorsque ce fichier est exécuté dans son ensemble.
+// Le garde évite l'erreur « Constant CHEF_DEPT already defined ».
+if (!defined('CHEF_DEPT')) {
+    define('CHEF_DEPT', 5);
+}
 // Récupérer le rôle de l'utilisateur depuis les paramètres GET de l'iframe
 $current_user_role_id = $_GET['role_lib'] ?? ""; 
 echo "chef dept".$current_user_role_id."</BR>";

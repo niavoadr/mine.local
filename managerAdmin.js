@@ -1,4 +1,4 @@
-// js/managerAdmin.js - Script AJAX pour le Gestionnaire de Compte (Mode Lecture Restreinte)
+// js/managerAdmin.js - Script AJAX pour la section Gestionnaire de Compte (Mode Administrateur Actif)
 $(document).ready(function() {
     initializeManager();
     $('.nav-tab').on('click', function() {
@@ -14,13 +14,7 @@ function initializeManager() {
     }
     updateManagerHTML();
     loadManagerData();
-    $('#ajax-btn-refresh').off('click').on('click', function() {
-        loadUsers();
-    });
-    $('#ajax-user-search').off('input').on('input', function() {
-        const query = $(this).val().toLowerCase().trim();
-        $('#ajax-users-container tbody tr').each(function() { $(this).toggle($(this).text().toLowerCase().includes(query)); });
-    });
+    setupManagerEvents();
     setupAutoRefresh();
 }
 
@@ -30,10 +24,10 @@ function updateManagerHTML() {
         <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
             <div>
                 <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes & Habilitations</h2>
-                <p class="text-muted mb-0">Consultation en lecture restreinte des comptes agents et rôles du Ministère.</p>
+                <p class="text-muted mb-0">Création, suspension et affectation des rôles d'accès des agents du Ministère.</p>
             </div>
             <button type="button" class="btn btn-outline-warning fw-semibold px-4 py-2" id="ajax-btn-refresh" style="border-radius: 12px;">
-                <i class="fa-solid fa-rotate-right me-1"></i> Actualiser le répertoire
+                <i class="fa-solid fa-rotate-right me-1"></i> Actualiser la liste
             </button>
         </div>
 
@@ -84,25 +78,84 @@ function updateManagerHTML() {
             </div>
         </div>
 
-        <!-- Liste des utilisateurs -->
-        <div class="card-custom">
-            <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Utilisateurs existants</span><small class="directory-subtitle">Agents de l'organisation</small></div>
-                <div class="directory-tools"><label class="directory-search" aria-label="Rechercher un utilisateur"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="ajax-user-search" placeholder="Rechercher…" autocomplete="off"></label><span class="live-badge"><span class="live-dot"></span>Lecture seule</span></div>
-            </div>
-            <div class="card-custom-body p-0">
-                <div id="ajax-users-loading" class="text-center py-5 text-warning">
-                    <div class="spinner-border mb-2" role="status"></div>
-                    <div>Chargement du répertoire des agents...</div>
+        <div class="row g-4">
+            <!-- Formulaire de création stylisé -->
+            <div class="col-xl-4 col-lg-5">
+                <div class="user-form-card h-100">
+                    <div class="user-form-header">
+                        <div class="icon-circle"><i class="fa-solid fa-user-plus"></i></div>
+                        <div>
+                            <h4 class="mb-0 text-white fw-bold fs-6">Créer un Nouveau Compte</h4>
+                            <span class="text-warning small" style="font-size: 0.75rem;">Habilitation Agent Ministère</span>
+                        </div>
+                    </div>
+                    <div class="user-form-body">
+                        <div class="form-intro"><i class="fa-solid fa-circle-info"></i><span>Renseignez les informations professionnelles du nouvel agent.</span></div>
+                        <form id="ajax-user-form">
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-user text-warning me-2"></i>Nom d'utilisateur</label>
+                                <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" class="custom-form-input" required placeholder="Ex: j.dupont" autocomplete="off">
+                            </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-envelope text-warning me-2"></i>Adresse Email professionnelle</label>
+                                <input type="email" id="ajax_email" name="email" class="custom-form-input" required placeholder="agent@mines.gov.mg" autocomplete="off">
+                            </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-lock text-warning me-2"></i>Mot de passe provisoire</label>
+                                <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" class="custom-form-input" required placeholder="Mot de passe sécurisé (min. 6 car.)">
+                            </div>
+                            <div class="form-field-group mb-3">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-building text-warning me-2"></i>Département d'affectation</label>
+                                <select id="ajax_id_departement" name="id_departement" class="custom-form-select" required>
+                                    <option value="">Chargement des départements...</option>
+                                </select>
+                            </div>
+                            <div class="form-field-group mb-4">
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-user-shield text-warning me-2"></i>Rôle et Habilitation</label>
+                                <select id="ajax_id_role" name="id_role" class="custom-form-select" required>
+                                    <option value="">Chargement des rôles...</option>
+                                </select>
+                            </div>
+                            <button type="submit" id="ajax-btn-create">
+                                <span class="ajax-spinner me-2" style="display: none;"><i class="fa-solid fa-spinner fa-spin"></i></span>
+                                <i class="fa-solid fa-circle-check"></i> Créer et Activer le Compte
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                <div id="ajax-users-container" class="table-responsive border-0 mb-0">
-                    <!-- Table chargée par AJAX -->
+            </div>
+
+            <!-- Liste des utilisateurs -->
+            <div class="col-xl-8 col-lg-7">
+                <div class="card-custom h-100">
+                    <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes</span>
+                            <small class="directory-subtitle">Agents de l'organisation</small>
+                        </div>
+                        <div class="directory-tools">
+                            <label class="directory-search" aria-label="Rechercher un utilisateur">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="search" id="ajax-user-search" placeholder="Rechercher…" autocomplete="off">
+                            </label>
+                            <span class="live-badge"><span class="live-dot"></span>Temps réel</span>
+                        </div>
+                    </div>
+                    <div class="card-custom-body p-0">
+                        <div id="ajax-users-loading" class="text-center py-5 text-warning">
+                            <div class="spinner-border mb-2" role="status"></div>
+                            <div>Chargement du répertoire des agents...</div>
+                        </div>
+                        <div id="ajax-users-container" class="table-responsive border-0 mb-0">
+                            <!-- Table chargée par AJAX -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     `);
 
-    // Ajouter les styles CSS modernes pour AJAX (remplace les anciens styles blancs)
+    // Ajouter les styles CSS modernes pour AJAX et le formulaire
     $('#ajax-styles').remove();
     $('head').append(`
         <style id="ajax-styles">
@@ -159,6 +212,103 @@ function updateManagerHTML() {
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
+            /* Styling de la carte de création d'utilisateur */
+            .user-form-card {
+                background: linear-gradient(145deg, rgba(26, 26, 34, 0.95) 0%, rgba(16, 16, 22, 0.98) 100%) !important;
+                border: 1.5px solid rgba(218, 165, 32, 0.35) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(218, 165, 32, 0.1) !important;
+                overflow: hidden;
+            }
+            .user-form-header {
+                background: linear-gradient(135deg, rgba(218, 165, 32, 0.22) 0%, rgba(184, 134, 11, 0.12) 100%) !important;
+                border-bottom: 1px solid rgba(218, 165, 32, 0.3) !important;
+                padding: 1.25rem 1.5rem !important;
+                display: flex;
+                align-items: center;
+                gap: 0.85rem;
+            }
+            .user-form-header .icon-circle {
+                width: 42px;
+                height: 42px;
+                background: var(--gold-primary, #DAA520);
+                color: #000;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.15rem;
+                box-shadow: 0 4px 12px rgba(218, 165, 32, 0.4);
+            }
+            .user-form-body {
+                padding: 1.75rem 1.5rem !important;
+            }
+            .form-field-group label {
+                color: #e5e7eb !important;
+                font-size: 0.85rem !important;
+                letter-spacing: 0.3px;
+            }
+            #ajax-user-form .custom-form-input,
+            #ajax-user-form .custom-form-select {
+                background-color: #101014 !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+                border-radius: 12px !important;
+                color: #ffffff !important;
+                font-size: 0.92rem !important;
+                padding: 0.8rem 1rem !important;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                width: 100% !important;
+                box-shadow: inset 0 2px 5px rgba(0,0,0,0.4) !important;
+            }
+            #ajax-user-form .custom-form-input:focus,
+            #ajax-user-form .custom-form-select:focus {
+                background-color: #16161e !important;
+                border-color: #DAA520 !important;
+                box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.25), inset 0 1px 2px rgba(0,0,0,0.2) !important;
+                outline: none !important;
+            }
+            #ajax-user-form .custom-form-input::placeholder {
+                color: #6b7280 !important;
+                opacity: 1 !important;
+            }
+            #ajax-user-form .custom-form-select option {
+                background-color: #16161e !important;
+                color: #ffffff !important;
+                padding: 10px !important;
+            }
+            #ajax-btn-create {
+                background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+                border: none !important;
+                border-radius: 14px !important;
+                color: #000000 !important;
+                font-weight: 700 !important;
+                font-size: 0.98rem !important;
+                padding: 0.95rem 1.5rem !important;
+                width: 100% !important;
+                cursor: pointer !important;
+                box-shadow: 0 8px 20px rgba(184, 134, 11, 0.4) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 0.6rem !important;
+                margin-top: 1.25rem !important;
+            }
+            #ajax-btn-create:hover {
+                background: linear-gradient(135deg, #e5b32e 0%, #c99312 100%) !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 12px 28px rgba(184, 134, 11, 0.6) !important;
+                color: #000000 !important;
+            }
+            #ajax-btn-create:active {
+                transform: translateY(0) !important;
+            }
+            #ajax-btn-create:disabled {
+                opacity: 0.7 !important;
+                cursor: not-allowed !important;
+                transform: none !important;
+            }
+            /* Table CSS */
             .ajax-users-table {
                 width: 100%;
                 border-collapse: separate !important;
@@ -178,12 +328,18 @@ function updateManagerHTML() {
                 letter-spacing: 0.5px;
                 border-bottom: 1px solid rgba(218, 165, 32, 0.3) !important;
             }
+            .ajax-users-table { min-width: 920px; table-layout: auto !important; }
             .ajax-users-table td {
                 padding: 15px 18px !important;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
                 vertical-align: middle !important;
                 color: #e5e7eb !important;
             }
+            .ajax-users-table .action-cell { min-width: 165px; width: 165px; white-space: nowrap !important; padding-right: 22px !important; position: sticky; right: 0; z-index: 2; background: #181c24 !important; box-shadow: -8px 0 14px rgba(0,0,0,.22); }
+            .ajax-users-table thead th:last-child { position: sticky; right: 0; z-index: 3; min-width: 165px; background: #272116 !important; }
+            .ajax-users-table tbody tr:hover .action-cell { background: #272a22 !important; }
+            #ajax-users-container { overflow-x: auto !important; overflow-y: visible; padding-bottom: 4px; }
+            .ajax-users-table .action-cell .btn { white-space: nowrap !important; display: inline-flex; align-items: center; }
             .ajax-users-table tr:hover td {
                 background: rgba(218, 165, 32, 0.08) !important;
             }
@@ -194,33 +350,6 @@ function updateManagerHTML() {
                 from { opacity: 0; transform: translateY(8px); }
                 to { opacity: 1; transform: translateY(0); }
             }
-            .directory-subtitle { color:#8992a3; font-weight:400; margin-left:1.65rem; }
-            .directory-tools { display:flex; align-items:center; gap:.75rem; }
-            .directory-search { display:flex; align-items:center; gap:.5rem; background:#11151d; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:.4rem .7rem; color:#8992a3; }
-            .directory-search input { width:130px; border:0; outline:0; background:transparent; color:#fff; font-size:.82rem; }
-            .live-badge { color:#8be3bd; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); border-radius:999px; padding:.35rem .7rem; font-size:.72rem; font-weight:700; white-space:nowrap; }
-            .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; }
-            .user-identity { display:flex; align-items:center; gap:.7rem; min-width:145px; }
-            .user-avatar { display:grid; place-items:center; width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#e4b83b,#9d6e09); color:#16120a; font-weight:800; }
-            .user-identity strong { display:block; color:#f8fafc; font-size:.9rem; }
-            .user-identity small { display:block; color:#737d8d; font-size:.68rem; }
-            .user-email, .table-meta { display:flex; align-items:center; gap:.5rem; color:#b6bfce; font-size:.82rem; white-space:nowrap; }
-            .user-email i, .table-meta i { color:#c99a21; width:14px; text-align:center; }
-            .role-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); color:#d9dee8; font-size:.76rem; }
-            .role-badge i { color:#8ec5ff; }
-            /* Présentation en cartes : la liste des utilisateurs existants */
-            .ajax-users-table { border-collapse:separate !important; border-spacing:0 10px !important; padding:0 14px !important; }
-            .ajax-users-table thead th { background:#202838 !important; color:#f4c94e !important; border:0 !important; padding:13px 16px !important; }
-            .ajax-users-table tbody tr { transition:all .2s ease; background:linear-gradient(100deg,#1b2230,#151b26) !important; box-shadow:0 5px 16px rgba(0,0,0,.22) !important; }
-            .ajax-users-table tbody td { background:transparent !important; border-top:1px solid rgba(255,255,255,.07) !important; border-bottom:1px solid rgba(255,255,255,.07) !important; padding:16px !important; }
-            .ajax-users-table tbody td:first-child { border-left:3px solid #d8a928 !important; border-radius:12px 0 0 12px; }
-            .ajax-users-table tbody td:last-child { border-radius:0 12px 12px 0; }
-            .ajax-users-table tbody tr:hover { transform:translateY(-3px) !important; background:linear-gradient(100deg,#252f40,#1b2432) !important; box-shadow:0 9px 24px rgba(0,0,0,.38) !important; }
-            .ajax-users-table tbody tr:hover td { background:transparent !important; }
-            .ajax-users-table .status-actif, .ajax-users-table .status-suspendu, .ajax-users-table .status-en_attente { min-width:82px; text-align:center; }
-            @media (max-width:700px) { .ajax-users-table { padding:0 8px !important; min-width:760px; } }
-
-            @media (max-width:700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } }
             .status-actif {
                 background: rgba(16, 185, 129, 0.2);
                 color: #10b981;
@@ -241,6 +370,30 @@ function updateManagerHTML() {
                 font-size: 0.78rem;
                 display: inline-block;
             }
+            .form-intro { display:flex; gap:.6rem; align-items:flex-start; color:#9ca5b5; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:.7rem .75rem; margin-bottom:1.35rem; font-size:.75rem; line-height:1.45; }
+            .form-intro i { color:#e4b83b; margin-top:2px; }
+            .empty-users { min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.45rem; color:#8d97a8; text-align:center; }
+            .empty-users i { color:#c99a21; font-size:2rem; margin-bottom:.35rem; }
+            .empty-users strong { color:#e5e7eb; font-size:.95rem; }
+            .empty-users span { font-size:.8rem; }
+            .directory-subtitle { color: #8992a3; font-weight: 400; margin-left: 1.65rem; }
+            .directory-tools { display:flex; align-items:center; gap:.75rem; }
+            .directory-search { display:flex; align-items:center; gap:.5rem; background:#11151d; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:.4rem .7rem; color:#8992a3; }
+            .directory-search input { width:130px; border:0; outline:0; background:transparent; color:#fff; font-size:.82rem; }
+            .live-badge { color:#8be3bd; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); border-radius:999px; padding:.35rem .7rem; font-size:.72rem; font-weight:700; white-space:nowrap; }
+            .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; margin-right:6px; box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+            .user-identity { display:flex; align-items:center; gap:.7rem; min-width:145px; }
+            .user-avatar { display:grid; place-items:center; width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#e4b83b,#9d6e09); color:#16120a; font-weight:800; }
+            .user-identity strong { display:block; color:#f8fafc; font-size:.9rem; }
+            .user-identity small { display:block; color:#737d8d; font-size:.68rem; margin-top:2px; }
+            .user-email, .table-meta { display:flex; align-items:center; gap:.5rem; color:#b6bfce; font-size:.82rem; white-space:nowrap; }
+            .user-email i, .table-meta i { color:#c99a21; width:14px; text-align:center; }
+            .role-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); color:#d9dee8; font-size:.76rem; }
+            .role-badge i { color:#8ec5ff; }
+            .ajax-users-table tbody tr { transition:background .2s, transform .2s; }
+            .ajax-users-table tbody tr:hover { transform:translateX(2px); }
+            @media (max-width: 700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } .ajax-users-table th, .ajax-users-table td { padding:12px 14px !important; } }
+            /* Statuts et actions */
             .status-en_attente {
                 background: rgba(245, 158, 11, 0.2);
                 color: #fbbf24;
@@ -257,7 +410,33 @@ function updateManagerHTML() {
 
 function loadManagerData() {
     loadStats();
+    loadDepartements();
+    loadRoles();
     loadUsers();
+}
+
+function setupManagerEvents() {
+    $('#ajax-user-form').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        createUser();
+    });
+
+    $('#ajax-btn-refresh').off('click').on('click', function() {
+        loadUsers();
+    });
+
+    $('#ajax-user-search').off('input').on('input', function() {
+        const query = $(this).val().toLowerCase().trim();
+        $('#ajax-users-container tbody tr').each(function() {
+            $(this).toggle($(this).text().toLowerCase().includes(query));
+        });
+    });
+
+    $(document).off('click', '.ajax-btn-status').on('click', '.ajax-btn-status', function() {
+        const userId = $(this).data('user-id');
+        const newStatus = $(this).data('new-status');
+        updateUserStatus(userId, newStatus, $(this));
+    });
 }
 
 function setupAutoRefresh() {
@@ -291,10 +470,52 @@ function loadStats() {
     });
 }
 
+function loadDepartements() {
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_departements' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#ajax_id_departement');
+                select.html('<option value="">Sélectionnez un département</option>');
+                response.data.forEach(function(dept) {
+                    select.append(`<option value="${dept.id}">${dept.nom}</option>`);
+                });
+            }
+        },
+        error: function() {
+            showError('Erreur lors du chargement des départements');
+        }
+    });
+}
+
+function loadRoles() {
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: { action: 'get_roles' },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#ajax_id_role');
+                select.html('<option value="">Sélectionnez un rôle</option>');
+                response.data.forEach(function(role) {
+                    select.append(`<option value="${role.id}">${role.nom}</option>`);
+                });
+            }
+        },
+        error: function() {
+            showError('Erreur lors du chargement des rôles');
+        }
+    });
+}
+
 function loadUsers() {
     $('#ajax-users-loading').show();
     $('#ajax-users-container').hide();
-    
+
     $.ajax({
         url: 'manager.php',
         method: 'POST',
@@ -302,6 +523,12 @@ function loadUsers() {
         dataType: 'json',
         success: function(response) {
             if (response.success) {
+                if (!response.data || response.data.length === 0) {
+                    $('#ajax-users-container').html('<div class="empty-users"><i class="fa-solid fa-users-slash"></i><strong>Aucun compte trouvé</strong><span>Les comptes créés apparaîtront ici.</span></div>');
+                    $('#ajax-users-loading').hide();
+                    $('#ajax-users-container').show();
+                    return;
+                }
                 let tableHTML = `
                     <table class="ajax-users-table">
                         <thead>
@@ -311,15 +538,25 @@ function loadUsers() {
                                 <th>Département</th>
                                 <th>Rôle</th>
                                 <th>Statut</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
-                
+
                 response.data.forEach(function(user) {
                     const statusClass = `status-${user.statut}`;
                     const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
-                    
+
+                    let actionButton = '';
+                    if (user.statut === 'actif') {
+                        actionButton = `<button class="btn btn-sm btn-outline-warning fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="suspendu" style="border-radius: 8px;"><i class="fa-solid fa-pause me-1"></i>Suspendre</button>`;
+                    } else if (user.statut === 'suspendu') {
+                        actionButton = `<button class="btn btn-sm btn-outline-success fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-play me-1"></i>Activer</button>`;
+                    } else {
+                        actionButton = `<button class="btn btn-sm btn-outline-info fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-check me-1"></i>Approuver</button>`;
+                    }
+
                     tableHTML += `
                         <tr class="ajax-fade-in">
                             <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
@@ -327,15 +564,16 @@ function loadUsers() {
                             <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
                             <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
+                            <td class="text-end action-cell">${actionButton}</td>
                         </tr>
                     `;
                 });
-                
+
                 tableHTML += `
                         </tbody>
                     </table>
                 `;
-                
+
                 $('#ajax-users-container').html(tableHTML);
                 $('#ajax-users-loading').hide();
                 $('#ajax-users-container').show();
@@ -345,6 +583,77 @@ function loadUsers() {
             $('#ajax-users-loading').hide();
             $('#ajax-users-container').show();
             showError('Erreur lors du chargement des utilisateurs');
+        }
+    });
+}
+
+function createUser() {
+    const btn = $('#ajax-btn-create');
+    const spinner = btn.find('.ajax-spinner');
+
+    btn.prop('disabled', true);
+    spinner.show();
+
+    const formData = {
+        action: 'create_user',
+        nom_utilisateur: $('#ajax_nom_utilisateur').val(),
+        email: $('#ajax_email').val(),
+        mot_de_passe: $('#ajax_mot_de_passe').val(),
+        id_departement: $('#ajax_id_departement').val(),
+        id_role: $('#ajax_id_role').val()
+    };
+
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showSuccess(response.message);
+                $('#ajax-user-form')[0].reset();
+                loadStats();
+                loadUsers();
+            } else {
+                showError(response.message);
+            }
+        },
+        error: function() {
+            showError('Erreur lors de la création de l\'utilisateur');
+        },
+        complete: function() {
+            btn.prop('disabled', false);
+            spinner.hide();
+        }
+    });
+}
+
+function updateUserStatus(userId, newStatus, button) {
+    const originalText = button.html();
+    button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+
+    $.ajax({
+        url: 'manager.php',
+        method: 'POST',
+        data: {
+            action: 'update_status',
+            user_id: userId,
+            new_status: newStatus
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showSuccess(response.message);
+                loadStats();
+                loadUsers();
+            } else {
+                showError(response.message);
+                button.prop('disabled', false).html(originalText);
+            }
+        },
+        error: function() {
+            showError('Erreur lors de la mise à jour du statut');
+            button.prop('disabled', false).html(originalText);
         }
     });
 }
@@ -362,7 +671,7 @@ function showError(message) {
 function animateNumber(selector, finalNumber) {
     const element = $(selector);
     const current = parseInt(element.text()) || 0;
-    
+
     if (current !== finalNumber) {
         $({ counter: current }).animate({ counter: finalNumber }, {
             duration: 1000,
