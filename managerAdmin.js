@@ -87,7 +87,7 @@ function updateManagerHTML() {
         <!-- Liste des utilisateurs -->
         <div class="card-custom">
             <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes</span><small class="directory-subtitle">Agents de l'organisation</small></div>
+                <div><span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Utilisateurs existants</span><small class="directory-subtitle">Agents de l'organisation</small></div>
                 <div class="directory-tools"><label class="directory-search" aria-label="Rechercher un utilisateur"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="ajax-user-search" placeholder="Rechercher…" autocomplete="off"></label><span class="live-badge"><span class="live-dot"></span>Lecture seule</span></div>
             </div>
             <div class="card-custom-body p-0">
@@ -208,8 +208,18 @@ function updateManagerHTML() {
             .user-email i, .table-meta i { color:#c99a21; width:14px; text-align:center; }
             .role-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); color:#d9dee8; font-size:.76rem; }
             .role-badge i { color:#8ec5ff; }
-            .ajax-users-table tbody tr { transition:background .2s, transform .2s; }
-            .ajax-users-table tbody tr:hover { transform:translateX(2px); }
+            /* Présentation en cartes : la liste des utilisateurs existants */
+            .ajax-users-table { border-collapse:separate !important; border-spacing:0 10px !important; padding:0 14px !important; }
+            .ajax-users-table thead th { background:#202838 !important; color:#f4c94e !important; border:0 !important; padding:13px 16px !important; }
+            .ajax-users-table tbody tr { transition:all .2s ease; background:linear-gradient(100deg,#1b2230,#151b26) !important; box-shadow:0 5px 16px rgba(0,0,0,.22) !important; }
+            .ajax-users-table tbody td { background:transparent !important; border-top:1px solid rgba(255,255,255,.07) !important; border-bottom:1px solid rgba(255,255,255,.07) !important; padding:16px !important; }
+            .ajax-users-table tbody td:first-child { border-left:3px solid #d8a928 !important; border-radius:12px 0 0 12px; }
+            .ajax-users-table tbody td:last-child { border-radius:0 12px 12px 0; }
+            .ajax-users-table tbody tr:hover { transform:translateY(-3px) !important; background:linear-gradient(100deg,#252f40,#1b2432) !important; box-shadow:0 9px 24px rgba(0,0,0,.38) !important; }
+            .ajax-users-table tbody tr:hover td { background:transparent !important; }
+            .ajax-users-table .status-actif, .ajax-users-table .status-suspendu, .ajax-users-table .status-en_attente { min-width:82px; text-align:center; }
+            @media (max-width:700px) { .ajax-users-table { padding:0 8px !important; min-width:760px; } }
+
             @media (max-width:700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } }
             .status-actif {
                 background: rgba(16, 185, 129, 0.2);
