@@ -371,9 +371,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             <span class="status-indicator"></span>
             <span>SYSTÈME SÉCURISÉ | TABLEAU DE BORD ADMINISTRATION RESTREINTE — MINISTÈRE DES MINES</span>
         </div>
-        <div class="d-none d-md-block text-muted">
-            <i class="fa-regular fa-clock me-1"></i> <span id="clock-display"><?php echo date('d/m/Y H:i'); ?></span>
-        </div>
     </div>
 
     <!-- EN-TÊTE ET NAVIGATION -->
