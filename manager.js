@@ -328,12 +328,15 @@ function updateManagerHTML() {
                 letter-spacing: 0.5px;
                 border-bottom: 1px solid rgba(218, 165, 32, 0.3) !important;
             }
+            .ajax-users-table { min-width: 920px; table-layout: auto !important; }
             .ajax-users-table td {
                 padding: 15px 18px !important;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
                 vertical-align: middle !important;
                 color: #e5e7eb !important;
             }
+            .ajax-users-table .action-cell { min-width: 145px; width: 145px; white-space: nowrap !important; padding-right: 22px !important; }
+            .ajax-users-table .action-cell .btn { white-space: nowrap !important; display: inline-flex; align-items: center; }
             .ajax-users-table tr:hover td {
                 background: rgba(218, 165, 32, 0.08) !important;
             }
@@ -558,7 +561,7 @@ function loadUsers() {
                             <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
                             <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
-                            <td class="text-end">${actionButton}</td>
+                            <td class="text-end action-cell">${actionButton}</td>
                         </tr>
                     `;
                 });
