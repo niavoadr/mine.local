@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/database.php';
 
 // manager.php
 
@@ -7,21 +7,10 @@ header('Content-Type: application/json');
 
 header('Cache-Control: no-cache, must-revalidate');
 
-// Configuration de la base de données
-
-$host     = env('DB_HOST', 'localhost');
-$port     = (int) env('DB_PORT', 3306);
-$dbname   = env('DB_NAME', 'radius_ministere_mines');
-$username = env('DB_USER', 'rosa'); // Remplacez par votre nom d'utilisateur
-$password = env('DB_PASS', '12345');     // Remplacez par votre mot de passe
-
 try {
-
-    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+    $pdo = get_pdo_connection('DB');
+} catch (Throwable $e) {
     echo json_encode([
-
         'success' => false,
         'message' => 'Erreur de connexion à la base de données'
     ]);
