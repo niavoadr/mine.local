@@ -1,26 +1,26 @@
-CREATE TYPE role_enum AS ENUM (
+CREATE TYPE ROLE_ENUM AS ENUM (
 	'ADMIN',
 	'USER'
 );
 
-CREATE TYPE visitor_status_enum AS ENUM (
+CREATE TYPE VISITOR_STATUS_ENUM AS ENUM (
 	'active',
 	'expired'
 );
 
-CREATE TYPE user_status_enum AS ENUM (
+CREATE TYPE USERS_STATUS_ENUM AS ENUM (
 	'active',
 	'inactive',
 	'suspended'
 );
 
-CREATE TYPE security_status_enum AS ENUM (
+CREATE TYPE SECURITY_STATUS_ENUM AS ENUM (
 	'info',
 	'warning',
 	'critical'
 );
 
-CREATE TYPE department_enum AS ENUM (
+CREATE TYPE DEPARTMENT_ENUM AS ENUM (
 	'Communication',
 	'Directeur des Affaires Juridiques',
 	'Finance',
@@ -28,7 +28,7 @@ CREATE TYPE department_enum AS ENUM (
 	'Secrétariat Général'
 );
 
-CREATE TYPE groupname_enum AS ENUM (
+CREATE TYPE GROUPNAME_ENUM AS ENUM (
 	'communication_group',
 	'daj_groupe',
 	'finance_group',
@@ -172,7 +172,3 @@ CREATE TABLE IF NOT EXISTS security_event (
 	is_read BOOLEAN NOT NULL,
 	read_at TIMESTAMP
 );
-
-ALTER TABLE visitor
-ADD CONSTRAINT fk_visitor_user
-FOREIGN KEY (created_by) REFERENCES users(id);
