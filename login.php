@@ -1,7 +1,7 @@
 <?php
 ob_start();
 session_start();
-include("./connection.php");
+require_once("./connexion.php");
 
 define('CHEF_DEPT', 5);
 
@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
   
   try {
-      $stmt = $conn->prepare($sql);
+      $stmt = $connexion->prepare($sql);
       $stmt->execute([$_POST['username']]);
       
       $row = $stmt->fetch(PDO::FETCH_ASSOC);

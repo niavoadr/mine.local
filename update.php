@@ -1,5 +1,5 @@
 <?php
-require_once("./connection.php");
+require_once("./connexion.php");
 //update code//
 // Vérifier si le formulaire a été soumis
 if (isset($_POST['id']) && isset($_POST['username'])) {
@@ -11,7 +11,7 @@ if (isset($_POST['id']) && isset($_POST['username'])) {
     $sql = "UPDATE users SET username = ? WHERE id = ?";
   
     try {
-        $stmt = $conn->prepare($sql);
+        $stmt = $connexion->prepare($sql);
         $stmt->execute([$nom, $id]);
         
         // Rediriger vers la page principale après la mise à jour

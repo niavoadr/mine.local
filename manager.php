@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/connexion.php';
 
 // manager.php
 
@@ -7,15 +7,8 @@ header('Content-Type: application/json');
 
 header('Cache-Control: no-cache, must-revalidate');
 
-try {
-    $pdo = get_pdo_connection('DB');
-} catch (Throwable $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de connexion à la base de données'
-    ]);
-    exit;
-}
+// Utiliser la connexion globale $connexion
+$pdo = $connexion;
 // Fonction pour retourner une réponse JSON
 
 function jsonResponse($success, $message = '', $data = null) {

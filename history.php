@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/connexion.php';
 header('Content-Type: application/json');
 
 // Fonction utilitaire pour retourner une réponse JSON et arrêter le script
@@ -8,11 +8,8 @@ function jsonResponse($success, $message = '', $data = null) {
     exit;
 }
 
-try {
-    $pdo = get_pdo_connection('DB_NAME');
-} catch (Throwable $e) {
-    jsonResponse(false, 'Erreur de connexion à la base de données: ' . $e->getMessage());
-}
+// Utiliser la connexion globale $connexion
+$pdo = $connexion;
 
 // Vérifier que l'action demandée est bien 'get_history'
 if (!isset($_POST['action']) || $_POST['action'] !== 'get_history') {
