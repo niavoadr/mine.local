@@ -6,7 +6,7 @@ if (!function_exists('get_db_config')) {
     {
         $host = env($prefix . '_HOST', 'localhost');
         $port = (int) env($prefix . '_PORT', 5432);
-        $name = env($prefix . '_NAME', 'radius');
+        $name = env($prefix . '_NAME', '');
         $user = env($prefix . '_USER', '');
         $pass = env($prefix . '_PASS', '');
 
