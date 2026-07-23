@@ -9,7 +9,7 @@ function jsonResponse($success, $message = '', $data = null) {
 }
 
 try {
-    $pdo = get_pdo_connection('RADIUS_DB');
+    $pdo = get_pdo_connection('DB_NAME');
 } catch (Throwable $e) {
     jsonResponse(false, 'Erreur de connexion à la base de données: ' . $e->getMessage());
 }

@@ -13,10 +13,6 @@ Pour vous connecter aux différentes bases de données en tant qu'utilisateur `a
     psql -U admin -d radius -h localhost
     ```
 
-*   **Pour accéder à la base de données `radius_mines` :**
-    ```bash
-    psql -U admin -d radius_mines -h localhost
-    ```
 *(Note : Il vous sera probablement demandé de saisir le mot de passe de l'utilisateur `admin` après avoir exécuté l'une de ces commandes).*
 
 ---
