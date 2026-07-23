@@ -14,20 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
   
   $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  $stmt = $conn->prepare($sql);
   
-  if ($stmt === false) {
-      $msg = "Erreur de préparation de la requête.";
-  } else if (!$stmt->bind_param("s", $_POST['username'])) {
-      $msg = "Erreur de liaison des paramètres.";
-  } else if (!$stmt->execute()) {
-      $msg = "Erreur d'exécution de la requête.";
-  } else {
-      $result = $stmt->get_result();
+  try {
+      $stmt = $conn->prepare($sql);
+      $stmt->execute([$_POST['username']]);
       
-      if ($result->num_rows > 0) {
-        
-        $row = $result->fetch_assoc();
+      $row = $stmt->fetch(PDO::FETCH_ASSOC);
+      
+      if ($row) {
         
         if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
           
@@ -53,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
       } else {
         $msg = "Utilisateur non trouvé ou inactif.";
       }
-      
-      $stmt->close();
+  } catch (PDOException $e) {
+      $msg = "Erreur de connexion à la base de données.";
   }
 }
 ?>

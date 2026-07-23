@@ -1568,20 +1568,14 @@ if (isset($_POST['username'])) {
   // Requête pour récupérer les données de l'utilisateur et le libellé du rôle
   $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
           WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  $stmt = $conn->prepare($sql);
   
-  // Utilisez un contrôle d'erreur basique pour bind_param et execute (bonne pratique)
-  if ($stmt === false || $stmt->bind_param("s", $_POST['username']) === false || $stmt->execute() === false) {
-      // Gérer l'erreur de requête ou de connexion
-      $msg = "Erreur de connexion à la base de données.";
-      // Vous pouvez ajouter error_log(print_r($conn->error_list, true)); pour le débogage.
-  } else {
-    
-      $result = $stmt->get_result();
+  try {
+      $stmt = $conn->prepare($sql);
+      $stmt->execute([$_POST['username']]);
       
-      if ($result->num_rows > 0) {
-        
-        $row = $result->fetch_assoc();
+      $row = $stmt->fetch(PDO::FETCH_ASSOC);
+      
+      if ($row) {
         
         // Vérification du mot de passe
         if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
@@ -1611,7 +1605,8 @@ if (isset($_POST['username'])) {
       } else {
         $msg = "Login ou mot de passe incorrect";
       }
-      $stmt->close();
+  } catch (PDOException $e) {
+      $msg = "Erreur de connexion à la base de données.";
   }
 }
 ?>
