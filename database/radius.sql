@@ -6,8 +6,6 @@ CREATE TYPE department_enum AS ENUM (
 	'Secrétariat Général'
 );
 
-
-
 CREATE TYPE groupname_enum AS ENUM (
 	'communication_group',
 	'daj_groupe',
@@ -15,8 +13,6 @@ CREATE TYPE groupname_enum AS ENUM (
 	'rh_group',
 	'sg_group'
 );
-
-
 
 CREATE TABLE IF NOT EXISTS radacct (
 	RadAcctId		bigserial PRIMARY KEY,
@@ -50,8 +46,6 @@ CREATE TABLE IF NOT EXISTS radacct (
 	Class			text
 );
 
-
-
 CREATE TABLE IF NOT EXISTS radcheck (
 	id			serial PRIMARY KEY,
 	UserName		text NOT NULL DEFAULT '',
@@ -61,17 +55,13 @@ CREATE TABLE IF NOT EXISTS radcheck (
     department        DEPARTMENT_ENUM NOT NULL
 );
 
-
-
 CREATE TABLE IF NOT EXISTS radgroupreply (
 	id			serial PRIMARY KEY,
-	GroupName		GROUPNAME_ENUM NOT NULL DEFAULT '',
+	GroupName		GROUPNAME_ENUM NOT NULL,
 	Attribute		text NOT NULL DEFAULT '',
 	op			VARCHAR(2) NOT NULL DEFAULT '=',
 	Value			text NOT NULL DEFAULT ''
 );
-
-
 
 CREATE TABLE IF NOT EXISTS radreply (
 	id			serial PRIMARY KEY,
@@ -81,16 +71,12 @@ CREATE TABLE IF NOT EXISTS radreply (
 	Value			text NOT NULL DEFAULT ''
 );
 
-
-
 CREATE TABLE IF NOT EXISTS radusergroup (
 	id			serial PRIMARY KEY,
 	UserName		text NOT NULL DEFAULT '',
-	GroupName		GROUPNAME_ENUM NOT NULL DEFAULT '',
+	GroupName		GROUPNAME_ENUM NOT NULL,
 	priority		integer NOT NULL DEFAULT 0
 );
-
-
 
 CREATE TABLE IF NOT EXISTS radpostauth (
 	id			bigserial PRIMARY KEY,
@@ -100,8 +86,6 @@ CREATE TABLE IF NOT EXISTS radpostauth (
 	authdate		timestamp with time zone NOT NULL default now(),
 	Class			text
 );
-
-
 
 CREATE TABLE IF NOT EXISTS nas (
 	id			serial PRIMARY KEY,
@@ -114,8 +98,6 @@ CREATE TABLE IF NOT EXISTS nas (
 	community		text,
 	description		text
 );
-
-
 
 CREATE TABLE IF NOT EXISTS nasreload (
 	NASIPAddress		inet PRIMARY KEY,
