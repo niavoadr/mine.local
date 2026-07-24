@@ -3,7 +3,7 @@
 ob_start();
 
 // Inclure la connexion à la base
-require_once("./connexion.php");
+require_once './connexion.php';
 
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
@@ -13,48 +13,61 @@ header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
+$action = $_POST['action'] ?? ($_GET['action'] ?? '');
 
 try {
-    // Vérifier la connexion à la base de données
-    if (!isset($connexion) || !$connexion) {
-        throw new Exception('Connexion à la base de données échouée');
-    }
-    
-    switch($action) {
-        case 'get_devices':
-            getDevices($connexion);
-            break;
-            
-        case 'add_device':
-            addDevice($connexion);
-            break;
-            
-        case 'delete_device':
-            deleteDevice($connexion);
-            break;
-            
-        case 'test':
-            // Ajouter un test simple
-            echo json_encode(['success' => true, 'message' => 'API RADIUS fonctionnelle', 'timestamp' => date('Y-m-d H:i:s')]);
-            break;
-            
-        default:
-            echo json_encode(['success' => false, 'error' => 'Action non spécifiée. Actions disponibles: get_devices, add_device, delete_device, test']);
-    }
-} catch(Exception $e) {
-    // S'assurer qu'on retourne du JSON même en cas d'erreur
-    ob_clean();
-    echo json_encode(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine(), 'file' => basename($e->getFile())]);
+  // Vérifier la connexion à la base de données
+  if (!isset($connexion) || !$connexion) {
+    throw new Exception('Connexion à la base de données échouée');
+  }
+
+  switch ($action) {
+    case 'get_devices':
+      getDevices($connexion);
+      break;
+
+    case 'add_device':
+      addDevice($connexion);
+      break;
+
+    case 'delete_device':
+      deleteDevice($connexion);
+      break;
+
+    case 'test':
+      // Ajouter un test simple
+      echo json_encode([
+        'success' => true,
+        'message' => 'API RADIUS fonctionnelle',
+        'timestamp' => date('Y-m-d H:i:s'),
+      ]);
+      break;
+
+    default:
+      echo json_encode([
+        'success' => false,
+        'error' => 'Action non spécifiée. Actions disponibles: get_devices, add_device, delete_device, test',
+      ]);
+  }
+} catch (Exception $e) {
+  // S'assurer qu'on retourne du JSON même en cas d'erreur
+  ob_clean();
+  echo json_encode([
+    'success' => false,
+    'error' => $e->getMessage(),
+    'line' => $e->getLine(),
+    'file' => basename($e->getFile()),
+  ]);
 }
 
 // Nettoyer et terminer
 ob_end_flush();
-exit;
+exit();
 
-function getDevices(PDO $connexion) {
-    try {
-        $sql = "SELECT 
+function getDevices(PDO $connexion)
+{
+  try {
+    $sql = "SELECT 
                     rc.id,
                     rc.username as mac_address,
                     rc.department,
@@ -66,92 +79,91 @@ function getDevices(PDO $connexion) {
                 LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname
                 WHERE rgr.attribute = 'WISPr-Bandwidth-Max-Down'
                 ORDER BY rc.department, rc.username";
-        
-        $stmt = $connexion->query($sql);
-        
-        $devices = [];
-        
-        while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $devices[] = [
-                'id' => $row['id'],
-                'mac_address' => $row['mac_address'],
-                'department' => $row['department'],
-                'bandwidth' => $row['value'] ? round($row['value'] / 1000000) . ' Mbps' : 'N/A',
-                'group' => $row['groupname']
-            ];
-        }
-        
-        echo json_encode(['success' => true, 'data' => $devices, 'count' => count($devices)]);
-        
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => 'Erreur getDevices: ' . $e->getMessage()]);
+
+    $stmt = $connexion->query($sql);
+
+    $devices = [];
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $devices[] = [
+        'id' => $row['id'],
+        'mac_address' => $row['mac_address'],
+        'department' => $row['department'],
+        'bandwidth' => $row['value'] ? round($row['value'] / 1000000) . ' Mbps' : 'N/A',
+        'group' => $row['groupname'],
+      ];
     }
+
+    echo json_encode(['success' => true, 'data' => $devices, 'count' => count($devices)]);
+  } catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => 'Erreur getDevices: ' . $e->getMessage()]);
+  }
 }
 
-function addDevice(PDO $connexion) {
-    $mac = $_POST['mac_address'] ?? '';
-    $department = $_POST['department'] ?? '';
-    
-    if (empty($mac) || empty($department)) {
-        throw new Exception("Adresse MAC et département requis");
-    }
-    
-    // Validation format MAC
-    if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $mac)) {
-        throw new Exception("Format d'adresse MAC invalide");
-    }
-    
-    $connexion->beginTransaction();
-    
-    try {
-        // 1. Ajouter dans radcheck
-        $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
+function addDevice(PDO $connexion)
+{
+  $mac = $_POST['mac_address'] ?? '';
+  $department = $_POST['department'] ?? '';
+
+  if (empty($mac) || empty($department)) {
+    throw new Exception('Adresse MAC et département requis');
+  }
+
+  // Validation format MAC
+  if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $mac)) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
+
+  $connexion->beginTransaction();
+
+  try {
+    // 1. Ajouter dans radcheck
+    $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
                  VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
-        $stmt1 = $connexion->prepare($sql1);
-        $stmt1->execute([$mac, $department]);
-        
-        // 2. Associer au groupe départemental
-        $groupname = $department . '_group';
-        $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
+    $stmt1 = $connexion->prepare($sql1);
+    $stmt1->execute([$mac, $department]);
+
+    // 2. Associer au groupe départemental
+    $groupname = $department . '_group';
+    $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
-        $stmt2 = $connexion->prepare($sql2);
-        $stmt2->execute([$mac, $groupname]);
-        
-        $connexion->commit();
-        echo json_encode(['success' => true, 'message' => 'Appareil ajouté avec succès']);
-        
-    } catch (Exception $e) {
-        $connexion->rollBack();
-        throw new Exception("Erreur lors de l'ajout: " . $e->getMessage());
-    }
+    $stmt2 = $connexion->prepare($sql2);
+    $stmt2->execute([$mac, $groupname]);
+
+    $connexion->commit();
+    echo json_encode(['success' => true, 'message' => 'Appareil ajouté avec succès']);
+  } catch (Exception $e) {
+    $connexion->rollBack();
+    throw new Exception("Erreur lors de l'ajout: " . $e->getMessage());
+  }
 }
 
-function deleteDevice(PDO $connexion) {
-    $mac = $_POST['mac_address'] ?? '';
-    
-    if (empty($mac)) {
-        throw new Exception("Adresse MAC requise");
-    }
-    
-    $connexion->beginTransaction();
-    
-    try {
-        // 1. Supprimer de radusergroup
-        $sql1 = "DELETE FROM radusergroup WHERE username = ?";
-        $stmt1 = $connexion->prepare($sql1);
-        $stmt1->execute([$mac]);
-        
-        // 2. Supprimer de radcheck
-        $sql2 = "DELETE FROM radcheck WHERE username = ?";
-        $stmt2 = $connexion->prepare($sql2);
-        $stmt2->execute([$mac]);
-        
-        $connexion->commit();
-        echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
-        
-    } catch (Exception $e) {
-        $connexion->rollBack();
-        throw new Exception("Erreur lors de la suppression: " . $e->getMessage());
-    }
+function deleteDevice(PDO $connexion)
+{
+  $mac = $_POST['mac_address'] ?? '';
+
+  if (empty($mac)) {
+    throw new Exception('Adresse MAC requise');
+  }
+
+  $connexion->beginTransaction();
+
+  try {
+    // 1. Supprimer de radusergroup
+    $sql1 = 'DELETE FROM radusergroup WHERE username = ?';
+    $stmt1 = $connexion->prepare($sql1);
+    $stmt1->execute([$mac]);
+
+    // 2. Supprimer de radcheck
+    $sql2 = 'DELETE FROM radcheck WHERE username = ?';
+    $stmt2 = $connexion->prepare($sql2);
+    $stmt2->execute([$mac]);
+
+    $connexion->commit();
+    echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
+  } catch (Exception $e) {
+    $connexion->rollBack();
+    throw new Exception('Erreur lors de la suppression: ' . $e->getMessage());
+  }
 }
 ?>

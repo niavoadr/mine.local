@@ -1,7 +1,4 @@
-<?php
-// radius_interface_admin.php
-// Version ADMIN (lecture seule - pas de formulaire d'ajout)
-?>
+
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
 <head>

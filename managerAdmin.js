@@ -1,26 +1,26 @@
 // js/managerAdmin.js - Script AJAX pour la section Gestionnaire de Compte (Mode Administrateur Actif)
-$(document).ready(function() {
-    initializeManager();
-    $('.nav-tab').on('click', function() {
-        if ($(this).text().includes('Gestionnaire de Compte')) {
-            setTimeout(initializeManager, 100);
-        }
-    });
+$(document).ready(function () {
+  initializeManager();
+  $('.nav-tab').on('click', function () {
+    if ($(this).text().includes('Gestionnaire de Compte')) {
+      setTimeout(initializeManager, 100);
+    }
+  });
 });
 
 function initializeManager() {
-    if (!$('#manager-content').hasClass('active')) {
-        return;
-    }
-    updateManagerHTML();
-    loadManagerData();
-    setupManagerEvents();
-    setupAutoRefresh();
+  if (!$('#manager-content').hasClass('active')) {
+    return;
+  }
+  updateManagerHTML();
+  loadManagerData();
+  setupManagerEvents();
+  setupAutoRefresh();
 }
 
 function updateManagerHTML() {
-    const managerContent = $('#manager-content');
-    managerContent.html(`
+  const managerContent = $('#manager-content');
+  managerContent.html(`
         <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
             <div>
                 <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes & Habilitations</h2>
@@ -155,9 +155,9 @@ function updateManagerHTML() {
         </div>
     `);
 
-    // Ajouter les styles CSS modernes pour AJAX et le formulaire
-    $('#ajax-styles').remove();
-    $('head').append(`
+  // Ajouter les styles CSS modernes pour AJAX et le formulaire
+  $('#ajax-styles').remove();
+  $('head').append(`
         <style id="ajax-styles">
             .custom-alert-success {
                 background: rgba(16, 185, 129, 0.15) !important;
@@ -409,127 +409,137 @@ function updateManagerHTML() {
 }
 
 function loadManagerData() {
-    loadStats();
-    loadDepartements();
-    loadRoles();
-    loadUsers();
+  loadStats();
+  loadDepartements();
+  loadRoles();
+  loadUsers();
 }
 
 function setupManagerEvents() {
-    $('#ajax-user-form').off('submit').on('submit', function(e) {
-        e.preventDefault();
-        createUser();
+  $('#ajax-user-form')
+    .off('submit')
+    .on('submit', function (e) {
+      e.preventDefault();
+      createUser();
     });
 
-    $('#ajax-btn-refresh').off('click').on('click', function() {
-        loadUsers();
+  $('#ajax-btn-refresh')
+    .off('click')
+    .on('click', function () {
+      loadUsers();
     });
 
-    $('#ajax-user-search').off('input').on('input', function() {
-        const query = $(this).val().toLowerCase().trim();
-        $('#ajax-users-container tbody tr').each(function() {
-            $(this).toggle($(this).text().toLowerCase().includes(query));
-        });
+  $('#ajax-user-search')
+    .off('input')
+    .on('input', function () {
+      const query = $(this).val().toLowerCase().trim();
+      $('#ajax-users-container tbody tr').each(function () {
+        $(this).toggle($(this).text().toLowerCase().includes(query));
+      });
     });
 
-    $(document).off('click', '.ajax-btn-status').on('click', '.ajax-btn-status', function() {
-        const userId = $(this).data('user-id');
-        const newStatus = $(this).data('new-status');
-        updateUserStatus(userId, newStatus, $(this));
+  $(document)
+    .off('click', '.ajax-btn-status')
+    .on('click', '.ajax-btn-status', function () {
+      const userId = $(this).data('user-id');
+      const newStatus = $(this).data('new-status');
+      updateUserStatus(userId, newStatus, $(this));
     });
 }
 
 function setupAutoRefresh() {
-    if (window.managerRefreshTimer) {
-        clearInterval(window.managerRefreshTimer);
+  if (window.managerRefreshTimer) {
+    clearInterval(window.managerRefreshTimer);
+  }
+  window.managerRefreshTimer = setInterval(function () {
+    if ($('#manager-content').hasClass('active')) {
+      loadStats();
+      loadUsers();
     }
-    window.managerRefreshTimer = setInterval(function() {
-        if ($('#manager-content').hasClass('active')) {
-            loadStats();
-            loadUsers();
-        }
-    }, 30000);
+  }, 30000);
 }
 
 function loadStats() {
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_stats' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                animateNumber('#stat-total-users', response.data.total_users);
-                animateNumber('#stat-active-users', response.data.active_users);
-                animateNumber('#stat-total-roles', response.data.total_roles);
-            }
-        },
-        error: function() {
-            console.error('Erreur lors du chargement des statistiques');
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_stats' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        animateNumber('#stat-total-users', response.data.total_users);
+        animateNumber('#stat-active-users', response.data.active_users);
+        animateNumber('#stat-total-roles', response.data.total_roles);
+      }
+    },
+    error: function () {
+      console.error('Erreur lors du chargement des statistiques');
+    },
+  });
 }
 
 function loadDepartements() {
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_departements' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                const select = $('#ajax_id_departement');
-                select.html('<option value="">Sélectionnez un département</option>');
-                response.data.forEach(function(dept) {
-                    select.append(`<option value="${dept.id}">${dept.nom}</option>`);
-                });
-            }
-        },
-        error: function() {
-            showError('Erreur lors du chargement des départements');
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_departements' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        const select = $('#ajax_id_departement');
+        select.html('<option value="">Sélectionnez un département</option>');
+        response.data.forEach(function (dept) {
+          select.append(`<option value="${dept.id}">${dept.nom}</option>`);
+        });
+      }
+    },
+    error: function () {
+      showError('Erreur lors du chargement des départements');
+    },
+  });
 }
 
 function loadRoles() {
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_roles' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                const select = $('#ajax_id_role');
-                select.html('<option value="">Sélectionnez un rôle</option>');
-                response.data.forEach(function(role) {
-                    select.append(`<option value="${role.id}">${role.nom}</option>`);
-                });
-            }
-        },
-        error: function() {
-            showError('Erreur lors du chargement des rôles');
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_roles' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        const select = $('#ajax_id_role');
+        select.html('<option value="">Sélectionnez un rôle</option>');
+        response.data.forEach(function (role) {
+          select.append(`<option value="${role.id}">${role.nom}</option>`);
+        });
+      }
+    },
+    error: function () {
+      showError('Erreur lors du chargement des rôles');
+    },
+  });
 }
 
 function loadUsers() {
-    $('#ajax-users-loading').show();
-    $('#ajax-users-container').hide();
+  $('#ajax-users-loading').show();
+  $('#ajax-users-container').hide();
 
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_users' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                if (!response.data || response.data.length === 0) {
-                    $('#ajax-users-container').html('<div class="empty-users"><i class="fa-solid fa-users-slash"></i><strong>Aucun compte trouvé</strong><span>Les comptes créés apparaîtront ici.</span></div>');
-                    $('#ajax-users-loading').hide();
-                    $('#ajax-users-container').show();
-                    return;
-                }
-                let tableHTML = `
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_users' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        if (!response.data || response.data.length === 0) {
+          $('#ajax-users-container').html(
+            '<div class="empty-users"><i class="fa-solid fa-users-slash"></i><strong>Aucun compte trouvé</strong><span>Les comptes créés apparaîtront ici.</span></div>'
+          );
+          $('#ajax-users-loading').hide();
+          $('#ajax-users-container').show();
+          return;
+        }
+        let tableHTML = `
                     <table class="ajax-users-table">
                         <thead>
                             <tr>
@@ -544,20 +554,20 @@ function loadUsers() {
                         <tbody>
                 `;
 
-                response.data.forEach(function(user) {
-                    const statusClass = `status-${user.statut}`;
-                    const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
+        response.data.forEach(function (user) {
+          const statusClass = `status-${user.statut}`;
+          const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
 
-                    let actionButton = '';
-                    if (user.statut === 'actif') {
-                        actionButton = `<button class="btn btn-sm btn-outline-warning fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="suspendu" style="border-radius: 8px;"><i class="fa-solid fa-pause me-1"></i>Suspendre</button>`;
-                    } else if (user.statut === 'suspendu') {
-                        actionButton = `<button class="btn btn-sm btn-outline-success fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-play me-1"></i>Activer</button>`;
-                    } else {
-                        actionButton = `<button class="btn btn-sm btn-outline-info fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-check me-1"></i>Approuver</button>`;
-                    }
+          let actionButton = '';
+          if (user.statut === 'actif') {
+            actionButton = `<button class="btn btn-sm btn-outline-warning fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="suspendu" style="border-radius: 8px;"><i class="fa-solid fa-pause me-1"></i>Suspendre</button>`;
+          } else if (user.statut === 'suspendu') {
+            actionButton = `<button class="btn btn-sm btn-outline-success fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-play me-1"></i>Activer</button>`;
+          } else {
+            actionButton = `<button class="btn btn-sm btn-outline-info fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-check me-1"></i>Approuver</button>`;
+          }
 
-                    tableHTML += `
+          tableHTML += `
                         <tr class="ajax-fade-in">
                             <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
                             <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
@@ -567,121 +577,124 @@ function loadUsers() {
                             <td class="text-end action-cell">${actionButton}</td>
                         </tr>
                     `;
-                });
+        });
 
-                tableHTML += `
+        tableHTML += `
                         </tbody>
                     </table>
                 `;
 
-                $('#ajax-users-container').html(tableHTML);
-                $('#ajax-users-loading').hide();
-                $('#ajax-users-container').show();
-            }
-        },
-        error: function() {
-            $('#ajax-users-loading').hide();
-            $('#ajax-users-container').show();
-            showError('Erreur lors du chargement des utilisateurs');
-        }
-    });
+        $('#ajax-users-container').html(tableHTML);
+        $('#ajax-users-loading').hide();
+        $('#ajax-users-container').show();
+      }
+    },
+    error: function () {
+      $('#ajax-users-loading').hide();
+      $('#ajax-users-container').show();
+      showError('Erreur lors du chargement des utilisateurs');
+    },
+  });
 }
 
 function createUser() {
-    const btn = $('#ajax-btn-create');
-    const spinner = btn.find('.ajax-spinner');
+  const btn = $('#ajax-btn-create');
+  const spinner = btn.find('.ajax-spinner');
 
-    btn.prop('disabled', true);
-    spinner.show();
+  btn.prop('disabled', true);
+  spinner.show();
 
-    const formData = {
-        action: 'create_user',
-        nom_utilisateur: $('#ajax_nom_utilisateur').val(),
-        email: $('#ajax_email').val(),
-        mot_de_passe: $('#ajax_mot_de_passe').val(),
-        id_departement: $('#ajax_id_departement').val(),
-        id_role: $('#ajax_id_role').val()
-    };
+  const formData = {
+    action: 'create_user',
+    nom_utilisateur: $('#ajax_nom_utilisateur').val(),
+    email: $('#ajax_email').val(),
+    mot_de_passe: $('#ajax_mot_de_passe').val(),
+    id_departement: $('#ajax_id_departement').val(),
+    id_role: $('#ajax_id_role').val(),
+  };
 
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: formData,
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                showSuccess(response.message);
-                $('#ajax-user-form')[0].reset();
-                loadStats();
-                loadUsers();
-            } else {
-                showError(response.message);
-            }
-        },
-        error: function() {
-            showError('Erreur lors de la création de l\'utilisateur');
-        },
-        complete: function() {
-            btn.prop('disabled', false);
-            spinner.hide();
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: formData,
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        showSuccess(response.message);
+        $('#ajax-user-form')[0].reset();
+        loadStats();
+        loadUsers();
+      } else {
+        showError(response.message);
+      }
+    },
+    error: function () {
+      showError("Erreur lors de la création de l'utilisateur");
+    },
+    complete: function () {
+      btn.prop('disabled', false);
+      spinner.hide();
+    },
+  });
 }
 
 function updateUserStatus(userId, newStatus, button) {
-    const originalText = button.html();
-    button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+  const originalText = button.html();
+  button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
 
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: {
-            action: 'update_status',
-            user_id: userId,
-            new_status: newStatus
-        },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                showSuccess(response.message);
-                loadStats();
-                loadUsers();
-            } else {
-                showError(response.message);
-                button.prop('disabled', false).html(originalText);
-            }
-        },
-        error: function() {
-            showError('Erreur lors de la mise à jour du statut');
-            button.prop('disabled', false).html(originalText);
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: {
+      action: 'update_status',
+      user_id: userId,
+      new_status: newStatus,
+    },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        showSuccess(response.message);
+        loadStats();
+        loadUsers();
+      } else {
+        showError(response.message);
+        button.prop('disabled', false).html(originalText);
+      }
+    },
+    error: function () {
+      showError('Erreur lors de la mise à jour du statut');
+      button.prop('disabled', false).html(originalText);
+    },
+  });
 }
 
 function showSuccess(message) {
-    $('#success-message').text(message);
-    $('#alert-success').fadeIn().delay(5000).fadeOut();
+  $('#success-message').text(message);
+  $('#alert-success').fadeIn().delay(5000).fadeOut();
 }
 
 function showError(message) {
-    $('#error-message').text(message);
-    $('#alert-error').fadeIn().delay(5000).fadeOut();
+  $('#error-message').text(message);
+  $('#alert-error').fadeIn().delay(5000).fadeOut();
 }
 
 function animateNumber(selector, finalNumber) {
-    const element = $(selector);
-    const current = parseInt(element.text()) || 0;
+  const element = $(selector);
+  const current = parseInt(element.text()) || 0;
 
-    if (current !== finalNumber) {
-        $({ counter: current }).animate({ counter: finalNumber }, {
-            duration: 1000,
-            easing: 'swing',
-            step: function() {
-                element.text(Math.floor(this.counter));
-            },
-            complete: function() {
-                element.text(finalNumber);
-            }
-        });
-    }
+  if (current !== finalNumber) {
+    $({ counter: current }).animate(
+      { counter: finalNumber },
+      {
+        duration: 1000,
+        easing: 'swing',
+        step: function () {
+          element.text(Math.floor(this.counter));
+        },
+        complete: function () {
+          element.text(finalNumber);
+        },
+      }
+    );
+  }
 }

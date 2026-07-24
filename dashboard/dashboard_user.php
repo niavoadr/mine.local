@@ -2,10 +2,10 @@
 session_start();
 
 // Informations de l'utilisateur connecté. Une session absente ne doit jamais afficher un nom par défaut.
-$connected_username = trim((string) ($_SESSION['user'] ?? $_SESSION['nom_utilisateur'] ?? ''));
+$connected_username = trim((string) ($_SESSION['user'] ?? ($_SESSION['nom_utilisateur'] ?? '')));
 if ($connected_username === '') {
-    header('Location: login.php');
-    exit;
+  header('Location: login.php');
+  exit();
 }
 $user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
@@ -403,7 +403,11 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             <div class="d-flex align-items-center gap-3">
                 <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
                     <i class="fa-solid fa-user-shield text-warning"></i>
-                    <span class="fw-semibold"><?php echo htmlspecialchars($connected_username, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="fw-semibold"><?php echo htmlspecialchars(
+                      $connected_username,
+                      ENT_QUOTES,
+                      'UTF-8',
+                    ); ?></span>
                     <span class="badge bg-warning text-dark ms-1">User</span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
@@ -420,7 +424,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <!-- 1. ONGLET HÔTES / RADIUS INTERFACE (LECTURE SEULE) -->
         <div id="hosts-content" class="content-section active">
             <iframe
-                src="radius_interface_admin.php?role_lib=<?php echo $user_role_id; ?>" 
+                src="../radius interface/radius_interface_user.php?php echo $user_role_id; ?>" 
                 class="glass-iframe">
                 Chargement de l'interface RADIUS...
             </iframe>

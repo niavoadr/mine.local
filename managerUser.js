@@ -1,32 +1,38 @@
 // js/managerUser.js - Script AJAX pour le Gestionnaire de Compte (Mode Lecture Restreinte)
-$(document).ready(function() {
-    initializeManager();
-    $('.nav-tab').on('click', function() {
-        if ($(this).text().includes('Gestionnaire de Compte')) {
-            setTimeout(initializeManager, 100);
-        }
-    });
+$(document).ready(function () {
+  initializeManager();
+  $('.nav-tab').on('click', function () {
+    if ($(this).text().includes('Gestionnaire de Compte')) {
+      setTimeout(initializeManager, 100);
+    }
+  });
 });
 
 function initializeManager() {
-    if (!$('#manager-content').hasClass('active')) {
-        return;
-    }
-    updateManagerHTML();
-    loadManagerData();
-    $('#ajax-btn-refresh').off('click').on('click', function() {
-        loadUsers();
+  if (!$('#manager-content').hasClass('active')) {
+    return;
+  }
+  updateManagerHTML();
+  loadManagerData();
+  $('#ajax-btn-refresh')
+    .off('click')
+    .on('click', function () {
+      loadUsers();
     });
-    $('#ajax-user-search').off('input').on('input', function() {
-        const query = $(this).val().toLowerCase().trim();
-        $('#ajax-users-container tbody tr').each(function() { $(this).toggle($(this).text().toLowerCase().includes(query)); });
+  $('#ajax-user-search')
+    .off('input')
+    .on('input', function () {
+      const query = $(this).val().toLowerCase().trim();
+      $('#ajax-users-container tbody tr').each(function () {
+        $(this).toggle($(this).text().toLowerCase().includes(query));
+      });
     });
-    setupAutoRefresh();
+  setupAutoRefresh();
 }
 
 function updateManagerHTML() {
-    const managerContent = $('#manager-content');
-    managerContent.html(`
+  const managerContent = $('#manager-content');
+  managerContent.html(`
         <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
             <div>
                 <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes & Habilitations</h2>
@@ -102,9 +108,9 @@ function updateManagerHTML() {
         </div>
     `);
 
-    // Ajouter les styles CSS modernes pour AJAX (remplace les anciens styles blancs)
-    $('#ajax-styles').remove();
-    $('head').append(`
+  // Ajouter les styles CSS modernes pour AJAX (remplace les anciens styles blancs)
+  $('#ajax-styles').remove();
+  $('head').append(`
         <style id="ajax-styles">
             .custom-alert-success {
                 background: rgba(16, 185, 129, 0.15) !important;
@@ -256,53 +262,53 @@ function updateManagerHTML() {
 }
 
 function loadManagerData() {
-    loadStats();
-    loadUsers();
+  loadStats();
+  loadUsers();
 }
 
 function setupAutoRefresh() {
-    if (window.managerRefreshTimer) {
-        clearInterval(window.managerRefreshTimer);
+  if (window.managerRefreshTimer) {
+    clearInterval(window.managerRefreshTimer);
+  }
+  window.managerRefreshTimer = setInterval(function () {
+    if ($('#manager-content').hasClass('active')) {
+      loadStats();
+      loadUsers();
     }
-    window.managerRefreshTimer = setInterval(function() {
-        if ($('#manager-content').hasClass('active')) {
-            loadStats();
-            loadUsers();
-        }
-    }, 30000);
+  }, 30000);
 }
 
 function loadStats() {
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_stats' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                animateNumber('#stat-total-users', response.data.total_users);
-                animateNumber('#stat-active-users', response.data.active_users);
-                animateNumber('#stat-total-roles', response.data.total_roles);
-            }
-        },
-        error: function() {
-            console.error('Erreur lors du chargement des statistiques');
-        }
-    });
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_stats' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        animateNumber('#stat-total-users', response.data.total_users);
+        animateNumber('#stat-active-users', response.data.active_users);
+        animateNumber('#stat-total-roles', response.data.total_roles);
+      }
+    },
+    error: function () {
+      console.error('Erreur lors du chargement des statistiques');
+    },
+  });
 }
 
 function loadUsers() {
-    $('#ajax-users-loading').show();
-    $('#ajax-users-container').hide();
+  $('#ajax-users-loading').show();
+  $('#ajax-users-container').hide();
 
-    $.ajax({
-        url: 'manager.php',
-        method: 'POST',
-        data: { action: 'get_users' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.success) {
-                let tableHTML = `
+  $.ajax({
+    url: 'manager.php',
+    method: 'POST',
+    data: { action: 'get_users' },
+    dataType: 'json',
+    success: function (response) {
+      if (response.success) {
+        let tableHTML = `
                     <table class="ajax-users-table">
                         <thead>
                             <tr>
@@ -316,11 +322,11 @@ function loadUsers() {
                         <tbody>
                 `;
 
-                response.data.forEach(function(user) {
-                    const statusClass = `status-${user.statut}`;
-                    const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
+        response.data.forEach(function (user) {
+          const statusClass = `status-${user.statut}`;
+          const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
 
-                    tableHTML += `
+          tableHTML += `
                         <tr class="ajax-fade-in">
                             <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
                             <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
@@ -329,50 +335,53 @@ function loadUsers() {
                             <td><span class="${statusClass}">${statusText}</span></td>
                         </tr>
                     `;
-                });
+        });
 
-                tableHTML += `
+        tableHTML += `
                         </tbody>
                     </table>
                 `;
 
-                $('#ajax-users-container').html(tableHTML);
-                $('#ajax-users-loading').hide();
-                $('#ajax-users-container').show();
-            }
-        },
-        error: function() {
-            $('#ajax-users-loading').hide();
-            $('#ajax-users-container').show();
-            showError('Erreur lors du chargement des utilisateurs');
-        }
-    });
+        $('#ajax-users-container').html(tableHTML);
+        $('#ajax-users-loading').hide();
+        $('#ajax-users-container').show();
+      }
+    },
+    error: function () {
+      $('#ajax-users-loading').hide();
+      $('#ajax-users-container').show();
+      showError('Erreur lors du chargement des utilisateurs');
+    },
+  });
 }
 
 function showSuccess(message) {
-    $('#success-message').text(message);
-    $('#alert-success').fadeIn().delay(5000).fadeOut();
+  $('#success-message').text(message);
+  $('#alert-success').fadeIn().delay(5000).fadeOut();
 }
 
 function showError(message) {
-    $('#error-message').text(message);
-    $('#alert-error').fadeIn().delay(5000).fadeOut();
+  $('#error-message').text(message);
+  $('#alert-error').fadeIn().delay(5000).fadeOut();
 }
 
 function animateNumber(selector, finalNumber) {
-    const element = $(selector);
-    const current = parseInt(element.text()) || 0;
+  const element = $(selector);
+  const current = parseInt(element.text()) || 0;
 
-    if (current !== finalNumber) {
-        $({ counter: current }).animate({ counter: finalNumber }, {
-            duration: 1000,
-            easing: 'swing',
-            step: function() {
-                element.text(Math.floor(this.counter));
-            },
-            complete: function() {
-                element.text(finalNumber);
-            }
-        });
-    }
+  if (current !== finalNumber) {
+    $({ counter: current }).animate(
+      { counter: finalNumber },
+      {
+        duration: 1000,
+        easing: 'swing',
+        step: function () {
+          element.text(Math.floor(this.counter));
+        },
+        complete: function () {
+          element.text(finalNumber);
+        },
+      }
+    );
+  }
 }

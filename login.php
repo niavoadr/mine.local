@@ -1,54 +1,43 @@
 <?php
 ob_start();
 session_start();
-require_once("./connexion.php");
+require_once './connexion.php';
 
 define('CHEF_DEPT', 5);
 
-$msg = ''; 
-$username_value = ''; 
+$msg = '';
+$username_value = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset($_POST['pass'])) {
-  
   $username_value = $_POST['username'];
-  
-  $sql = "SELECT U.*, r.nom as lib_role FROM utilisateurs U, roles r 
-          WHERE nom_utilisateur = ? AND statut = 'actif' AND U.id_role=r.id";
-  
+
+  $sql = "SELECT * FROM users WHERE username = ? AND status = 'active'";
+
   try {
-      $stmt = $connexion->prepare($sql);
-      $stmt->execute([$_POST['username']]);
-      
-      $row = $stmt->fetch(PDO::FETCH_ASSOC);
-      
-      if ($row) {
-        
-        if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
-          
-          $_SESSION["user"] = $row['nom_utilisateur'];
-          $_SESSION['role_lib'] = $row['lib_role'];
-          $_SESSION['id_role'] = $row['id_role'];
-          
-          // Déterminer la page de redirection
-          if ($row['id_role'] == 5) {
-              $target_page = "dashboard_user.php"; 
-          } else {
-              $target_page = "dashboard_admin.php";
-          }
-          
-          // Vider le buffer et rediriger
-          ob_end_clean();
-          header("Location: " . $target_page);
-          die();
-          
+    $stmt = $connexion->prepare($sql);
+    $stmt->execute([$_POST['username']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+      if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
+        $_SESSION['role'] = $row['role'];
+        // Déterminer la page de redirection
+        if ($row['role'] == 'ADMIN') {
+          $target_page = 'dashboard/dashboard_admin.php';
         } else {
-          $msg = "Login ou mot de passe incorrect.";
+          $target_page = 'dasboard/dashboard_user.php';
         }
+        // Vider le buffer et rediriger
+        ob_end_clean();
+        header('Location: ' . $target_page);
+        die();
       } else {
-        $msg = "Utilisateur non trouvé ou inactif.";
+        $msg = 'Login ou mot de passe incorrect.';
       }
+    } else {
+      $msg = 'Utilisateur non trouvé ou inactif.';
+    }
   } catch (PDOException $e) {
-      $msg = "Erreur de connexion à la base de données.";
+    $msg = 'Erreur de connexion à la base de données.';
   }
 }
 ?>
@@ -633,7 +622,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
         
         <!-- Nom d'utilisateur -->
         <div class="form-floating">
-          <input required type="text" class="form-control" id="floatingInput" placeholder="Nom d'utilisateur" name="username" value="<?php echo htmlspecialchars($username_value); ?>" autocomplete="username">
+          <input required type="text" class="form-control" id="floatingInput" placeholder="Nom d'utilisateur" name="username" value="<?php echo htmlspecialchars(
+            $username_value,
+          ); ?>" autocomplete="username">
           <label for="floatingInput">Nom d'utilisateur</label>
           <i class="fa-regular fa-user input-icon"></i>
         </div>
