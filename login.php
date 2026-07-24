@@ -22,9 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
         $_SESSION['role'] = $row['role'];
         // Déterminer la page de redirection
         if ($row['role'] == 'ADMIN') {
-          $target_page = 'dashboard/dashboard_admin.php';
+          $target_page = 'dashboard_admin.php';
         } else {
-          $target_page = 'dasboard/dashboard_user.php';
+          $target_page = 'dashboard_user.php';
         }
         // Vider le buffer et rediriger
         ob_end_clean();

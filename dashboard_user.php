@@ -424,7 +424,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <!-- 1. ONGLET HÔTES / RADIUS INTERFACE (LECTURE SEULE) -->
         <div id="hosts-content" class="content-section active">
             <iframe
-                src="../radius interface/radius_interface_user.php?php echo $user_role_id; ?>" 
+                src="radius_interface_user.php?php echo $user_role_id; ?>" 
                 class="glass-iframe">
                 Chargement de l'interface RADIUS...
             </iframe>
