@@ -18,8 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     $stmt->execute([$_POST['username']]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
-      if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
+      if (password_verify($_POST['pass'], $row['password_hash'])) {
         $_SESSION['role'] = $row['role'];
+        $_SESSION['user'] = $row['username'];
+
+        // Enregistrer la dernière connexion (colonne last_login de la table users)
+        try {
+          $update = $connexion->prepare('UPDATE users SET last_login = now() WHERE id = ?');
+          $update->execute([$row['id']]);
+        } catch (PDOException $e) {
+          // La mise à jour de last_login ne doit pas bloquer la connexion
+        }
+
         // Déterminer la page de redirection
         if ($row['role'] == 'ADMIN') {
           $target_page = 'dashboard_admin.php';

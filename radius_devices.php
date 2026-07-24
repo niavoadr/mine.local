@@ -67,10 +67,20 @@ exit();
 function getDevices(PDO $connexion)
 {
   try {
+    // rc.department est un DEPARTMENT_ENUM (Finance, Ressources Humaines, ...).
+    // Le front-end attend les codes courts (finance, rh, daj, communication, sg),
+    // on traduit donc la valeur de l'ENUM vers le code court dans la requête.
     $sql = "SELECT 
                     rc.id,
                     rc.username as mac_address,
-                    rc.department,
+                    CASE rc.department
+                        WHEN 'Finance' THEN 'finance'
+                        WHEN 'Ressources Humaines' THEN 'rh'
+                        WHEN 'Directeur des Affaires Juridiques' THEN 'daj'
+                        WHEN 'Communication' THEN 'communication'
+                        WHEN 'Secrétariat Général' THEN 'sg'
+                        ELSE lower(rc.department::text)
+                    END as department,
                     rg.groupname,
                     rgr.attribute,
                     rgr.value
@@ -117,14 +127,22 @@ function addDevice(PDO $connexion)
   $connexion->beginTransaction();
 
   try {
+    // Traduire le code court reçu du front-end vers les valeurs des ENUM
+    // de la nouvelle base : radcheck.department (DEPARTMENT_ENUM) et
+    // radusergroup.groupname (GROUPNAME_ENUM).
+    $resolved = resolveDepartment($department);
+    if ($resolved === null) {
+      throw new Exception('Département invalide');
+    }
+
     // 1. Ajouter dans radcheck
     $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
                  VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
     $stmt1 = $connexion->prepare($sql1);
-    $stmt1->execute([$mac, $department]);
+    $stmt1->execute([$mac, $resolved['department']]);
 
     // 2. Associer au groupe départemental
-    $groupname = $department . '_group';
+    $groupname = $resolved['groupname'];
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
     $stmt2 = $connexion->prepare($sql2);
@@ -165,5 +183,40 @@ function deleteDevice(PDO $connexion)
     $connexion->rollBack();
     throw new Exception('Erreur lors de la suppression: ' . $e->getMessage());
   }
+}
+
+/**
+ * Fait correspondre le code court de département (envoyé par le front-end)
+ * aux valeurs exactes des types ENUM de la nouvelle base de données :
+ *   - DEPARTMENT_ENUM  -> colonne radcheck.department
+ *   - GROUPNAME_ENUM   -> colonne radusergroup.groupname
+ *
+ * Accepte aussi directement une valeur complète du DEPARTMENT_ENUM.
+ *
+ * @return array{department:string,groupname:string}|null
+ */
+function resolveDepartment($input)
+{
+  $map = [
+    'communication' => ['department' => 'Communication', 'groupname' => 'communication_group'],
+    'daj' => ['department' => 'Directeur des Affaires Juridiques', 'groupname' => 'daj_groupe'],
+    'finance' => ['department' => 'Finance', 'groupname' => 'finance_group'],
+    'rh' => ['department' => 'Ressources Humaines', 'groupname' => 'rh_group'],
+    'sg' => ['department' => 'Secrétariat Général', 'groupname' => 'sg_group'],
+  ];
+
+  $key = strtolower(trim((string) $input));
+  if (isset($map[$key])) {
+    return $map[$key];
+  }
+
+  // Tolérer la saisie directe d'une valeur du DEPARTMENT_ENUM
+  foreach ($map as $entry) {
+    if (strcasecmp($entry['department'], (string) $input) === 0) {
+      return $entry;
+    }
+  }
+
+  return null;
 }
 ?>
