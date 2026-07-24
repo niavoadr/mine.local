@@ -7,9 +7,9 @@ $pdo = $connexion;
 /*
  * Gestion de la liste noire (table `blacklist`).
  *
- * L'adresse IP et le nombre de tentatives proviennent de la vue
- * `v_security_event_by_mac` (voir database/update_security_event.sql),
- * qui agrège les événements de `security_event` par adresse MAC.
+ * L'adresse IP et le nombre de tentatives proviennent directement de la
+ * table `security_event` (colonne `source_ip` pour l'IP, colonne
+ * `attempts` pour les tentatives), agrégées par adresse MAC.
  */
 
 // Durée de blocage par défaut (jours) si aucune durée n'est fournie
@@ -38,14 +38,24 @@ switch ($action) {
     try {
       $sql = "SELECT
                 b.id,
-                b.mac_address::text                       AS mac_address,
-                COALESCE(se.last_source_ip::text, 'N/A')  AS ip_address,
+                b.mac_address::text AS mac_address,
+                COALESCE((
+                  SELECT se.source_ip::text
+                  FROM security_event se
+                  WHERE se.mac_address = b.mac_address
+                    AND se.source_ip IS NOT NULL
+                  ORDER BY se.created_at DESC
+                  LIMIT 1
+                ), 'N/A') AS ip_address,
                 b.reason,
-                b.blocked_at                              AS blocked_date,
-                COALESCE(se.total_attempts, se.event_count, 0) AS blocked_attempts,
+                b.blocked_at AS blocked_date,
+                COALESCE((
+                  SELECT SUM(se.attempts)
+                  FROM security_event se
+                  WHERE se.mac_address = b.mac_address
+                ), 0) AS blocked_attempts,
                 b.expires_at
               FROM blacklist b
-              LEFT JOIN v_security_event_by_mac se ON se.mac_address = b.mac_address
               ORDER BY b.blocked_at DESC";
       $stmt = $pdo->query($sql);
       $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
