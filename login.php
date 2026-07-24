@@ -18,10 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     $stmt->execute([$_POST['username']]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
-      if (password_verify($_POST['pass'], $row['mot_de_passe_hash'])) {
+      if (password_verify($_POST['pass'], $row['password_hash'])) {
+        // Variables de session alignées sur le schéma `users` (consommées par les dashboards)
+        $_SESSION['user'] = $row['username'];
+        $_SESSION['nom_utilisateur'] = $row['username'];
         $_SESSION['role'] = $row['role'];
+        $_SESSION['role_lib'] = $row['role'] === 'ADMIN' ? 'Administrateur' : 'Utilisateur';
+        $_SESSION['user_id'] = $row['id'];
+
+        // Mise à jour de la dernière connexion (non bloquant)
+        try {
+          $connexion->prepare('UPDATE users SET last_login = now() WHERE id = ?')->execute([$row['id']]);
+        } catch (PDOException $e) {
+          // On ignore : la connexion doit quand même aboutir
+        }
+
         // Déterminer la page de redirection
-        if ($row['role'] == 'ADMIN') {
+        if ($row['role'] === 'ADMIN') {
           $target_page = 'dashboard_admin.php';
         } else {
           $target_page = 'dashboard_user.php';

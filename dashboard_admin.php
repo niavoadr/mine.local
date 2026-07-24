@@ -501,7 +501,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <!-- 1. ONGLET HÔTES / RADIUS INTERFACE -->
         <div id="hosts-content" class="content-section active">
             <iframe
-                src="radius_interface_admin?php echo $user_role_id; ?>" 
+                src="radius_interface_admin.php" 
                 class="glass-iframe">
                 Chargement de l'interface RADIUS...
             </iframe>
@@ -751,7 +751,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <div id="alerts-content" class="content-section">
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-bell me-2"></i> Journaux et Alertes Système (/var/log/syslog)</span>
+                    <span><i class="fa-solid fa-bell me-2"></i> Événements de Sécurité (security_event)</span>
                     <button class="btn btn-sm btn-outline-light" onclick="loadSystemAlerts()" style="border-radius: 8px;">
                         <i class="fas fa-sync-alt me-1"></i> Actualiser les journaux
                     </button>

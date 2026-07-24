@@ -88,7 +88,7 @@ function getDevices(PDO $connexion)
       $devices[] = [
         'id' => $row['id'],
         'mac_address' => $row['mac_address'],
-        'department' => $row['department'],
+        'department' => enumToShortcode($row['department']),
         'bandwidth' => $row['value'] ? round($row['value'] / 1000000) . ' Mbps' : 'N/A',
         'group' => $row['groupname'],
       ];
@@ -117,14 +117,21 @@ function addDevice(PDO $connexion)
   $connexion->beginTransaction();
 
   try {
+    // Correspondance département : shortcode (frontend) -> ENUM (DB) + groupname
+    $map = getDepartmentMap();
+    if (!isset($map[$department])) {
+      throw new Exception('Département invalide');
+    }
+    $deptEnum = $map[$department]['enum'];
+    $groupname = $map[$department]['group'];
+
     // 1. Ajouter dans radcheck
     $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
                  VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
     $stmt1 = $connexion->prepare($sql1);
-    $stmt1->execute([$mac, $department]);
+    $stmt1->execute([$mac, $deptEnum]);
 
     // 2. Associer au groupe départemental
-    $groupname = $department . '_group';
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
     $stmt2 = $connexion->prepare($sql2);
@@ -136,6 +143,35 @@ function addDevice(PDO $connexion)
     $connexion->rollBack();
     throw new Exception("Erreur lors de l'ajout: " . $e->getMessage());
   }
+}
+
+/**
+ * Correspondance entre le shortcode envoyé par le frontend et :
+ *   - la valeur de l'ENUM department_enum (colonne radcheck.department)
+ *   - le groupname de l'ENUM groupname_enum (colonne radusergroup.groupname)
+ */
+function getDepartmentMap()
+{
+  return [
+    'communication' => ['enum' => 'Communication', 'group' => 'communication_group'],
+    'daj'           => ['enum' => 'Directeur des Affaires Juridiques', 'group' => 'daj_groupe'],
+    'finance'       => ['enum' => 'Finance', 'group' => 'finance_group'],
+    'rh'            => ['enum' => 'Ressources Humaines', 'group' => 'rh_group'],
+    'sg'            => ['enum' => 'Secrétariat Général', 'group' => 'sg_group'],
+  ];
+}
+
+/**
+ * Convertit une valeur de l'ENUM department_enum vers le shortcode attendu par le frontend.
+ */
+function enumToShortcode($enumValue)
+{
+  foreach (getDepartmentMap() as $shortcode => $info) {
+    if ($info['enum'] === $enumValue) {
+      return $shortcode;
+    }
+  }
+  return strtolower((string) $enumValue);
 }
 
 function deleteDevice(PDO $connexion)
