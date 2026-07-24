@@ -47,7 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
       $msg = 'Utilisateur non trouvé ou inactif.';
     }
   } catch (PDOException $e) {
-    $msg = 'Erreur de connexion à la base de données.';
+    // DEBUG TEMPORAIRE : affiche le détail réel de l'erreur pour diagnostic.
+    // À remettre à 'Erreur de connexion à la base de données.' en production.
+    $msg = 'Erreur de connexion à la base de données : ' . $e->getMessage();
   }
 }
 ?>
