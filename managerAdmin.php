@@ -1,6 +1,7 @@
 <?php
 /** Vue PHP du gestionnaire de comptes administrateur. */
 require_once __DIR__ . '/connexion.php';
+require_once __DIR__ . '/manager_session.php';
 
 function manager_escape($value): string
 {
@@ -8,6 +9,7 @@ function manager_escape($value): string
 }
 
 try {
+  register_app_session($connexion);
   $stats = $connexion->query(
     "SELECT COUNT(*) AS total,
             COUNT(*) FILTER (WHERE status = 'active') AS active
@@ -410,4 +412,8 @@ $statusLabels = [
         };
     });
 })();
+
+setInterval(() => {
+    fetch('app_session.php', { credentials: 'same-origin' }).catch(() => {});
+}, 30000);
 </script>

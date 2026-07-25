@@ -1,6 +1,7 @@
 <?php
 /** Vue PHP en lecture seule du gestionnaire de comptes. */
 require_once __DIR__ . '/connexion.php';
+require_once __DIR__ . '/manager_session.php';
 
 if (!function_exists('manager_escape')) {
   function manager_escape($value): string
@@ -24,9 +25,7 @@ try {
      ORDER BY e.enumsortorder"
   )->fetchAll(PDO::FETCH_COLUMN);
 
-  $connectedUsers = (int) $connexion->query(
-    'SELECT COUNT(*) FROM users WHERE last_login IS NOT NULL'
-  )->fetchColumn();
+  $connectedUsers = get_connected_app_users($connexion);
 
   $users = $connexion->query(
     'SELECT id, username, email, department, role, status
@@ -238,4 +237,8 @@ $statusLabels = [
     });
   };
 })();
+
+setInterval(() => {
+  fetch('app_session.php', { credentials: 'same-origin' }).catch(() => {});
+}, 30000);
 </script>
