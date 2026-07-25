@@ -430,52 +430,70 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             </iframe>
         </div>
 
-        <!-- 2. ONGLET ACCÈS ÉTRANGERS (HISTORIQUE VISITEURS SEULEMENT) -->
+        <!-- 2. ONGLET ACCÈS ÉTRANGERS -->
         <div id="strangers-content" class="content-section">
             <div class="text-center mb-4">
-                <h2 class="fw-bold text-white"><i class="fas fa-history text-warning me-2"></i>Historique des Accès Étrangers</h2>
-                <p class="text-muted">Consultation en lecture seule des connexions visiteurs enregistrées sur le réseau.</p>
+                <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Visiteurs</h2>
+                <p class="text-muted">Créez des accès temporaires pour les visiteurs et consultez l'historique.</p>
+            </div>
+
+            <div class="card-custom mb-4">
+                <div class="card-custom-header">
+                    <i class="fas fa-user-plus me-2"></i> Créer un Accès Visiteur
+                </div>
+                <div class="card-custom-body">
+                    <form id="create-visitor-form">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="visitor-username" class="form-label text-muted small">Nom d'utilisateur</label>
+                                <input type="text" class="form-control" id="visitor-username" placeholder="ex: visiteur_jean" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="visitor-duration" class="form-label text-muted small">Durée de la session (minutes)</label>
+                                <input type="number" class="form-control" id="visitor-duration" placeholder="ex: 60" required>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 12px; height: 42px;">
+                                    <i class="fas fa-plus me-1"></i> Créer
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="visitor-credentials" class="mt-3 d-none">
+                        <div class="alert alert-success">
+                            <strong>Visiteur créé !</strong><br>
+                            Identifiant : <span id="res-username" class="fw-bold"></span><br>
+                            Mot de passe : <span id="res-password" class="fw-bold text-danger"></span><br>
+                            Expire le : <span id="res-expires" class="fw-bold"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-search me-2"></i> Filtrer les connexions par date</span>
-                    <small class="text-muted">Données radacct</small>
+                    <span><i class="fas fa-history me-2"></i> Liste des Visiteurs</span>
+                    <small class="text-muted">Données combinées visitor & radacct</small>
                 </div>
                 <div class="card-custom-body">
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label for="startDate" class="form-label text-muted small">Date de début</label>
-                            <input type="date" class="form-control" id="startDate">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="endDate" class="form-label text-muted small">Date de fin</label>
-                            <input type="date" class="form-control" id="endDate">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button class="btn btn-warning w-100 fw-bold" id="filter-btn" style="border-radius: 12px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
-                                <i class="fas fa-filter me-1"></i> Filtrer
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Nom d'utilisateur</th>
-                                    <th>Adresse MAC</th>
-                                    <th>Adresse IP</th>
-                                    <th>Début de session</th>
-                                    <th>Fin de session</th>
+                                    <th>Visiteur</th>
+                                    <th>MAC</th>
+                                    <th>IP</th>
+                                    <th>Créé par</th>
+                                    <th>Début</th>
+                                    <th>Fin</th>
                                     <th>Durée</th>
                                     <th>Statut</th>
                                 </tr>
                             </thead>
-                            <tbody id="history-table">
+                            <tbody id="visitor-table-body">
                                 <tr>
-                                    <td colspan="7" class="text-center py-5 text-muted">
-                                        <i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement de l'historique...
+                                    <td colspan="8" class="text-center py-5 text-muted">
+                                        <i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement des visiteurs...
                                     </td>
                                 </tr>
                             </tbody>
@@ -497,8 +515,18 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     <script>
     $(document).ready(function() {
-        loadHistory();
-        $("#filter-btn").on('click', loadHistory);
+        loadVisitors();
+        
+        setInterval(function() {
+            if ($('#strangers-content').hasClass('active')) {
+                loadVisitors();
+            }
+        }, 10000);
+        
+        $("#create-visitor-form").on('submit', function(e) {
+            e.preventDefault();
+            createVisitor();
+        });
     });
 
     function confirmLogout() {
@@ -521,76 +549,87 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         if (event && event.currentTarget) {
             event.currentTarget.classList.add('active');
         }
+        
+        if (tabName === 'strangers') {
+            loadVisitors();
+        }
     }
 
-    function loadHistory() {
-        const startDate = $('#startDate').val();
-        const endDate = $('#endDate').val();
-        
-        $('#history-table').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement des données...</td></tr>');
+    // ==================== VISITOR FUNCTIONS ====================
+    function createVisitor() {
+        const username = $('#visitor-username').val();
+        const duration = $('#visitor-duration').val();
         
         $.ajax({
-            url: 'history.php',
+            url: 'visitor_manager.php',
             type: 'POST',
             data: {
-                action: 'get_history',
-                start_date: startDate,
-                end_date: endDate
+                action: 'create_visitor',
+                username: username,
+                duration: duration
             },
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    displayHistory(response.data);
+                    $('#res-username').text(response.data.username);
+                    $('#res-password').text(response.data.password);
+                    $('#res-expires').text(response.data.expires_at);
+                    $('#visitor-credentials').removeClass('d-none');
+                    $('#create-visitor-form')[0].reset();
+                    loadVisitors();
                 } else {
-                    $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4">Erreur: ' + response.message + '</td></tr>');
+                    alert('Erreur: ' + response.message);
                 }
             },
             error: function() {
-                $('#history-table').html('<tr><td colspan="7" class="text-center text-danger py-4">Une erreur de communication est survenue.</td></tr>');
+                alert('Une erreur est survenue lors de la création du visiteur.');
+            }
+        });
+    }
+
+    function loadVisitors() {
+        $.ajax({
+            url: 'visitor_manager.php',
+            type: 'POST',
+            data: { action: 'get_visitors' },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    displayVisitors(response.data);
+                } else {
+                    $('#visitor-table-body').html('<tr><td colspan="8" class="text-center text-danger py-4">Erreur: ' + response.message + '</td></tr>');
+                }
+            },
+            error: function() {
+                $('#visitor-table-body').html('<tr><td colspan="8" class="text-center text-danger py-4">Une erreur de communication est survenue.</td></tr>');
             }
         });
     }
     
-    function displayHistory(records) {
+    function displayVisitors(records) {
         let html = '';
         if (records.length === 0) {
-            html = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Aucune connexion trouvée pour la période sélectionnée.</td></tr>';
+            html = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Aucun visiteur enregistré.</td></tr>';
         } else {
             records.forEach(function(record) {
-                const status = record.acctstoptime ? 'Déconnecté' : 'Actif';
-                const statusClass = record.acctstoptime ? 'badge bg-secondary' : 'badge bg-success text-dark fw-bold';
-                const timeLeft = calculateTimeLeft(record.acctstarttime, record.acctstoptime);
+                const statusClass = record.status === 'active' ? 'badge bg-success text-dark fw-bold' : 'badge bg-danger';
+                const statusLabel = record.status === 'active' ? 'Actif' : 'Expiré';
                 
                 html += `
                     <tr>
                         <td class="fw-semibold text-white">${record.username}</td>
-                        <td><code>${record.callingstationid}</code></td>
-                        <td>${record.framedipaddress || 'N/A'}</td>
-                        <td>${record.acctstarttime}</td>
-                        <td>${record.acctstoptime || 'En cours'}</td>
-                        <td>${formatDuration(record.acctsessiontime)}</td>
-                        <td>
-                            <span class="${statusClass}">${status}</span>
-                            ${status === 'Actif' ? `<br/><small class="text-warning">(${timeLeft} restants)</small>` : ''}
-                        </td>
+                        <td><code>${record.mac_address || 'N/A'}</code></td>
+                        <td>${record.ip_address || 'N/A'}</td>
+                        <td><small class="text-muted">${record.creator_name}</small></td>
+                        <td>${record.session_start || 'N/A'}</td>
+                        <td>${record.session_end || 'N/A'}</td>
+                        <td>${formatDuration(record.session_duration)}</td>
+                        <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
                 `;
             });
         }
-        $('#history-table').html(html);
-    }
-
-    function calculateTimeLeft(startTime, stopTime) {
-        if (stopTime) return '';
-        const sessionDuration = 2 * 60;
-        const now = new Date();
-        const start = new Date(startTime);
-        const elapsedSeconds = (now - start) / 1000;
-        const remainingSeconds = sessionDuration - elapsedSeconds;
-        if (remainingSeconds <= 0) return 'Expiré';
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = Math.floor(remainingSeconds % 60);
-        return `${minutes}min ${seconds}s`;
+        $('#visitor-table-body').html(html);
     }
     
     function formatDuration(seconds) {
