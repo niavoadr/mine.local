@@ -1,3 +1,8 @@
+<?php
+// Valeurs par défaut pour permettre l'inclusion de ce partial depuis n'importe quelle vue.
+$users = $users ?? [];
+$statusLabels = $statusLabels ?? ['active' => 'Actif', 'suspended' => 'Suspendu', 'inactive' => 'Inactif'];
+?>
 <?php if (!$users): ?>
   <div class="text-center text-muted py-5"><i class="fa-solid fa-users-slash fs-2 d-block mb-2"></i>Aucun compte trouvé.</div>
 <?php else: ?>
