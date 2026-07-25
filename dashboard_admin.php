@@ -603,7 +603,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <div class="row g-3">
                             <div class="col-md-5">
                                 <label for="blacklist-mac" class="form-label text-muted small">Adresse MAC</label>
-                                <input type="text" class="form-control" id="blacklist-mac" placeholder="Ex: XX:XX:XX:XX:XX:XX">
+                                <input type="text" class="form-control" id="blacklist-mac" placeholder="Ex: XX-XX-XX-XX-XX-XX">
                             </div>
                             <div class="col-md-5">
                                 <label for="blacklist-reason" class="form-label text-muted small">Raison du blocage</label>
@@ -751,9 +751,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <div id="alerts-content" class="content-section">
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-bell me-2"></i> Événements de Sécurité (security_event)</span>
+                    <span><i class="fa-solid fa-bell me-2"></i> Événements de Sécurité</span>
                     <button class="btn btn-sm btn-outline-light" onclick="loadSystemAlerts()" style="border-radius: 8px;">
-                        <i class="fas fa-sync-alt me-1"></i> Actualiser les journaux
+                        <i class="fas fa-sync-alt me-1"></i> Actualiser
                     </button>
                 </div>
                 <div class="card-custom-body">

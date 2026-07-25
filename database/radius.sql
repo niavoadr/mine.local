@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS security_event (
 	source_ip INET,
 	mac_address MACADDR,
 	details JSONB NOT NULL DEFAULT '{}',
+	attempts INTEGER NOT NULL DEFAULT 1,
 	created_at TIMESTAMP NOT NULL DEFAULT now(),
 	is_read BOOLEAN NOT NULL DEFAULT FALSE,
 	read_at TIMESTAMP

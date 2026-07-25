@@ -23,8 +23,8 @@ function updateManagerHTML() {
   managerContent.html(`
         <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
             <div>
-                <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes & Habilitations</h2>
-                <p class="text-muted mb-0">Création, suspension et affectation des rôles d'accès des agents du Ministère.</p>
+                <h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes</h2>
+                <p class="text-muted mb-0">Liste, Création et suspension des agents du Ministère.</p>
             </div>
             <button type="button" class="btn btn-outline-warning fw-semibold px-4 py-2" id="ajax-btn-refresh" style="border-radius: 12px;">
                 <i class="fa-solid fa-rotate-right me-1"></i> Actualiser la liste
@@ -86,26 +86,24 @@ function updateManagerHTML() {
                         <div class="icon-circle"><i class="fa-solid fa-user-plus"></i></div>
                         <div>
                             <h4 class="mb-0 text-white fw-bold fs-6">Créer un Nouveau Compte</h4>
-                            <span class="text-warning small" style="font-size: 0.75rem;">Habilitation Agent Ministère</span>
                         </div>
                     </div>
                     <div class="user-form-body">
-                        <div class="form-intro"><i class="fa-solid fa-circle-info"></i><span>Renseignez les informations professionnelles du nouvel agent.</span></div>
                         <form id="ajax-user-form">
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-user text-warning me-2"></i>Nom d'utilisateur</label>
                                 <input type="text" id="ajax_username" name="username" class="custom-form-input" required placeholder="Ex: j.dupont" autocomplete="off">
                             </div>
                             <div class="form-field-group mb-3">
-                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-envelope text-warning me-2"></i>Adresse Email professionnelle</label>
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-envelope text-warning me-2"></i>Adresse Email </label>
                                 <input type="email" id="ajax_email" name="email" class="custom-form-input" required placeholder="agent@mines.gov.mg" autocomplete="off">
                             </div>
                             <div class="form-field-group mb-3">
-                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-lock text-warning me-2"></i>Mot de passe provisoire</label>
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-lock text-warning me-2"></i>Mot de passe</label>
                                 <input type="password" id="ajax_password" name="password" class="custom-form-input" required placeholder="Mot de passe sécurisé (min. 6 car.)">
                             </div>
                             <div class="form-field-group mb-3">
-                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-building text-warning me-2"></i>Département d'affectation</label>
+                                <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-building text-warning me-2"></i>Département</label>
                                 <select id="ajax_department" name="department" class="custom-form-select" required>
                                     <option value="">Chargement des départements...</option>
                                 </select>
@@ -130,8 +128,7 @@ function updateManagerHTML() {
                 <div class="card-custom h-100">
                     <div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Répertoire des comptes</span>
-                            <small class="directory-subtitle">Agents de l'organisation</small>
+                            <span class="d-block"><i class="fa-solid fa-table-list me-2"></i> Liste des comptes</span>
                         </div>
                         <div class="directory-tools">
                             <label class="directory-search" aria-label="Rechercher un utilisateur">

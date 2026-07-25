@@ -246,11 +246,10 @@
                         <form id="addDeviceForm">
                             <div class="mb-3">
                                 <label for="mac_address" class="form-label text-muted">Adresse MAC de l'appareil</label>
-                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: AA:BB:CC:DD:EE:FF ou AA-BB-CC-DD-EE-FF" required>
-                                <div class="form-text text-muted small mt-1">Format automatique pfSense : AA-BB-CC-DD-EE-FF</div>
+                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: XX-XX-XX-XX-XX-XX" required>
                             </div>
                             <div class="mb-4">
-                                <label for="department" class="form-label text-muted">Département affecté</label>
+                                <label for="department" class="form-label text-muted">Département</label>
                                 <select class="form-select" id="department" required>
                                     <option value="">Sélectionner un département...</option>
                                     <option value="finance">Finance & Comptabilité</option>
@@ -262,7 +261,7 @@
                             </div>
                             <button type="submit" class="btn btn-marron w-100">
                                 <span class="loading me-2"><i class="fas fa-spinner fa-spin"></i></span>
-                                <i class="fas fa-plus me-1"></i> Enregistrer dans RADIUS
+                                <i class="fas fa-plus me-1"></i> Enregistrer l'appareil
                             </button>
                         </form>
                     </div>
