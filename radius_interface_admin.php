@@ -213,8 +213,8 @@
             display: none;
         }
     </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="assets/css/animations.css?v=20260721">
 </head>
 <body>
     <div class="container-fluid">
@@ -348,7 +348,7 @@
         });
 
         function loadDevices() {
-            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+            $.post('api/radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {
                     displayDevices(response.data);
                 } else {
@@ -406,7 +406,7 @@
             $('.loading').show();
             $('button[type="submit"]').prop('disabled', true);
             
-            $.post('radius_devices.php', {
+            $.post('api/radius_devices.php', {
                 action: 'add_device',
                 mac_address: macIETF,
                 department: department
@@ -429,7 +429,7 @@
 
         function deleteDevice(mac) {
             if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?\n\nMAC: ' + mac)) {
-                $.post('radius_devices.php', {
+                $.post('api/radius_devices.php', {
                     action: 'delete_device',
                     mac_address: mac
                 }, function(response) {
@@ -445,7 +445,7 @@
         }
 
         function loadStats() {
-            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+            $.post('api/radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {
                     const devices = response.data;
                     const stats = {

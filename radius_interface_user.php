@@ -154,8 +154,8 @@
             color: #000;
         }
     </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="assets/css/animations.css?v=20260721">
 </head>
 <body>
     <div class="container-fluid">
@@ -243,7 +243,7 @@
 
         // Charger la liste des appareils
         function loadDevices() {
-            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+            $.post('api/radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {
                     displayDevices(response.data);
                 } else {
@@ -284,7 +284,7 @@
 
         // Charger les statistiques
         function loadStats() {
-            $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
+            $.post('api/radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {
                     const devices = response.data;
                     const stats = {};

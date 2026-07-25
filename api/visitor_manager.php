@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 
 if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     http_response_code(401);

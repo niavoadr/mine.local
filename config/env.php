@@ -81,4 +81,4 @@ if (!function_exists('env')) {
 }
 
 // Chargement automatique du fichier .env à la racine
-load_env(__DIR__ . '/.env');
+load_env(dirname(__DIR__) . '/.env');

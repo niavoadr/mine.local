@@ -3,7 +3,7 @@
 ob_start();
 
 // Inclure la connexion à la base
-require_once './connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();

@@ -1,6 +1,6 @@
 <?php
 /** Vue PHP du gestionnaire de comptes administrateur. */
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 
 function manager_escape($value): string
@@ -364,7 +364,7 @@ $statusLabels = [
         formData.append('action', 'create_user');
 
         try {
-            const response = await fetch('manager.php', {
+            const response = await fetch('api/manager.php', {
                 method: 'POST',
                 body: formData,
             }).then((result) => result.json());
@@ -391,7 +391,7 @@ $statusLabels = [
             formData.append('new_status', button.dataset.userStatus);
 
             try {
-                const response = await fetch('manager.php', {
+                const response = await fetch('api/manager.php', {
                     method: 'POST',
                     body: formData,
                 }).then((result) => result.json());
@@ -412,6 +412,6 @@ $statusLabels = [
 })();
 
 setInterval(() => {
-    fetch('app_session.php', { credentials: 'same-origin' }).catch(() => {});
+    fetch('api/app_session.php', { credentials: 'same-origin' }).catch(() => {});
 }, 30000);
 </script>

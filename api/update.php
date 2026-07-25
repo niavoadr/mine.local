@@ -1,5 +1,5 @@
 <?php
-require_once './connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 //update code//
 // Vérifier si le formulaire a été soumis
 if (isset($_POST['id']) && isset($_POST['username'])) {

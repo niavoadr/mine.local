@@ -434,8 +434,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             color: #10b981;
         }
     </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="assets/css/animations.css?v=20260721">
 </head>
 <body>
 
@@ -452,7 +452,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="header-logo-box">
-                    <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+                    <img src="assets/images/logomine.jpg" alt="Logo Ministère des Mines">
                 </div>
                 <div>
                     <h1 class="header-title">Tableau de Bord Global</h1>
@@ -759,7 +759,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <!-- 3. ONGLET GESTIONNAIRE DE COMPTE -->
         <div id="manager-content" class="content-section">
-            <?php include __DIR__ . '/managerAdmin.php'; ?>
+            <?php include __DIR__ . '/includes/manager_admin.php'; ?>
         </div>
 
         <!-- 4. ONGLET ALERTES SÉCURITÉ -->
@@ -869,7 +869,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         const container = document.getElementById('alerts-log-container');
         if (!container) return;
         container.innerHTML = '<div class="text-center py-4 text-warning"><i class="fa-solid fa-spinner fa-spin me-2"></i>Chargement des journaux de sécurité...</div>';
-        fetch('get_alerts.php')
+        fetch('api/get_alerts.php')
             .then(response => response.text())
             .then(data => {
                 container.innerHTML = `<div class="log-console">${data || 'Aucune alerte récente.'}</div>`;
@@ -885,7 +885,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         const duration = $('#visitor-duration').val();
         
         $.ajax({
-            url: 'visitor_manager.php',
+            url: 'api/visitor_manager.php',
             type: 'POST',
             data: {
                 action: 'create_visitor',
@@ -913,7 +913,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     function loadVisitors() {
         $.ajax({
-            url: 'visitor_manager.php',
+            url: 'api/visitor_manager.php',
             type: 'POST',
             data: { action: 'get_visitors' },
             dataType: 'json',
@@ -988,7 +988,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         $('#blacklist-table').html('<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement de la liste noire...</td></tr>');
         
         $.ajax({
-            url: 'blacklist.php',
+            url: 'api/blacklist.php',
             type: 'POST',
             data: { action: 'get_blacklist' },
             dataType: 'json',
@@ -1032,7 +1032,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     function loadBlacklistStats() {
         $.ajax({
-            url: 'blacklist.php',
+            url: 'api/blacklist.php',
             type: 'POST',
             data: { action: 'get_stats' },
             dataType: 'json',
@@ -1055,7 +1055,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         }
         
         $.ajax({
-            url: 'blacklist.php',
+            url: 'api/blacklist.php',
             type: 'POST',
             data: {
                 action: 'add_blacklist',
@@ -1080,7 +1080,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     function unblockDevice(mac) {
         if (confirm('Voulez-vous vraiment débloquer cet appareil ?')) {
             $.ajax({
-                url: 'blacklist.php',
+                url: 'api/blacklist.php',
                 type: 'POST',
                 data: {
                     action: 'remove_blacklist',
@@ -1109,7 +1109,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         $('#intrusion-table').html('<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement des intrusions...</td></tr>');
         
         $.ajax({
-            url: 'intrusion.php',
+            url: 'api/intrusion.php',
             type: 'POST',
             data: {
                 action: 'get_intrusions',
@@ -1165,7 +1165,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     function loadIntrusionStats() {
         $.ajax({
-            url: 'intrusion.php',
+            url: 'api/intrusion.php',
             type: 'POST',
             data: { action: 'get_stats' },
             dataType: 'json',
@@ -1206,7 +1206,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         }
         if (confirm('Voulez-vous bloquer cet appareil suite à cette intrusion ?')) {
             $.ajax({
-                url: 'blacklist.php',
+                url: 'api/blacklist.php',
                 type: 'POST',
                 data: {
                     action: 'add_blacklist',

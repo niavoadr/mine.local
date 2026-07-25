@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 
 // manager.php — API des opérations du gestionnaire (les vues sont maintenant en PHP)
 if (empty($_SESSION['user'])) {

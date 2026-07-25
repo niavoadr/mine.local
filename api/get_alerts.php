@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 
 /*
  * Affiche les derniers événements de sécurité (table `security_event`)

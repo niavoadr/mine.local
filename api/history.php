@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 header('Content-Type: application/json');
 
 // Fonction utilitaire pour retourner une réponse JSON et arrêter le script

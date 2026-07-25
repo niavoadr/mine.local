@@ -360,8 +360,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             background: rgba(45, 45, 55, 0.85);
         }
     </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="assets/css/animations.css?v=20260721">
 </head>
 <body>
 
@@ -378,7 +378,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="header-logo-box">
-                    <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+                    <img src="assets/images/logomine.jpg" alt="Logo Ministère des Mines">
                 </div>
                 <div>
                     <h1 class="header-title">Tableau de Bord Départemental</h1>
@@ -505,7 +505,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <!-- 3. ONGLET GESTIONNAIRE DE COMPTE (LECTURE RESTREINTE) -->
         <div id="manager-content" class="content-section">
-            <?php include __DIR__ . '/managerUser.php'; ?>
+            <?php include __DIR__ . '/includes/manager_user.php'; ?>
         </div>
 
     </main>
@@ -564,7 +564,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         const duration = $('#visitor-duration').val();
         
         $.ajax({
-            url: 'visitor_manager.php',
+            url: 'api/visitor_manager.php',
             type: 'POST',
             data: {
                 action: 'create_visitor',
@@ -592,7 +592,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     function loadVisitors() {
         $.ajax({
-            url: 'visitor_manager.php',
+            url: 'api/visitor_manager.php',
             type: 'POST',
             data: { action: 'get_visitors' },
             dataType: 'json',

@@ -1,7 +1,7 @@
 <?php
 ob_start();
 session_start();
-require_once './connexion.php';
+require_once __DIR__ . '/config/connexion.php';
 
 define('CHEF_DEPT', 5);
 
@@ -567,8 +567,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     }
   }
   </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="assets/css/animations.css?v=20260721">
 </head>
 
 <body>
@@ -584,7 +584,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
       <div>
         <div class="logo-wrapper">
           <div class="logo-img-box">
-            <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+            <img src="assets/images/logomine.jpg" alt="Logo Ministère des Mines">
           </div>
           <div class="brand-title">
             <span>République de Madagascar</span>

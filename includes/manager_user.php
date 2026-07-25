@@ -1,6 +1,6 @@
 <?php
 /** Vue PHP en lecture seule du gestionnaire de comptes. */
-require_once __DIR__ . '/connexion.php';
+require_once dirname(__DIR__) . '/config/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 
 if (!function_exists('manager_escape')) {
@@ -240,6 +240,6 @@ $statusLabels = [
 })();
 
 setInterval(() => {
-  fetch('app_session.php', { credentials: 'same-origin' }).catch(() => {});
+  fetch('api/app_session.php', { credentials: 'same-origin' }).catch(() => {});
 }, 30000);
 </script>
