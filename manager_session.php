@@ -7,13 +7,16 @@ function register_app_session(PDO $pdo): void
     return;
   }
 
-  $stmt = $pdo->prepare(
+  // La table ne possède volontairement aucun index : on remplace la ligne
+  // de session manuellement à chaque heartbeat.
+  $delete = $pdo->prepare('DELETE FROM user_app_sessions WHERE session_id = ?');
+  $delete->execute([session_id()]);
+
+  $insert = $pdo->prepare(
     "INSERT INTO user_app_sessions (session_id, user_id, last_seen)
-     VALUES (?, ?, now())
-     ON CONFLICT (session_id)
-     DO UPDATE SET user_id = EXCLUDED.user_id, last_seen = now()"
+     VALUES (?, ?, now())"
   );
-  $stmt->execute([session_id(), $_SESSION['user_id']]);
+  $insert->execute([session_id(), $_SESSION['user_id']]);
 }
 
 function get_connected_app_users(PDO $pdo): int
