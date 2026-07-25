@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS radcheck (
 	Attribute		text NOT NULL DEFAULT '',
 	op			VARCHAR(2) NOT NULL DEFAULT '==',
 	Value			text NOT NULL DEFAULT '',
-    department        DEPARTMENT_ENUM NOT NULL
+    department        DEPARTMENT_ENUM
 );
 
 CREATE TABLE IF NOT EXISTS radgroupreply (
