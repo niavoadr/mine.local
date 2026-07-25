@@ -434,8 +434,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             color: #10b981;
         }
     </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="public/assets/css/responsive.css?v=20260722">
+    <link rel="stylesheet" href="public/assets/css/animations.css?v=20260721">
 </head>
 <body>
 
@@ -452,7 +452,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="header-logo-box">
-                    <img src="images/logomine.jpg" alt="Logo Ministère des Mines">
+                    <img src="public/assets/images/logomine.jpg" alt="Logo Ministère des Mines">
                 </div>
                 <div>
                     <h1 class="header-title">Tableau de Bord Global</h1>
@@ -759,7 +759,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <!-- 3. ONGLET GESTIONNAIRE DE COMPTE -->
         <div id="manager-content" class="content-section">
-            <?php include __DIR__ . '/managerAdmin.php'; ?>
+            <?php include __DIR__ . '/resources/views/dashboard/admin-management.php'; ?>
         </div>
 
         <!-- 4. ONGLET ALERTES SÉCURITÉ -->

@@ -1,0 +1,9 @@
+# Les répertoires internes ne sont pas des ressources publiques.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(\.env|config|app|resources)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+# Désactiver l'indexation des répertoires.
+Options -Indexes
