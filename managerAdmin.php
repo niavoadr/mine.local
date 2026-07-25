@@ -23,7 +23,6 @@ $statusLabels = ['active' => 'Actif', 'suspended' => 'Suspendu', 'inactive' => '
 <div class="manager-view">
   <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
     <div><h2 class="section-title mb-1"><i class="fa-solid fa-users-gear text-warning me-2"></i>Gestionnaire de Comptes</h2><p class="text-muted mb-0">Liste, création et suspension des agents du Ministère.</p></div>
-    <button type="button" class="btn btn-outline-warning fw-semibold px-4 py-2" data-manager-reload><i class="fa-solid fa-rotate-right me-1"></i> Actualiser la liste</button>
   </div>
   <div class="alert custom-alert-success d-none" data-manager-success role="alert"></div>
   <div class="alert custom-alert-error d-none" data-manager-error role="alert"></div>
@@ -41,7 +40,7 @@ $statusLabels = ['active' => 'Actif', 'suspended' => 'Suspendu', 'inactive' => '
       <div class="form-field-group mb-4"><label class="form-label text-light fw-semibold small">Rôle et Habilitation</label><select name="role" class="custom-form-select" required><option value="">Sélectionnez un rôle</option><?php foreach ($roles as $role): ?><option value="<?= manager_escape($role) ?>"><?= manager_escape($role) ?></option><?php endforeach; ?></select></div>
       <button type="submit" class="btn btn-warning w-100 fw-bold"><i class="fa-solid fa-circle-check me-1"></i> Créer et Activer le Compte</button></form>
     </div></div></div>
-    <div class="col-xl-8 col-lg-7"><div class="card-custom h-100"><div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2"><span><i class="fa-solid fa-table-list me-2"></i> Liste des comptes</span><label class="directory-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" data-user-search placeholder="Rechercher…"></label></div><div class="card-custom-body p-0" data-users-container>
+    <div class="col-xl-8 col-lg-7"><div class="card-custom h-100"><div class="card-custom-header d-flex justify-content-between align-items-center flex-wrap gap-2"><span><i class="fa-solid fa-table-list me-2"></i> Liste des comptes</span><div class="d-flex align-items-center gap-2"><label class="directory-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" data-user-search placeholder="Rechercher…"></label><button type="button" class="btn btn-outline-warning btn-sm fw-semibold" data-manager-reload><i class="fa-solid fa-rotate-right me-1"></i> Actualiser la liste</button></div></div><div class="card-custom-body p-0" data-users-container>
       <?php include __DIR__ . '/manager_users_table.php'; ?>
     </div></div></div>
   </div>
