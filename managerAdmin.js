@@ -94,7 +94,7 @@ function updateManagerHTML() {
                         <form id="ajax-user-form">
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-user text-warning me-2"></i>Nom d'utilisateur</label>
-                                <input type="text" id="ajax_nom_utilisateur" name="nom_utilisateur" class="custom-form-input" required placeholder="Ex: j.dupont" autocomplete="off">
+                                <input type="text" id="ajax_username" name="username" class="custom-form-input" required placeholder="Ex: j.dupont" autocomplete="off">
                             </div>
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-regular fa-envelope text-warning me-2"></i>Adresse Email professionnelle</label>
@@ -102,17 +102,17 @@ function updateManagerHTML() {
                             </div>
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-lock text-warning me-2"></i>Mot de passe provisoire</label>
-                                <input type="password" id="ajax_mot_de_passe" name="mot_de_passe" class="custom-form-input" required placeholder="Mot de passe sécurisé (min. 6 car.)">
+                                <input type="password" id="ajax_password" name="password" class="custom-form-input" required placeholder="Mot de passe sécurisé (min. 6 car.)">
                             </div>
                             <div class="form-field-group mb-3">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-building text-warning me-2"></i>Département d'affectation</label>
-                                <select id="ajax_id_departement" name="id_departement" class="custom-form-select" required>
+                                <select id="ajax_department" name="department" class="custom-form-select" required>
                                     <option value="">Chargement des départements...</option>
                                 </select>
                             </div>
                             <div class="form-field-group mb-4">
                                 <label class="form-label text-light fw-semibold small mb-2"><i class="fa-solid fa-user-shield text-warning me-2"></i>Rôle et Habilitation</label>
-                                <select id="ajax_id_role" name="id_role" class="custom-form-select" required>
+                                <select id="ajax_role" name="role" class="custom-form-select" required>
                                     <option value="">Chargement des rôles...</option>
                                 </select>
                             </div>
@@ -350,7 +350,7 @@ function updateManagerHTML() {
                 from { opacity: 0; transform: translateY(8px); }
                 to { opacity: 1; transform: translateY(0); }
             }
-            .status-actif {
+            .status-active {
                 background: rgba(16, 185, 129, 0.2);
                 color: #10b981;
                 border: 1px solid rgba(16, 185, 129, 0.4);
@@ -360,10 +360,20 @@ function updateManagerHTML() {
                 font-size: 0.78rem;
                 display: inline-block;
             }
-            .status-suspendu {
+            .status-suspended {
                 background: rgba(239, 68, 68, 0.2);
                 color: #f87171;
                 border: 1px solid rgba(239, 68, 68, 0.4);
+                padding: 0.35rem 0.8rem;
+                border-radius: 50px;
+                font-weight: 600;
+                font-size: 0.78rem;
+                display: inline-block;
+            }
+            .status-inactive {
+                background: rgba(245, 158, 11, 0.2);
+                color: #fbbf24;
+                border: 1px solid rgba(245, 158, 11, 0.4);
                 padding: 0.35rem 0.8rem;
                 border-radius: 50px;
                 font-weight: 600;
@@ -393,17 +403,6 @@ function updateManagerHTML() {
             .ajax-users-table tbody tr { transition:background .2s, transform .2s; }
             .ajax-users-table tbody tr:hover { transform:translateX(2px); }
             @media (max-width: 700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } .ajax-users-table th, .ajax-users-table td { padding:12px 14px !important; } }
-            /* Statuts et actions */
-            .status-en_attente {
-                background: rgba(245, 158, 11, 0.2);
-                color: #fbbf24;
-                border: 1px solid rgba(245, 158, 11, 0.4);
-                padding: 0.35rem 0.8rem;
-                border-radius: 50px;
-                font-weight: 600;
-                font-size: 0.78rem;
-                display: inline-block;
-            }
         </style>
     `);
 }
@@ -486,7 +485,7 @@ function loadDepartements() {
     dataType: 'json',
     success: function (response) {
       if (response.success) {
-        const select = $('#ajax_id_departement');
+        const select = $('#ajax_department');
         select.html('<option value="">Sélectionnez un département</option>');
         response.data.forEach(function (dept) {
           select.append(`<option value="${dept.id}">${dept.nom}</option>`);
@@ -507,7 +506,7 @@ function loadRoles() {
     dataType: 'json',
     success: function (response) {
       if (response.success) {
-        const select = $('#ajax_id_role');
+        const select = $('#ajax_role');
         select.html('<option value="">Sélectionnez un rôle</option>');
         response.data.forEach(function (role) {
           select.append(`<option value="${role.id}">${role.nom}</option>`);
@@ -554,25 +553,27 @@ function loadUsers() {
                         <tbody>
                 `;
 
+        const statusLabels = { active: 'Actif', suspended: 'Suspendu', inactive: 'Inactif' };
+
         response.data.forEach(function (user) {
-          const statusClass = `status-${user.statut}`;
-          const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
+          const statusClass = `status-${user.status}`;
+          const statusText = statusLabels[user.status] || user.status;
 
           let actionButton = '';
-          if (user.statut === 'actif') {
-            actionButton = `<button class="btn btn-sm btn-outline-warning fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="suspendu" style="border-radius: 8px;"><i class="fa-solid fa-pause me-1"></i>Suspendre</button>`;
-          } else if (user.statut === 'suspendu') {
-            actionButton = `<button class="btn btn-sm btn-outline-success fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-play me-1"></i>Activer</button>`;
+          if (user.status === 'active') {
+            actionButton = `<button class="btn btn-sm btn-outline-warning fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="suspended" style="border-radius: 8px;"><i class="fa-solid fa-pause me-1"></i>Suspendre</button>`;
+          } else if (user.status === 'suspended') {
+            actionButton = `<button class="btn btn-sm btn-outline-success fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="active" style="border-radius: 8px;"><i class="fa-solid fa-play me-1"></i>Activer</button>`;
           } else {
-            actionButton = `<button class="btn btn-sm btn-outline-info fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="actif" style="border-radius: 8px;"><i class="fa-solid fa-check me-1"></i>Approuver</button>`;
+            actionButton = `<button class="btn btn-sm btn-outline-info fw-semibold ajax-btn-status" data-user-id="${user.id}" data-new-status="active" style="border-radius: 8px;"><i class="fa-solid fa-check me-1"></i>Activer</button>`;
           }
 
           tableHTML += `
                         <tr class="ajax-fade-in">
-                            <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
+                            <td><div class="user-identity"><span class="user-avatar">${(user.username || '?').charAt(0).toUpperCase()}</span><div><strong>${user.username}</strong><small>ID #${user.id}</small></div></div></td>
                             <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
-                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
-                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
+                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.department || 'Non affecté'}</span></td>
+                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
                             <td class="text-end action-cell">${actionButton}</td>
                         </tr>
@@ -606,11 +607,11 @@ function createUser() {
 
   const formData = {
     action: 'create_user',
-    nom_utilisateur: $('#ajax_nom_utilisateur').val(),
+    username: $('#ajax_username').val(),
     email: $('#ajax_email').val(),
-    mot_de_passe: $('#ajax_mot_de_passe').val(),
-    id_departement: $('#ajax_id_departement').val(),
-    id_role: $('#ajax_id_role').val(),
+    password: $('#ajax_password').val(),
+    department: $('#ajax_department').val(),
+    role: $('#ajax_role').val(),
   };
 
   $.ajax({

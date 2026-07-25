@@ -1,188 +1,125 @@
 <?php
+require_once __DIR__ . '/connexion.php';
 header('Content-Type: application/json');
 
-// Configuration
-$syslogFile = '/var/log/syslog';
-$firewallLogFile = '/var/log/pfsense/filterlog.log';
-$maxLines = 1000; // Nombre de lignes à analyser
+$pdo = $connexion;
 
-// Fonction pour parser les logs Snort
-function parseSnortLogs($file, $maxLines)
+/*
+ * Lecture des détections d'intrusion depuis la table `security_event`.
+ *
+ * Mapping de sévérité (security_event.security_status -> libellé frontend) :
+ *   critical -> 'critical' (Critique)
+ *   warning  -> 'medium'   (Moyenne)
+ *   info     -> 'low'      (Faible)
+ */
+
+// Affichage : valeur d'enum -> badge de sévérité du dashboard
+$severityDisplay = [
+  'critical' => 'critical',
+  'warning'  => 'medium',
+  'info'     => 'low',
+];
+
+// Filtre inverse : sévérité du dashboard -> valeur d'enum (3 niveaux en base)
+$severityFilter = [
+  'critical' => 'critical',
+  'high'     => 'warning',
+  'medium'   => 'warning',
+  'low'      => 'info',
+];
+
+function jsonResponse($success, $message = '', $data = null)
 {
-  $alerts = [];
-
-  if (!file_exists($file)) {
-    return $alerts;
-  }
-
-  $lines = file($file);
-  if (!$lines) {
-    return $alerts;
-  }
-
-  // Prendre les dernières lignes
-  $lines = array_slice($lines, -$maxLines);
-
-  foreach ($lines as $line) {
-    // Détecter les lignes Snort
-    if (stripos($line, 'snort') !== false) {
-      $alert = [];
-
-      // Parser la date/heure
-      if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/', $line, $matches)) {
-        $alert['timestamp'] = date('d/m/Y H:i:s', strtotime($matches[1]));
-      } else {
-        $alert['timestamp'] = date('d/m/Y H:i:s');
-      }
-
-      // Parser l'IP source
-      if (preg_match('/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/', $line, $matches)) {
-        $alert['ip_address'] = $matches[1];
-      } else {
-        $alert['ip_address'] = 'N/A';
-      }
-
-      // Déterminer le type et la sévérité
-      $alert['type'] = 'Intrusion Snort';
-      $alert['severity'] = 'medium';
-
-      // Détection de mots-clés pour la sévérité
-      if (stripos($line, 'attack') !== false || stripos($line, 'exploit') !== false) {
-        $alert['severity'] = 'critical';
-        $alert['type'] = 'Attaque détectée';
-      } elseif (stripos($line, 'scan') !== false) {
-        $alert['severity'] = 'high';
-        $alert['type'] = 'Scan de réseau';
-      } elseif (stripos($line, 'suspicious') !== false) {
-        $alert['severity'] = 'medium';
-        $alert['type'] = 'Activité suspecte';
-      }
-
-      $alert['mac_address'] = 'N/A';
-      $alert['description'] = trim(substr($line, 50, 150));
-      $alert['source_info'] = 'Snort';
-
-      $alerts[] = $alert;
-    }
-  }
-
-  return $alerts;
+  echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
+  exit();
 }
 
-// Fonction pour parser les logs Firewall
-function parseFirewallLogs($file, $maxLines)
-{
-  $alerts = [];
-
-  if (!file_exists($file)) {
-    return $alerts;
-  }
-
-  $lines = file($file);
-  if (!$lines) {
-    return $alerts;
-  }
-
-  $lines = array_slice($lines, -$maxLines);
-
-  foreach ($lines as $line) {
-    // Détecter les connexions bloquées
-    if (stripos($line, 'block') !== false) {
-      $alert = [];
-
-      // Parser la date
-      if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/', $line, $matches)) {
-        $alert['timestamp'] = date('d/m/Y H:i:s', strtotime($matches[1]));
-      } else {
-        $alert['timestamp'] = date('d/m/Y H:i:s');
-      }
-
-      // Parser les IPs (format filterlog)
-      $parts = explode(',', $line);
-      if (count($parts) > 15) {
-        $alert['ip_address'] = $parts[11] ?? 'N/A'; // IP source
-      } else {
-        $alert['ip_address'] = 'N/A';
-      }
-
-      $alert['type'] = 'Connexion bloquée';
-      $alert['severity'] = 'low';
-      $alert['mac_address'] = 'N/A';
-      $alert['description'] = 'Tentative de connexion bloquée par le firewall';
-      $alert['source_info'] = 'Firewall';
-
-      $alerts[] = $alert;
-    }
-  }
-
-  return $alerts;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  jsonResponse(false, 'Méthode non autorisée');
 }
 
-// Gestion des requêtes AJAX
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $action = $_POST['action'] ?? '';
+$action = $_POST['action'] ?? '';
 
-  if ($action === 'get_intrusions') {
-    $severity = $_POST['severity'] ?? '';
-    $type = $_POST['type'] ?? '';
-    $date = $_POST['date'] ?? '';
+if ($action === 'get_intrusions') {
+  $severity = $_POST['severity'] ?? '';
+  $type = $_POST['type'] ?? '';
+  $date = $_POST['date'] ?? '';
 
-    // Récupérer toutes les intrusions
-    $snortAlerts = parseSnortLogs($syslogFile, $maxLines);
-    $firewallAlerts = parseFirewallLogs($firewallLogFile, $maxLines);
+  $sql = "SELECT
+            id,
+            event_type,
+            security_status,
+            COALESCE(source_ip::text, 'N/A')   AS source_ip,
+            COALESCE(mac_address::text, 'N/A') AS mac_address,
+            details->>'description'            AS description,
+            details->>'source'                 AS source_info,
+            created_at
+          FROM security_event
+          WHERE 1=1";
+  $params = [];
 
-    // Combiner
-    $allIntrusions = array_merge($snortAlerts, $firewallAlerts);
+  if ($severity !== '' && array_key_exists($severity, $severityFilter)) {
+    $sql .= ' AND security_status = ?';
+    $params[] = $severityFilter[$severity];
+  }
+  if ($type !== '') {
+    $sql .= ' AND event_type = ?';
+    $params[] = $type;
+  }
+  if ($date !== '') {
+    $sql .= ' AND created_at::date = ?';
+    $params[] = $date;
+  }
 
-    // Trier par date (plus récent en premier)
-    usort($allIntrusions, function ($a, $b) {
-      return strtotime($b['timestamp']) - strtotime($a['timestamp']);
-    });
+  $sql .= ' ORDER BY created_at DESC LIMIT 500';
 
-    // Filtrer selon les critères
-    if (!empty($severity)) {
-      $allIntrusions = array_filter($allIntrusions, function ($item) use ($severity) {
-        return $item['severity'] === $severity;
-      });
-    }
+  try {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if (!empty($date)) {
-      $allIntrusions = array_filter($allIntrusions, function ($item) use ($date) {
-        return strpos($item['timestamp'], date('d/m/Y', strtotime($date))) === 0;
-      });
-    }
+    $data = array_map(function ($row) use ($severityDisplay) {
+      $description = $row['description'];
+      if ($description === null || $description === '') {
+        // Repli lisible si le JSON details ne contient pas de description
+        $description = ucfirst(str_replace('_', ' ', $row['event_type']));
+      }
+      return [
+        'timestamp'   => date('d/m/Y H:i:s', strtotime($row['created_at'])),
+        'type'        => $row['event_type'],
+        'severity'    => $severityDisplay[$row['security_status']] ?? 'low',
+        'ip_address'  => $row['source_ip'],
+        'mac_address' => $row['mac_address'],
+        'description' => $description,
+        'source_info' => $row['source_info'] !== null && $row['source_info'] !== ''
+          ? $row['source_info']
+          : 'Autre',
+      ];
+    }, $rows);
 
-    echo json_encode([
-      'success' => true,
-      'data' => array_values($allIntrusions),
+    jsonResponse(true, '', $data);
+  } catch (Exception $e) {
+    jsonResponse(false, 'Erreur lors de la récupération des intrusions');
+  }
+} elseif ($action === 'get_stats') {
+  try {
+    $sql = "SELECT security_status, COUNT(*) AS nb
+            FROM security_event
+            GROUP BY security_status";
+    $counts = array_column(
+      $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC),
+      'nb',
+      'security_status'
+    );
+
+    jsonResponse(true, '', [
+      'critical'   => (int) ($counts['critical'] ?? 0),
+      'medium'     => (int) ($counts['warning'] ?? 0),
+      'suspicious' => (int) ($counts['info'] ?? 0),
     ]);
-  } elseif ($action === 'get_stats') {
-    $snortAlerts = parseSnortLogs($syslogFile, $maxLines);
-    $firewallAlerts = parseFirewallLogs($firewallLogFile, $maxLines);
-    $allIntrusions = array_merge($snortAlerts, $firewallAlerts);
-
-    $critical = count(array_filter($allIntrusions, fn($a) => $a['severity'] === 'critical'));
-    $medium = count(array_filter($allIntrusions, fn($a) => $a['severity'] === 'medium'));
-    $suspicious = count(array_filter($allIntrusions, fn($a) => $a['severity'] === 'low' || $a['severity'] === 'high'));
-
-    echo json_encode([
-      'success' => true,
-      'data' => [
-        'critical' => $critical,
-        'medium' => $medium,
-        'suspicious' => $suspicious,
-      ],
-    ]);
-  } else {
-    echo json_encode([
-      'success' => false,
-      'message' => 'Action non reconnue',
-    ]);
+  } catch (Exception $e) {
+    jsonResponse(false, 'Erreur lors de la récupération des statistiques');
   }
 } else {
-  echo json_encode([
-    'success' => false,
-    'message' => 'Méthode non autorisée',
-  ]);
+  jsonResponse(false, 'Action non reconnue');
 }
-?>

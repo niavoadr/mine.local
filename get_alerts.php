@@ -1,26 +1,53 @@
 <?php
+require_once __DIR__ . '/connexion.php';
 
-$logFile = '/var/log/syslog';
-// OPTION :
-// $logFile = "/var/log/fail2ban.log";
-// $logFile = "/var/log/auth.log";
+/*
+ * Affiche les derniers événements de sécurité (table `security_event`)
+ * sous forme de lignes colorées par sévérité, consommées par l'onglet
+ * "Alertes" du dashboard (conteneur .log-console).
+ */
 
-if (file_exists($logFile)) {
-  $lines = shell_exec("tail -n 50 $logFile");
+header('Content-Type: text/html; charset=utf-8');
 
-  $lines = explode("\n", $lines);
+// Couleurs par niveau de sévérité (info / warning / critical)
+$severityColors = [
+  'critical' => '#ef4444',
+  'warning'  => '#f59e0b',
+  'info'     => '#10b981',
+];
 
-  foreach ($lines as $line) {
-    if (strpos($line, 'Ban') !== false) {
-      echo "<span style='color:red'>$line</span><br>";
-    } elseif (strpos($line, 'Failed') !== false) {
-      echo "<span style='color:orange'>$line</span><br>";
-    } else {
-      echo htmlspecialchars($line) . '<br>';
-    }
-  }
-} else {
-  echo 'Log introuvable';
+try {
+  $sql = "SELECT event_type, security_status,
+                 COALESCE(source_ip::text, 'N/A')   AS source_ip,
+                 COALESCE(mac_address::text, 'N/A') AS mac_address,
+                 details->>'description'            AS description,
+                 created_at
+          FROM security_event
+          ORDER BY created_at DESC
+          LIMIT 50";
+  $events = $connexion->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  echo 'Alertes de sécurité indisponibles : ' . htmlspecialchars($e->getMessage());
+  return;
 }
 
-?>
+if (empty($events)) {
+  echo 'Aucune alerte de sécurité récente.';
+  return;
+}
+
+foreach ($events as $event) {
+  $color = $severityColors[$event['security_status']] ?? '#9ca3af';
+  $ts = date('d/m/Y H:i:s', strtotime($event['created_at']));
+  $desc = $event['description'] !== null && $event['description'] !== ''
+    ? $event['description']
+    : ucfirst(str_replace('_', ' ', $event['event_type']));
+  $line = sprintf('[%s] %s — %s | IP:%s | MAC:%s',
+    strtoupper($event['security_status']),
+    $ts,
+    $desc,
+    $event['source_ip'],
+    $event['mac_address']
+  );
+  echo "<span style=\"color:$color\">" . htmlspecialchars($line) . '</span><br>';
+}

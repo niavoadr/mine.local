@@ -223,11 +223,11 @@ function updateManagerHTML() {
             .ajax-users-table tbody td:last-child { border-radius:0 12px 12px 0; }
             .ajax-users-table tbody tr:hover { transform:translateY(-3px) !important; background:linear-gradient(100deg,#252f40,#1b2432) !important; box-shadow:0 9px 24px rgba(0,0,0,.38) !important; }
             .ajax-users-table tbody tr:hover td { background:transparent !important; }
-            .ajax-users-table .status-actif, .ajax-users-table .status-suspendu, .ajax-users-table .status-en_attente { min-width:82px; text-align:center; }
+            .ajax-users-table .status-active, .ajax-users-table .status-suspended, .ajax-users-table .status-inactive { min-width:82px; text-align:center; }
             @media (max-width:700px) { .ajax-users-table { padding:0 8px !important; min-width:760px; } }
 
             @media (max-width:700px) { .directory-tools { width:100%; justify-content:space-between; } .directory-search { flex:1; } .directory-search input { width:100%; } }
-            .status-actif {
+            .status-active {
                 background: rgba(16, 185, 129, 0.2);
                 color: #10b981;
                 border: 1px solid rgba(16, 185, 129, 0.4);
@@ -237,7 +237,7 @@ function updateManagerHTML() {
                 font-size: 0.78rem;
                 display: inline-block;
             }
-            .status-suspendu {
+            .status-suspended {
                 background: rgba(239, 68, 68, 0.2);
                 color: #f87171;
                 border: 1px solid rgba(239, 68, 68, 0.4);
@@ -247,7 +247,7 @@ function updateManagerHTML() {
                 font-size: 0.78rem;
                 display: inline-block;
             }
-            .status-en_attente {
+            .status-inactive {
                 background: rgba(245, 158, 11, 0.2);
                 color: #fbbf24;
                 border: 1px solid rgba(245, 158, 11, 0.4);
@@ -322,16 +322,18 @@ function loadUsers() {
                         <tbody>
                 `;
 
+        const statusLabels = { active: 'Actif', suspended: 'Suspendu', inactive: 'Inactif' };
+
         response.data.forEach(function (user) {
-          const statusClass = `status-${user.statut}`;
-          const statusText = user.statut.charAt(0).toUpperCase() + user.statut.slice(1);
+          const statusClass = `status-${user.status}`;
+          const statusText = statusLabels[user.status] || user.status;
 
           tableHTML += `
                         <tr class="ajax-fade-in">
-                            <td><div class="user-identity"><span class="user-avatar">${(user.nom_utilisateur || '?').charAt(0).toUpperCase()}</span><div><strong>${user.nom_utilisateur}</strong><small>ID #${user.id}</small></div></div></td>
+                            <td><div class="user-identity"><span class="user-avatar">${(user.username || '?').charAt(0).toUpperCase()}</span><div><strong>${user.username}</strong><small>ID #${user.id}</small></div></div></td>
                             <td><span class="user-email"><i class="fa-regular fa-envelope"></i>${user.email}</span></td>
-                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.nom_departement || 'Non affecté'}</span></td>
-                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.nom_role || 'Non défini'}</span></td>
+                            <td><span class="table-meta"><i class="fa-solid fa-building"></i>${user.department || 'Non affecté'}</span></td>
+                            <td><span class="role-badge"><i class="fa-solid fa-shield-halved"></i>${user.role || 'Non défini'}</span></td>
                             <td><span class="${statusClass}">${statusText}</span></td>
                         </tr>
                     `;

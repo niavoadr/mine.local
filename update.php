@@ -8,7 +8,7 @@ if (isset($_POST['id']) && isset($_POST['username'])) {
   $nom = $_POST['username'];
 
   // Préparer et exécuter la requête SQL avec requête préparée PDO
-  $sql = 'UPDATE users SET username = ? WHERE id = ?';
+  $sql = 'UPDATE users SET username = ?, date_modification = now() WHERE id = ?';
 
   try {
     $stmt = $connexion->prepare($sql);
