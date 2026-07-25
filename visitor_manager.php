@@ -78,11 +78,6 @@ switch ($action) {
             $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value, department) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$username, 'Cleartext-Password', ':=', $password, $userDept]);
 
-            // Expiration attribute for RADIUS
-            $radiusExpiration = date('d M Y H:i:s', strtotime($expiresAt));
-            $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value, department) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$username, 'Expiration', ':=', $radiusExpiration, $userDept]);
-
             $pdo->commit();
 
             jsonResponse(true, 'Visiteur créé avec succès !', [
@@ -128,10 +123,22 @@ switch ($action) {
             foreach ($visitors as &$v) {
                 $expiry = new DateTime($v['expires_at']);
                 if ($v['status'] === 'active' && $expiry < $now) {
-                    // Update in database
-                    $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
-                    $updateStmt->execute([$v['username']]);
-                    $v['status'] = 'expired';
+                    try {
+                        $pdo->beginTransaction();
+                        // Update in visitor table
+                        $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
+                        $updateStmt->execute([$v['username']]);
+                        
+                        // Delete from radcheck to cut internet access
+                        $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
+                        $deleteStmt->execute([$v['username']]);
+                        
+                        $pdo->commit();
+                        $v['status'] = 'expired';
+                    } catch (Exception $e) {
+                        if ($pdo->inTransaction()) $pdo->rollBack();
+                        // Log error or ignore for this iteration
+                    }
                 }
 
                 // Format dates for display
