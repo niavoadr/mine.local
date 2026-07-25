@@ -1,0 +1,144 @@
+        :root {
+            --bg-body: #0e0e12;
+            --bg-card: rgba(24, 24, 30, 0.85);
+            --border-gold: rgba(218, 165, 32, 0.25);
+            --gold-primary: #DAA520;
+            --gold-dark: #B8860B;
+            --text-muted: #9ca3af;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-body);
+            color: #e5e7eb;
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 18px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--gold-primary);
+            box-shadow: 0 15px 35px rgba(218, 165, 32, 0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.18) 0%, rgba(184, 134, 11, 0.1) 100%);
+            border-bottom: 1px solid var(--border-gold);
+            padding: 1rem 1.5rem;
+            color: #FFD700;
+            font-weight: 600;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-title i {
+            color: var(--gold-primary);
+        }
+
+        .table-responsive {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table {
+            margin-bottom: 0;
+            color: #e5e7eb;
+        }
+
+        .table thead th {
+            background: rgba(218, 165, 32, 0.15);
+            color: #FFD700;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.82rem;
+            letter-spacing: 0.5px;
+            border: none;
+            padding: 14px 18px;
+        }
+
+        .table tbody tr td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
+            vertical-align: middle;
+            font-size: 0.92rem;
+        }
+
+        .table tbody tr:hover td {
+            background: rgba(218, 165, 32, 0.08);
+        }
+
+        .mac-address {
+            font-family: 'Plus Jakarta Sans', monospace;
+            font-weight: 600;
+            color: #6ea8fe;
+        }
+
+        .department-badge {
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-finance { background: rgba(33, 150, 243, 0.2); color: #64b5f6; border: 1px solid rgba(33, 150, 243, 0.4); }
+        .badge-rh { background: rgba(255, 152, 0, 0.2); color: #ffb74d; border: 1px solid rgba(255, 152, 0, 0.4); }
+        .badge-daj { background: rgba(156, 39, 176, 0.2); color: #ba68c8; border: 1px solid rgba(156, 39, 176, 0.4); }
+        .badge-communication { background: rgba(244, 67, 54, 0.2); color: #e57373; border: 1px solid rgba(244, 67, 54, 0.4); }
+        .badge-sg { background: rgba(0, 188, 212, 0.2); color: #4dd0e1; border: 1px solid rgba(0, 188, 212, 0.4); }
+        
+        .stat-box {
+            padding: 1rem;
+            background: rgba(18, 18, 22, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            margin: 0.5rem 0;
+            transition: all 0.2s ease;
+        }
+        
+        .stat-box:hover {
+            border-color: var(--gold-primary);
+        }
+
+        .stat-box h6 {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-box h4 {
+            color: #FFD700;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .btn-refresh {
+            background: rgba(218, 165, 32, 0.15);
+            border: 1px solid var(--border-gold);
+            color: var(--gold-primary);
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 6px 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-refresh:hover {
+            background: var(--gold-primary);
+            color: #000;
+        }
