@@ -21,11 +21,11 @@ function register_app_session(PDO $pdo): void
 
 function get_connected_app_users(PDO $pdo): int
 {
-  $pdo->exec("DELETE FROM session_users WHERE last_seen < now() - interval '5 minutes'");
+  $pdo->exec("DELETE FROM session_users WHERE last_seen < now() - interval '3 minutes'");
 
   return (int) $pdo->query(
     "SELECT COUNT(DISTINCT user_id)
      FROM session_users
-     WHERE last_seen >= now() - interval '5 minutes'"
+     WHERE last_seen >= now() - interval '3 minutes'"
   )->fetchColumn();
 }
