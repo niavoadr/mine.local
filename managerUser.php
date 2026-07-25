@@ -24,6 +24,10 @@ try {
      ORDER BY e.enumsortorder"
   )->fetchAll(PDO::FETCH_COLUMN);
 
+  $connectedUsers = (int) $connexion->query(
+    'SELECT COUNT(*) FROM users WHERE last_login IS NOT NULL'
+  )->fetchColumn();
+
   $users = $connexion->query(
     'SELECT id, username, email, department, role, status
      FROM users
@@ -32,6 +36,7 @@ try {
 } catch (Throwable $e) {
   $stats = ['total' => 0, 'active' => 0];
   $roles = [];
+  $connectedUsers = 0;
   $users = [];
 }
 
@@ -171,7 +176,7 @@ $statusLabels = [
     $statCards = [
       ['Total Utilisateurs', (int) $stats['total'], 'fa-users', 'warning'],
       ['Utilisateurs Actifs', (int) $stats['active'], 'fa-user-check', 'success'],
-      ['Rôles et Habilitations', count($roles), 'fa-shield-halved', 'info'],
+      ['Utilisateurs connectés', $connectedUsers, 'fa-user-clock', 'info'],
     ];
     foreach ($statCards as $stat):
     ?>
