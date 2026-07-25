@@ -9,11 +9,11 @@ function register_app_session(PDO $pdo): void
 
   // La table ne possède volontairement aucun index : on remplace la ligne
   // de session manuellement à chaque heartbeat.
-  $delete = $pdo->prepare('DELETE FROM session_user WHERE session_id = ?');
+  $delete = $pdo->prepare('DELETE FROM session_users WHERE session_id = ?');
   $delete->execute([session_id()]);
 
   $insert = $pdo->prepare(
-    "INSERT INTO session_user (session_id, user_id, last_seen)
+    "INSERT INTO session_users (session_id, user_id, last_seen)
      VALUES (?, ?, now())"
   );
   $insert->execute([session_id(), $_SESSION['user_id']]);
@@ -21,11 +21,11 @@ function register_app_session(PDO $pdo): void
 
 function get_connected_app_users(PDO $pdo): int
 {
-  $pdo->exec("DELETE FROM session_user WHERE last_seen < now() - interval '5 minutes'");
+  $pdo->exec("DELETE FROM session_users WHERE last_seen < now() - interval '5 minutes'");
 
   return (int) $pdo->query(
     "SELECT COUNT(DISTINCT user_id)
-     FROM session_user
+     FROM session_users
      WHERE last_seen >= now() - interval '5 minutes'"
   )->fetchColumn();
 }
