@@ -741,10 +741,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <!-- 3. ONGLET GESTIONNAIRE DE COMPTE -->
         <div id="manager-content" class="content-section">
-            <div class="text-center py-5">
-                <div class="spinner-border text-warning mb-3" role="status"></div>
-                <h4>Chargement du Gestionnaire de Comptes...</h4>
-            </div>
+            <?php include __DIR__ . '/managerAdmin.php'; ?>
         </div>
 
         <!-- 4. ONGLET ALERTES SÉCURITÉ -->
@@ -770,7 +767,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="managerAdmin.js?v=20260721"></script>
 
     <script>
     $(document).ready(function() {

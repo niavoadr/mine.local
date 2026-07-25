@@ -1,7 +1,14 @@
 <?php
+session_start();
 require_once __DIR__ . '/connexion.php';
 
-// manager.php — Gestion des comptes utilisateurs (table `users`, schéma PostgreSQL)
+// manager.php — API des opérations du gestionnaire (les vues sont maintenant en PHP)
+if (empty($_SESSION['user'])) {
+  http_response_code(401);
+  header('Content-Type: application/json');
+  echo json_encode(['success' => false, 'message' => 'Session expirée']);
+  exit();
+}
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
@@ -39,6 +46,12 @@ if (!isset($_POST['action'])) {
 }
 
 $action = $_POST['action'];
+
+// La consultation est disponible aux utilisateurs connectés, mais seules les sessions
+// administrateur peuvent créer un compte ou modifier son statut.
+if (in_array($action, ['create_user', 'update_status'], true) && ($_SESSION['role_lib'] ?? '') !== 'Administrateur') {
+  jsonResponse(false, 'Accès réservé aux administrateurs');
+}
 
 switch ($action) {
   case 'get_stats':
