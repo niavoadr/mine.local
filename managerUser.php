@@ -11,6 +11,7 @@ if (!function_exists('manager_escape')) {
 }
 
 try {
+  register_app_session($connexion);
   $stats = $connexion->query(
     "SELECT COUNT(*) AS total,
             COUNT(*) FILTER (WHERE status = 'active') AS active

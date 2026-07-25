@@ -24,9 +24,7 @@ try {
      ORDER BY e.enumsortorder"
   )->fetchAll(PDO::FETCH_COLUMN);
 
-  $connectedUsers = (int) $connexion->query(
-    'SELECT COUNT(*) FROM users WHERE last_login IS NOT NULL'
-  )->fetchColumn();
+  $connectedUsers = get_connected_app_users($connexion);
 
   $users = $connexion->query(
     'SELECT id, username, email, department, role, status
