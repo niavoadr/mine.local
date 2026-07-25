@@ -812,6 +812,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         $("#intrusion-filter-btn").on('click', loadIntrusions);
         
         $('.subsection-btn').on('click', function() {
+            // Masquer le résumé des identifiants visiteur lors du changement de sous-section
+            $('#visitor-credentials').addClass('d-none');
+
             const section = $(this).data('section');
             $('.subsection-btn').removeClass('active');
             $(this).addClass('active');
@@ -837,6 +840,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     }
 
     function switchTab(tabName) {
+        // Masquer le résumé des identifiants visiteur lors du changement d'onglet
+        $('#visitor-credentials').addClass('d-none');
+
         const sections = document.querySelectorAll('.content-section');
         sections.forEach(section => section.classList.remove('active'));
         

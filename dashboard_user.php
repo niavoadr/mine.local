@@ -536,6 +536,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     }
 
     function switchTab(tabName) {
+        // Masquer le résumé des identifiants visiteur lors du changement d'onglet
+        $('#visitor-credentials').addClass('d-none');
+
         const sections = document.querySelectorAll('.content-section');
         sections.forEach(section => section.classList.remove('active'));
         
