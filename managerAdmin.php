@@ -208,6 +208,21 @@ $statusLabels = [
         background: rgba(239, 68, 68, 0.15);
         border: 1px solid rgba(239, 68, 68, 0.4);
     }
+
+    .manager-view .btn-refresh {
+        background: rgba(218, 165, 32, 0.15);
+        border: 1px solid var(--border-gold);
+        color: var(--gold-primary);
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 6px 14px;
+        transition: all 0.2s ease;
+    }
+
+    .manager-view .btn-refresh:hover {
+        background: var(--gold-primary);
+        color: #000;
+    }
 </style>
 
 <div class="manager-view">
@@ -312,9 +327,9 @@ $statusLabels = [
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="search" data-user-search placeholder="Rechercher…">
                         </label>
-                        <button type="button" class="btn btn-outline-warning btn-sm fw-semibold" data-manager-reload>
-                            <i class="fa-solid fa-rotate-right me-1"></i>
-                            Actualiser la liste
+                        <button type="button" class="btn btn-refresh btn-sm" data-manager-reload>
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Actualiser
                         </button>
                     </div>
                 </div>
