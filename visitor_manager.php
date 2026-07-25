@@ -88,7 +88,7 @@ switch ($action) {
             jsonResponse(true, 'Visiteur créé avec succès !', [
                 'username' => $username,
                 'password' => $password,
-                'expires_at' => $expiresAt
+                'expires_at' => date('d/m/Y H:i:s', strtotime($expiresAt))
             ]);
 
         } catch (Exception $e) {
@@ -110,13 +110,11 @@ switch ($action) {
                         u.username as creator_name,
                         a.callingstationid as mac_address,
                         a.framedipaddress as ip_address,
-                        a.acctstarttime as session_start,
-                        a.acctstoptime as session_end,
-                        a.acctsessiontime as session_duration
+                        a.acctstarttime as last_session_start
                     FROM visitor v
                     JOIN users u ON v.created_by = u.id
                     LEFT JOIN (
-                        SELECT DISTINCT ON (username) username, callingstationid, framedipaddress, acctstarttime, acctstoptime, acctsessiontime
+                        SELECT DISTINCT ON (username) username, callingstationid, framedipaddress, acctstarttime
                         FROM radacct
                         ORDER BY username, acctstarttime DESC
                     ) a ON v.username = a.username
@@ -125,7 +123,7 @@ switch ($action) {
             $stmt = $pdo->query($sql);
             $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Update expired status if needed
+            // Update expired status if needed and prepare data for display
             $now = new DateTime();
             foreach ($visitors as &$v) {
                 $expiry = new DateTime($v['expires_at']);
@@ -134,10 +132,19 @@ switch ($action) {
                     $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
                     $updateStmt->execute([$v['username']]);
                     $v['status'] = 'expired';
-                    
-                    // Optional: remove from radcheck or change password to "cut internet"
-                    // But RADIUS 'Expiration' attribute should already handle this.
                 }
+
+                // Format dates for display
+                // Début = Date de création du compte
+                $v['display_start'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
+                // Fin = Date d'expiration (Création + Durée)
+                $v['display_end'] = date('d/m/Y H:i:s', strtotime($v['expires_at']));
+                // Durée = Durée en minutes (formatée)
+                $v['display_duration'] = $v['duration'] . ' min';
+                
+                // Keep real-time info if available
+                $v['mac_address'] = $v['mac_address'] ?: 'N/A';
+                $v['ip_address'] = $v['ip_address'] ?: 'N/A';
             }
 
             jsonResponse(true, '', $visitors);

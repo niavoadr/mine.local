@@ -618,12 +618,12 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 html += `
                     <tr>
                         <td class="fw-semibold text-white">${record.username}</td>
-                        <td><code>${record.mac_address || 'N/A'}</code></td>
-                        <td>${record.ip_address || 'N/A'}</td>
+                        <td><code>${record.mac_address}</code></td>
+                        <td>${record.ip_address}</td>
                         <td><small class="text-muted">${record.creator_name}</small></td>
-                        <td>${record.session_start || 'N/A'}</td>
-                        <td>${record.session_end || 'N/A'}</td>
-                        <td>${formatDuration(record.session_duration)}</td>
+                        <td>${record.display_start}</td>
+                        <td>${record.display_end}</td>
+                        <td>${record.display_duration}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
                 `;
