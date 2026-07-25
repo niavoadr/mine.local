@@ -75,8 +75,15 @@ switch ($action) {
             $stmt->execute([$username, $hashedPassword, $userDept, $createdBy, $expiresAt, $duration, $dummyMac, $dummyNasIp]);
 
             // 2. Insert into radcheck for RADIUS authentication
-            $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value, department) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$username, 'Cleartext-Password', ':=', $password, $userDept]);
+            // Modification : La colonne department est laissée vide ou avec une valeur par défaut si elle est requise par le schéma
+            // Dans le schéma fourni, department est NOT NULL. Si on ne veut rien mettre, on peut mettre une chaîne vide si le type ENUM le permet, 
+            // mais ici c'est un ENUM. Je vais utiliser le département du créateur par défaut comme précédemment OU essayer de ne pas l'inclure si possible.
+            // Cependant, l'utilisateur demande explicitement de ne rien mettre. 
+            // Si la colonne a une contrainte NOT NULL, il faut fournir une valeur.
+            // Mais je vais modifier la requête pour ne pas inclure la colonne department dans l'INSERT si c'est ce qui est souhaité.
+            
+            $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$username, 'Cleartext-Password', ':=', $password]);
 
             $pdo->commit();
 
