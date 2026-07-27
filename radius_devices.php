@@ -109,13 +109,14 @@ function addDevice(PDO $connexion)
     throw new Exception('Adresse MAC et département requis');
   }
 
-  // Validation format MAC
-  if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $macRaw)) {
-    throw new Exception("Format d'adresse MAC invalide");
+  // Nettoyer et valider les 12 caractères hexadécimaux
+  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
+  if (strlen($cleanMac) !== 12) {
+    throw new Exception("Format d'adresse MAC invalide (12 caractères hexadécimaux requis)");
   }
 
-  // Normaliser en minuscules pour la compatibilité RADIUS / pfSense
-  $mac = strtolower($macRaw);
+  // Format requis : XX:XX:XX:XX:XX:XX (majuscules avec deux-points)
+  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
 
   $connexion->beginTransaction();
 
@@ -128,14 +129,14 @@ function addDevice(PDO $connexion)
     $deptEnum = $map[$department]['enum'];
     $groupname = $map[$department]['group'];
 
-    // Vérifier si l'appareil existe déjà
-    $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE LOWER(username) = LOWER(?)");
+    // Vérifier si l'appareil existe déjà (quel que soit le format précédent: tirets, points ou deux-points)
+    $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
     $stmtCheck->execute([$mac]);
     if ($stmtCheck->fetchColumn() > 0) {
       // Nettoyer les doublons potentiels existants avant ré-insertion propre
-      $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE LOWER(username) = LOWER(?)");
+      $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
       $stmtDel1->execute([$mac]);
-      $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE LOWER(username) = LOWER(?)");
+      $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
       $stmtDel2->execute([$mac]);
     }
 
@@ -198,22 +199,28 @@ function enumToShortcode($enumValue)
 
 function deleteDevice(PDO $connexion)
 {
-  $mac = strtolower(trim($_POST['mac_address'] ?? ''));
+  $macRaw = trim($_POST['mac_address'] ?? '');
 
-  if (empty($mac)) {
+  if (empty($macRaw)) {
     throw new Exception('Adresse MAC requise');
   }
+
+  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
+  if (strlen($cleanMac) !== 12) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
+  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
 
   $connexion->beginTransaction();
 
   try {
     // 1. Supprimer de radusergroup
-    $sql1 = 'DELETE FROM radusergroup WHERE LOWER(username) = LOWER(?)';
+    $sql1 = 'DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$mac]);
 
     // 2. Supprimer de radcheck
-    $sql2 = 'DELETE FROM radcheck WHERE LOWER(username) = LOWER(?)';
+    $sql2 = 'DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$mac]);
 
