@@ -5,6 +5,9 @@ ob_start();
 // Inclure la connexion à la base
 require_once './connexion.php';
 
+// Récupération du secret MAC depuis .env
+$RADIUS_MAC_SECRET = env('RADIUS_MAC_SECRET', '');
+
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
 
@@ -140,19 +143,18 @@ function addDevice(PDO $connexion)
       $stmtDel2->execute([$mac]);
     }
 
-    // 1. Ajouter Auth-Type dans radcheck (pour acceptation par défaut FreeRADIUS)
-    $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
-                 VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
-    $stmt1 = $connexion->prepare($sql1);
-    $stmt1->execute([$mac, $deptEnum]);
+    // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
+    // Une seule ligne dans radcheck avec le secret partagé
+    if (empty($RADIUS_MAC_SECRET)) {
+      throw new Exception('RADIUS_MAC_SECRET non configuré dans .env');
+    }
 
-    // 2. Ajouter Cleartext-Password dans radcheck (pour compatibilité PAP / pfSense MAB)
-    $sql1_bis = "INSERT INTO radcheck (username, attribute, op, value, department) 
-                 VALUES (?, 'Cleartext-Password', ':=', ?, ?)";
-    $stmt1_bis = $connexion->prepare($sql1_bis);
-    $stmt1_bis->execute([$mac, $mac, $deptEnum]);
+    $sql = "INSERT INTO radcheck (username, attribute, op, value, department) 
+               VALUES (?, 'Cleartext-Password', ':=', ?, ?)";
+    $stmt = $connexion->prepare($sql);
+    $stmt->execute([$mac, $RADIUS_MAC_SECRET, $deptEnum]);
 
-    // 3. Associer au groupe départemental dans radusergroup
+    // Associer au groupe départemental dans radusergroup
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
     $stmt2 = $connexion->prepare($sql2);
