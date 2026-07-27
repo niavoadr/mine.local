@@ -228,7 +228,7 @@
                                 <i class="fas fa-network-wired"></i>
                                 Gestion des Appareils RADIUS
                             </h1>
-                            <p class="text-muted mb-0">Enregistrement et autorisation des appareils par adresse MAC (pfSense / FreeRADIUS)</p>
+                            <p class="text-muted mb-0">Authentification MAC avec RADIUS MAC secret (MAB)</p>
                         </div>
                     </div>
                 </div>
