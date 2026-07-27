@@ -173,3 +173,10 @@ CREATE TABLE IF NOT EXISTS security_event (
 	is_read BOOLEAN NOT NULL DEFAULT FALSE,
 	read_at TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS session_users (
+    session_id VARCHAR(128) NOT NULL,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_seen TIMESTAMP NOT NULL DEFAULT now(),
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
