@@ -5,8 +5,12 @@ ob_start();
 // Inclure la connexion à la base
 require_once './connexion.php';
 
-// Récupération du secret MAC depuis .env
-$RADIUS_MAC_SECRET = env('RADIUS_MAC_SECRET', '');
+// Récupération du secret MAC via la fonction centralisée (comme pour la DB)
+try {
+  $RADIUS_MAC_SECRET = get_radius_mac_secret();
+} catch (Exception $e) {
+  $RADIUS_MAC_SECRET = '';
+}
 
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
@@ -146,7 +150,7 @@ function addDevice(PDO $connexion)
     // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
     // Une seule ligne dans radcheck avec le secret partagé
     if (empty($RADIUS_MAC_SECRET)) {
-      throw new Exception('RADIUS_MAC_SECRET non configuré dans .env');
+      throw new Exception('RADIUS_MAC_SECRET non configuré dans le fichier .env');
     }
 
     $sql = "INSERT INTO radcheck (username, attribute, op, value, department) 

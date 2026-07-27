@@ -45,3 +45,19 @@ try {
 } catch (Throwable $e) {
   die('Erreur de connexion à la base de données radius : ' . $e->getMessage());
 }
+
+/**
+ * Récupère le secret partagé pour l'authentification MAC (RADIUS MAB)
+ */
+if (!function_exists('get_radius_mac_secret')) {
+  function get_radius_mac_secret()
+  {
+    $secret = env('RADIUS_MAC_SECRET', '');
+
+    if (empty($secret)) {
+      throw new Exception('RADIUS_MAC_SECRET non configuré dans le fichier .env');
+    }
+
+    return $secret;
+  }
+}
