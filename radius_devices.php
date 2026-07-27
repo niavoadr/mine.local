@@ -215,12 +215,15 @@ function deleteDevice(PDO $connexion)
 
   try {
     // 1. Supprimer de radusergroup
-    $sql1 = 'DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
+    // NB : sous PostgreSQL les littéraux de chaîne doivent être entre APOSTROPHES ('...').
+    // Les guillemets doubles ("...") sont réservés aux identifiants (noms de colonnes) et
+    // provoquaient l'erreur "column "-" does not exist" lors de la suppression.
+    $sql1 = "DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?";
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$mac]);
 
     // 2. Supprimer de radcheck
-    $sql2 = 'DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
+    $sql2 = "DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?";
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$mac]);
 
