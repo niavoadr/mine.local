@@ -100,6 +100,14 @@ CREATE TABLE IF NOT EXISTS radusergroup (
 	priority		integer NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS radgroupcheck (
+	id			serial PRIMARY KEY,
+	GroupName		GROUPNAME_ENUM NOT NULL,
+	Attribute		text NOT NULL DEFAULT '',
+	op			VARCHAR(2) NOT NULL DEFAULT '==',
+	Value			text NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS radpostauth (
 	id			bigserial PRIMARY KEY,
 	username		text NOT NULL,
