@@ -246,7 +246,7 @@
                         <form id="addDeviceForm">
                             <div class="mb-3">
                                 <label for="mac_address" class="form-label text-muted">Adresse MAC de l'appareil</label>
-                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: XX-XX-XX-XX-XX-XX" required>
+                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: XX:XX:XX:XX:XX:XX" required>
                             </div>
                             <div class="mb-4">
                                 <label for="department" class="form-label text-muted">Département</label>
@@ -334,10 +334,10 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
-        function formatToIETF(mac) {
+        function formatToColon(mac) {
             let clean = mac.replace(/[^a-fA-F0-9]/g, '');
             if (clean.length === 12) {
-                return clean.match(/.{1,2}/g).join('-').toUpperCase();
+                return clean.match(/.{1,2}/g).join(':').toUpperCase();
             }
             return mac; 
         }
@@ -395,10 +395,10 @@
             e.preventDefault();
             
             let macInput = $('#mac_address').val();
-            const macIETF = formatToIETF(macInput);
+            const macColon = formatToColon(macInput);
             const department = $('#department').val();
             
-            if(macIETF.length !== 17) {
+            if(macColon.length !== 17) {
                 alert("L'adresse MAC saisie est invalide. Veuillez saisir 12 caractères hexadécimaux.");
                 return;
             }
@@ -408,11 +408,11 @@
             
             $.post('radius_devices.php', {
                 action: 'add_device',
-                mac_address: macIETF,
+                mac_address: macColon,
                 department: department
             }, function(response) {
                 if (response.success) {
-                    alert('✅ Appareil ajouté avec succès (Format IETF : ' + macIETF + ')');
+                    alert('✅ Appareil ajouté avec succès (Format : ' + macColon + ')');
                     $('#addDeviceForm')[0].reset();
                     loadDevices();
                     loadStats();

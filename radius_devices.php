@@ -67,18 +67,18 @@ exit();
 function getDevices(PDO $connexion)
 {
   try {
+    // Utilisation de GROUP BY pour éviter les doublons si plusieurs attributs radcheck existent pour une même MAC
     $sql = "SELECT 
-                    rc.id,
+                    MIN(rc.id) as id,
                     rc.username as mac_address,
-                    rc.department,
-                    rg.groupname,
-                    rgr.attribute,
-                    rgr.value
+                    MIN(rc.department) as department,
+                    MAX(rg.groupname) as groupname,
+                    MAX(rgr.value) as bandwidth_value
                 FROM radcheck rc
-                LEFT JOIN radusergroup rg ON rc.username = rg.username  
-                LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname
-                WHERE rgr.attribute = 'WISPr-Bandwidth-Max-Down'
-                ORDER BY rc.department, rc.username";
+                LEFT JOIN radusergroup rg ON LOWER(rc.username) = LOWER(rg.username)  
+                LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname AND rgr.attribute = 'WISPr-Bandwidth-Max-Down'
+                GROUP BY rc.username
+                ORDER BY department, rc.username";
 
     $stmt = $connexion->query($sql);
 
@@ -89,8 +89,8 @@ function getDevices(PDO $connexion)
         'id' => $row['id'],
         'mac_address' => $row['mac_address'],
         'department' => enumToShortcode($row['department']),
-        'bandwidth' => $row['value'] ? round($row['value'] / 1000000) . ' Mbps' : 'N/A',
-        'group' => $row['groupname'],
+        'bandwidth' => $row['bandwidth_value'] ? round($row['bandwidth_value'] / 1000000) . ' Mbps' : 'N/A',
+        'group' => $row['groupname'] ?: 'N/A',
       ];
     }
 
@@ -102,17 +102,21 @@ function getDevices(PDO $connexion)
 
 function addDevice(PDO $connexion)
 {
-  $mac = $_POST['mac_address'] ?? '';
+  $macRaw = $_POST['mac_address'] ?? '';
   $department = $_POST['department'] ?? '';
 
-  if (empty($mac) || empty($department)) {
+  if (empty($macRaw) || empty($department)) {
     throw new Exception('Adresse MAC et département requis');
   }
 
-  // Validation format MAC
-  if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $mac)) {
-    throw new Exception("Format d'adresse MAC invalide");
+  // Nettoyer et valider les 12 caractères hexadécimaux
+  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
+  if (strlen($cleanMac) !== 12) {
+    throw new Exception("Format d'adresse MAC invalide (12 caractères hexadécimaux requis)");
   }
+
+  // Format requis : XX:XX:XX:XX:XX:XX (majuscules avec deux-points)
+  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
 
   $connexion->beginTransaction();
 
@@ -125,22 +129,41 @@ function addDevice(PDO $connexion)
     $deptEnum = $map[$department]['enum'];
     $groupname = $map[$department]['group'];
 
-    // 1. Ajouter dans radcheck
+    // Vérifier si l'appareil existe déjà (quel que soit le format précédent: tirets, points ou deux-points)
+    $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
+    $stmtCheck->execute([$mac]);
+    if ($stmtCheck->fetchColumn() > 0) {
+      // Nettoyer les doublons potentiels existants avant ré-insertion propre
+      $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
+      $stmtDel1->execute([$mac]);
+      $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
+      $stmtDel2->execute([$mac]);
+    }
+
+    // 1. Ajouter Auth-Type dans radcheck (pour acceptation par défaut FreeRADIUS)
     $sql1 = "INSERT INTO radcheck (username, attribute, op, value, department) 
                  VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$mac, $deptEnum]);
 
-    // 2. Associer au groupe départemental
+    // 2. Ajouter Cleartext-Password dans radcheck (pour compatibilité PAP / pfSense MAB)
+    $sql1_bis = "INSERT INTO radcheck (username, attribute, op, value, department) 
+                 VALUES (?, 'Cleartext-Password', ':=', ?, ?)";
+    $stmt1_bis = $connexion->prepare($sql1_bis);
+    $stmt1_bis->execute([$mac, $mac, $deptEnum]);
+
+    // 3. Associer au groupe départemental dans radusergroup
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$mac, $groupname]);
 
     $connexion->commit();
-    echo json_encode(['success' => true, 'message' => 'Appareil ajouté avec succès']);
+    echo json_encode(['success' => true, 'message' => 'Appareil ajouté et autorisé avec succès']);
   } catch (Exception $e) {
-    $connexion->rollBack();
+    if ($connexion->inTransaction()) {
+      $connexion->rollBack();
+    }
     throw new Exception("Erreur lors de l'ajout: " . $e->getMessage());
   }
 }
@@ -176,29 +199,37 @@ function enumToShortcode($enumValue)
 
 function deleteDevice(PDO $connexion)
 {
-  $mac = $_POST['mac_address'] ?? '';
+  $macRaw = trim($_POST['mac_address'] ?? '');
 
-  if (empty($mac)) {
+  if (empty($macRaw)) {
     throw new Exception('Adresse MAC requise');
   }
+
+  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
+  if (strlen($cleanMac) !== 12) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
+  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
 
   $connexion->beginTransaction();
 
   try {
     // 1. Supprimer de radusergroup
-    $sql1 = 'DELETE FROM radusergroup WHERE username = ?';
+    $sql1 = 'DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$mac]);
 
     // 2. Supprimer de radcheck
-    $sql2 = 'DELETE FROM radcheck WHERE username = ?';
+    $sql2 = 'DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), "-", ":"), ".", ":") = ?';
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$mac]);
 
     $connexion->commit();
     echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
   } catch (Exception $e) {
-    $connexion->rollBack();
+    if ($connexion->inTransaction()) {
+      $connexion->rollBack();
+    }
     throw new Exception('Erreur lors de la suppression: ' . $e->getMessage());
   }
 }
