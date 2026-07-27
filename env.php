@@ -82,3 +82,23 @@ if (!function_exists('env')) {
 
 // Chargement automatique du fichier .env à la racine
 load_env(__DIR__ . '/.env');
+
+if (!function_exists('get_radius_mac_secret')) {
+  /**
+   * Récupère le secret partagé RADIUS (MAC Authentication Bypass) depuis le .env.
+   * Retourne une chaîne vide si la variable n'est pas définie.
+   */
+  function get_radius_mac_secret()
+  {
+    // S'assurer que le .env est bien chargé (utile si l'ordre d'inclusion change)
+    load_env(__DIR__ . '/.env');
+
+    $secret = env('RADIUS_MAC_SECRET', '');
+
+    if ($secret === null || $secret === false || is_bool($secret)) {
+      $secret = '';
+    }
+
+    return trim((string) $secret);
+  }
+}
