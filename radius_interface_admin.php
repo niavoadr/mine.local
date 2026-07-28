@@ -246,7 +246,7 @@
                         <form id="addDeviceForm">
                             <div class="mb-3">
                                 <label for="mac_address" class="form-label text-muted">Adresse MAC de l'appareil</label>
-                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: XX:XX:XX:XX:XX:XX" required>
+                                <input type="text" class="form-control" id="mac_address" placeholder="Ex: 6c:3b:f5:14:bf:56" required>
                             </div>
                             <div class="mb-4">
                                 <label for="department" class="form-label text-muted">Département</label>
@@ -335,16 +335,23 @@
     
     <script>
         function formatToColon(mac) {
-            let clean = mac.replace(/[^a-fA-F0-9]/g, '');
+            let clean = mac.replace(/[^a-fA-F0-9]/g, '').toLowerCase();
             if (clean.length === 12) {
-                return clean.match(/.{1,2}/g).join(':').toUpperCase();
+                return clean.match(/.{1,2}/g).join(':');
             }
-            return mac; 
+            return mac.trim().toLowerCase();
         }
 
         $(document).ready(function() {
             loadDevices();
             loadStats();
+
+            $('#mac_address').on('blur', function() {
+                const formatted = formatToColon($(this).val());
+                if (formatted.length === 17) {
+                    $(this).val(formatted);
+                }
+            });
         });
 
         function loadDevices() {
