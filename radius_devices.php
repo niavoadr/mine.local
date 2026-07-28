@@ -72,6 +72,37 @@ try {
 ob_end_flush();
 exit();
 
+/**
+ * Normalise une adresse MAC au format attendu par FreeRADIUS et la base :
+ *   xx:xx:xx:xx:xx:xx
+ * Les saisies avec majuscules, tirets, points, espaces, etc. sont acceptées
+ * tant qu'elles contiennent exactement 12 caractères hexadécimaux.
+ */
+function normalizeMacAddress($macRaw)
+{
+  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
+
+  if (strlen($cleanMac) !== 12) {
+    throw new Exception("Format d'adresse MAC invalide (12 caractères hexadécimaux requis)");
+  }
+
+  return implode(':', str_split($cleanMac, 2));
+}
+
+/**
+ * Retourne la version sans séparateur d'une MAC normalisée, pour comparer
+ * proprement avec d'anciennes valeurs stockées en base sous plusieurs formats.
+ */
+function compactMacAddress($macRaw)
+{
+  return str_replace(':', '', normalizeMacAddress($macRaw));
+}
+
+function normalizedMacSqlWhere()
+{
+  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
+}
+
 function getDevices(PDO $connexion)
 {
   try {
@@ -93,9 +124,17 @@ function getDevices(PDO $connexion)
     $devices = [];
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      try {
+        $displayMac = normalizeMacAddress($row['mac_address']);
+      } catch (Exception $e) {
+        // Sécurité : si d'anciens enregistrements non-MAC existent dans radcheck,
+        // on ne casse pas l'affichage de la page.
+        $displayMac = strtolower((string) $row['mac_address']);
+      }
+
       $devices[] = [
         'id' => $row['id'],
-        'mac_address' => $row['mac_address'],
+        'mac_address' => $displayMac,
         'department' => enumToShortcode($row['department']),
         'bandwidth' => $row['bandwidth_value'] ? round($row['bandwidth_value'] / 1000000) . ' Mbps' : 'N/A',
         'group' => $row['groupname'] ?: 'N/A',
@@ -117,14 +156,9 @@ function addDevice(PDO $connexion)
     throw new Exception('Adresse MAC et département requis');
   }
 
-  // Nettoyer et valider les 12 caractères hexadécimaux
-  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
-  if (strlen($cleanMac) !== 12) {
-    throw new Exception("Format d'adresse MAC invalide (12 caractères hexadécimaux requis)");
-  }
-
-  // Format requis : XX:XX:XX:XX:XX:XX (majuscules avec deux-points)
-  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
+  // Format requis en base : xx:xx:xx:xx:xx:xx (minuscules avec deux-points)
+  $mac = normalizeMacAddress($macRaw);
+  $macCompact = compactMacAddress($mac);
 
   $connexion->beginTransaction();
 
@@ -137,15 +171,17 @@ function addDevice(PDO $connexion)
     $deptEnum = $map[$department]['enum'];
     $groupname = $map[$department]['group'];
 
-    // Vérifier si l'appareil existe déjà (quel que soit le format précédent: tirets, points ou deux-points)
-    $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
-    $stmtCheck->execute([$mac]);
+    // Vérifier si l'appareil existe déjà, quel que soit le format précédent
+    // en base : f8:a2..., F8-A2..., f8a2..., etc.
+    $normalizedMacWhere = normalizedMacSqlWhere();
+    $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE $normalizedMacWhere");
+    $stmtCheck->execute([$macCompact]);
     if ($stmtCheck->fetchColumn() > 0) {
       // Nettoyer les doublons potentiels existants avant ré-insertion propre
-      $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
-      $stmtDel1->execute([$mac]);
-      $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?");
-      $stmtDel2->execute([$mac]);
+      $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere");
+      $stmtDel1->execute([$macCompact]);
+      $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE $normalizedMacWhere");
+      $stmtDel2->execute([$macCompact]);
     }
 
     // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
@@ -216,11 +252,8 @@ function deleteDevice(PDO $connexion)
     throw new Exception('Adresse MAC requise');
   }
 
-  $cleanMac = preg_replace('/[^a-fA-F0-9]/', '', $macRaw);
-  if (strlen($cleanMac) !== 12) {
-    throw new Exception("Format d'adresse MAC invalide");
-  }
-  $mac = strtoupper(implode(':', str_split($cleanMac, 2)));
+  $mac = normalizeMacAddress($macRaw);
+  $macCompact = compactMacAddress($mac);
 
   $connexion->beginTransaction();
 
@@ -229,14 +262,15 @@ function deleteDevice(PDO $connexion)
     // NB : sous PostgreSQL les littéraux de chaîne doivent être entre APOSTROPHES ('...').
     // Les guillemets doubles ("...") sont réservés aux identifiants (noms de colonnes) et
     // provoquaient l'erreur "column "-" does not exist" lors de la suppression.
-    $sql1 = "DELETE FROM radusergroup WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?";
+    $normalizedMacWhere = normalizedMacSqlWhere();
+    $sql1 = "DELETE FROM radusergroup WHERE $normalizedMacWhere";
     $stmt1 = $connexion->prepare($sql1);
-    $stmt1->execute([$mac]);
+    $stmt1->execute([$macCompact]);
 
     // 2. Supprimer de radcheck
-    $sql2 = "DELETE FROM radcheck WHERE REPLACE(REPLACE(UPPER(username), '-', ':'), '.', ':') = ?";
+    $sql2 = "DELETE FROM radcheck WHERE $normalizedMacWhere";
     $stmt2 = $connexion->prepare($sql2);
-    $stmt2->execute([$mac]);
+    $stmt2->execute([$macCompact]);
 
     $connexion->commit();
     echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
