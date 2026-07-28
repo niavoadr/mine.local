@@ -1,7 +1,10 @@
 <?php
 /**
  * Helper de déconnexion immédiate d'un client du portail captif pfSense via API XML-RPC native
- * Ne nécessite aucune extension PHP autre que curl (activé par défaut)
+ * Ne nécessite aucune extension PHP autre que curl (activé par défaut).
+ *
+ * La configuration pfSense est récupérée de manière centralisée via get_pfsense_config()
+ * qui lit le .env (voir env.php).
  */
 
 /**
@@ -15,17 +18,12 @@ function pfsense_disconnect_mac(string $mac): array {
         return ['success' => false, 'message' => 'Extension PHP curl manquante, impossible de contacter pfSense'];
     }
 
-    // Charger la configuration pfSense depuis .env
-    $host = env('PFSENSE_HOST', '');
-    $port = (int)env('PFSENSE_PORT', 443);
-    $user = env('PFSENSE_USER', 'admin');
-    $pass = env('PFSENSE_PASS', '');
-    $verifySsl = filter_var(env('PFSENSE_VERIFY_SSL', false), FILTER_VALIDATE_BOOLEAN);
-    $targetZone = env('PFSENSE_CP_ZONE', '');
+    // Récupérer la configuration de façon centralisée (aucun appel direct à env() ici)
+    $pf = get_pfsense_config();
 
     // Si la configuration pfSense n'est pas remplie, on s'arrête sans erreur bloquante
-    if (empty($host) || empty($pass)) {
-        return ['success' => false, 'message' => 'Configuration pfSense manquante dans .env, déconnexion distante ignorée'];
+    if (!$pf['configured']) {
+        return ['success' => false, 'message' => 'Configuration pfSense manquante dans .env (PFSENSE_HOST/PFSENSE_PASS), déconnexion distante ignorée'];
     }
 
     // Normaliser la MAC pour le code qui s'exécutera sur pfSense
@@ -69,7 +67,7 @@ function pfsense_disconnect_mac(string $mac): array {
         return "OK: " . $disconnected . " session(s) du portail captif déconnectée(s) pour la MAC " . $search_mac;
         ',
         $mac,
-        $targetZone
+        $pf['cp_zone']
     );
 
     // Construire la requête XML-RPC (pas besoin d'extension PHP xmlrpc, on génère le XML manuellement)
@@ -83,24 +81,23 @@ function pfsense_disconnect_mac(string $mac): array {
                 </param>
             </params>
         </methodCall>',
-        // On essaie d'abord le nom de méthode moderne, puis l'ancien pour la compatibilité vieilles versions pfSense
         'pfsense.exec_php',
         htmlspecialchars($pfSensePhpCode, ENT_XML1, 'UTF-8')
     );
 
     // Appel XML-RPC via cURL
-    $url = sprintf('https://%s:%d/xmlrpc.php', $host, $port);
+    $url = sprintf('https://%s:%d/xmlrpc.php', $pf['host'], $pf['port']);
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $xmlPayload,
         CURLOPT_HTTPHEADER => ['Content-Type: text/xml; charset=utf-8'],
-        CURLOPT_USERPWD => $user . ':' . $pass,
+        CURLOPT_USERPWD => $pf['user'] . ':' . $pf['pass'],
         CURLOPT_TIMEOUT => 10,
         CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_SSL_VERIFYPEER => $verifySsl,
-        CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
+        CURLOPT_SSL_VERIFYPEER => $pf['verify_ssl'],
+        CURLOPT_SSL_VERIFYHOST => $pf['verify_ssl'] ? 2 : 0,
     ]);
 
     $response = curl_exec($ch);
@@ -129,11 +126,11 @@ function pfsense_disconnect_mac(string $mac): array {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $xmlPayload,
             CURLOPT_HTTPHEADER => ['Content-Type: text/xml; charset=utf-8'],
-            CURLOPT_USERPWD => $user . ':' . $pass,
+            CURLOPT_USERPWD => $pf['user'] . ':' . $pf['pass'],
             CURLOPT_TIMEOUT => 10,
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => $verifySsl,
-            CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
+            CURLOPT_SSL_VERIFYPEER => $pf['verify_ssl'],
+            CURLOPT_SSL_VERIFYHOST => $pf['verify_ssl'] ? 2 : 0,
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

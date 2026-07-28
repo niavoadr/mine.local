@@ -102,3 +102,34 @@ if (!function_exists('get_radius_mac_secret')) {
     return trim((string) $secret);
   }
 }
+
+if (!function_exists('get_pfsense_config')) {
+  /**
+   * Récupère la configuration de connexion à pfSense (déconnexion portail captif)
+   * depuis le .env, avec valeurs par défaut sûres.
+   *
+   * @return array{host:string, port:int, user:string, pass:string, verify_ssl:bool, cp_zone:string, configured:bool}
+   */
+  function get_pfsense_config()
+  {
+    load_env(__DIR__ . '/.env');
+
+    $host = trim((string) env('PFSENSE_HOST', ''));
+    $port = (int) env('PFSENSE_PORT', 443);
+    $user = trim((string) env('PFSENSE_USER', 'admin'));
+    $pass = (string) env('PFSENSE_PASS', '');
+    $verifySsl = filter_var(env('PFSENSE_VERIFY_SSL', false), FILTER_VALIDATE_BOOLEAN);
+    $cpZone = trim((string) env('PFSENSE_CP_ZONE', ''));
+
+    return [
+      'host'       => $host,
+      'port'       => $port > 0 ? $port : 443,
+      'user'       => $user !== '' ? $user : 'admin',
+      'pass'       => $pass,
+      'verify_ssl' => $verifySsl,
+      'cp_zone'    => $cpZone,
+      // Drapeau qui indique si la config minimale (host + mot de passe) est présente
+      'configured' => $host !== '' && $pass !== '',
+    ];
+  }
+}
