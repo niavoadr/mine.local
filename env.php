@@ -108,7 +108,7 @@ if (!function_exists('get_pfsense_config')) {
    * Récupère la configuration de connexion à pfSense (déconnexion portail captif)
    * depuis le .env, avec valeurs par défaut sûres.
    *
-   * @return array{host:string, port:int, user:string, pass:string, verify_ssl:bool, cp_zone:string, configured:bool}
+   * @return array{host:string, port:int, user:string, pass:string, verify_ssl:bool, cp_zone:string, use_https:bool, configured:bool}
    */
   function get_pfsense_config()
   {
@@ -120,6 +120,7 @@ if (!function_exists('get_pfsense_config')) {
     $pass = (string) env('PFSENSE_PASS', '');
     $verifySsl = filter_var(env('PFSENSE_VERIFY_SSL', false), FILTER_VALIDATE_BOOLEAN);
     $cpZone = trim((string) env('PFSENSE_CP_ZONE', ''));
+    $useHttps = filter_var(env('PFSENSE_USE_HTTPS', true), FILTER_VALIDATE_BOOLEAN);
 
     return [
       'host'       => $host,
@@ -128,6 +129,7 @@ if (!function_exists('get_pfsense_config')) {
       'pass'       => $pass,
       'verify_ssl' => $verifySsl,
       'cp_zone'    => $cpZone,
+      'use_https'  => $useHttps,
       // Drapeau qui indique si la config minimale (host + mot de passe) est présente
       'configured' => $host !== '' && $pass !== '',
     ];

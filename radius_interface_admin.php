@@ -441,13 +441,16 @@
                     mac_address: mac
                 }, function(response) {
                     if (response.success) {
-                        alert('✅ Appareil supprimé !');
+                        // Afficher le message complet retourné par le backend (inclut l'état pfSense)
+                        alert('✅ ' + (response.message || 'Appareil supprimé !'));
                         loadDevices();
                         loadStats();
                     } else {
-                        alert('❌ Erreur: ' + response.error);
+                        alert('❌ Erreur: ' + (response.error || response.message || 'Erreur inconnue'));
                     }
-                }, 'json');
+                }, 'json').fail(function(xhr) {
+                    alert('❌ Erreur réseau ou serveur. Statut: ' + xhr.status);
+                });
             }
         }
 

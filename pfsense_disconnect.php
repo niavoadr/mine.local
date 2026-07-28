@@ -1,125 +1,200 @@
 <?php
 /**
- * Helper de déconnexion immédiate d'un client du portail captif pfSense via API XML-RPC native
+ * Helper de déconnexion immédiate d'un client du portail captif pfSense via API XML-RPC native.
  * Ne nécessite aucune extension PHP autre que curl (activé par défaut).
  *
- * La configuration pfSense est récupérée de manière centralisée via get_pfsense_config()
- * qui lit le .env (voir env.php).
+ * La configuration pfSense est récupérée de manière centralisée via get_pfsense_config() (env.php).
+ *
+ * Si l'appareil n'est pas trouvé dans les sessions du portail captif, on retombe
+ * sur les IPs actives connues dans radacct et on tue directement les états pf correspondants
+ * (pfctl -k), de façon à couper l'accès même si le portail captif n'est pas utilisé en mode
+ * "session CP" (cas de MAB 802.1X où l'IP vient du DHCP/switch).
  */
 
 /**
- * Déconnecte immédiatement une adresse MAC du portail captif pfSense
+ * Déconnecte immédiatement une adresse MAC du portail captif pfSense et tue ses états pf.
+ *
  * @param string $mac Adresse MAC au format xx:xx:xx:xx:xx:xx
+ * @param PDO|null $pdo Connexion PDO optionnelle pour chercher les IPs actives dans radacct si le portail captif ne les connaît pas
  * @return array ['success' => bool, 'message' => string]
  */
-function pfsense_disconnect_mac(string $mac): array {
-    // Vérifier que curl est disponible
+function pfsense_disconnect_mac(string $mac, ?PDO $pdo = null): array {
     if (!function_exists('curl_init')) {
-        return ['success' => false, 'message' => 'Extension PHP curl manquante, impossible de contacter pfSense'];
+        return ['success' => false, 'message' => 'Extension PHP curl manquante'];
     }
 
-    // Récupérer la configuration de façon centralisée (aucun appel direct à env() ici)
     $pf = get_pfsense_config();
-
-    // Si la configuration pfSense n'est pas remplie, on s'arrête sans erreur bloquante
     if (!$pf['configured']) {
-        return ['success' => false, 'message' => 'Configuration pfSense manquante dans .env (PFSENSE_HOST/PFSENSE_PASS), déconnexion distante ignorée'];
+        return ['success' => false, 'message' => 'Configuration pfSense manquante (PFSENSE_HOST/PFSENSE_PASS) dans .env'];
     }
 
-    // Normaliser la MAC pour le code qui s'exécutera sur pfSense
     $mac = strtolower(trim($mac));
     if (!preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $mac)) {
-        return ['success' => false, 'message' => 'Format de MAC invalide pour la déconnexion pfSense'];
+        return ['success' => false, 'message' => 'Format de MAC invalide'];
     }
 
-    // Code PHP qui sera exécuté directement sur pfSense
-    // Il utilise les fonctions natives du portail captif et la gestion des états pf
+    // Récupérer la liste des IPs actives connues pour cette MAC (depuis radacct)
+    $knownIps = [];
+    if ($pdo !== null) {
+        try {
+            $sql = "SELECT DISTINCT framedipaddress::text AS ip
+                    FROM radacct
+                    WHERE regexp_replace(lower(callingstationid), '[^0-9a-f]', '', 'g') = ?
+                      AND acctstoptime IS NULL
+                      AND framedipaddress IS NOT NULL";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([str_replace(':', '', $mac)]);
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                if (filter_var($r['ip'], FILTER_VALIDATE_IP)) {
+                    $knownIps[] = $r['ip'];
+                }
+            }
+        } catch (Throwable $e) {
+            // non bloquant
+        }
+    }
+
+    // Vérifier quel schéma/port utiliser : on essaie d'abord la config telle quelle
+    $targetZone = $pf['cp_zone'];
+    $ipsJson = json_encode(array_values(array_unique($knownIps)));
+
+    // Code qui s'exécute sur pfSense : tente une déconnexion du portail captif
+    // ET purge les états pf pour les IP passées en paramètre.
     $pfSensePhpCode = sprintf(
         '
         require_once("/etc/inc/captiveportal.inc");
         require_once("/etc/inc/util.inc");
         $search_mac = strtolower("%s");
         $target_zone = "%s";
-        $disconnected = 0;
+        $known_ips = json_decode(\'%s\', true);
+        if (!is_array($known_ips)) $known_ips = [];
+
+        $disconnected_cp = 0;
+        $killed_states = 0;
+        $ips_killed = [];
         $errors = [];
-        // Récupérer toutes les sessions actives du portail captif
-        $sessions = captiveportal_read_db();
-        if (!is_array($sessions)) $sessions = [];
-        foreach ($sessions as $session) {
-            // Filtrer par zone si demandé
-            if (!empty($target_zone) && $session["cpzone"] !== $target_zone) continue;
-            // Ignorer les sessions dont la MAC ne correspond pas
-            if (strtolower($session["mac"]) !== $search_mac) continue;
-            // Déconnecter la session du portail captif
-            $disconnect_result = captiveportal_disconnect($session, true, "Déconnecté par l\'administration (app RADIUS)");
-            if (!$disconnect_result) {
-                $errors[] = "Échec de déconnexion de la session IP " . $session["ip"];
-                continue;
+
+        function kill_states_for_ip($ip, &$killed_states, &$ips_killed, &$errors) {
+            if (!filter_var($ip, FILTER_VALIDATE_IP)) return;
+            $out1 = @mwexec("/sbin/pfctl -k " . escapeshellarg($ip) . " 2>&1", true);
+            $out2 = @mwexec("/sbin/pfctl -k 0.0.0.0/0 -k " . escapeshellarg($ip) . " 2>&1", true);
+            // Lister le nombre d\'états restants pour confirmer
+            $remaining = trim(@shell_exec("/sbin/pfctl -s states 2>/dev/null | /usr/bin/grep " . escapeshellarg($ip) . " | /usr/bin/wc -l"));
+            if (intval($remaining) === 0) {
+                $killed_states++;
+                $ips_killed[] = $ip;
+            } else {
+                $errors[] = "États restants pour $ip: " . $remaining;
             }
-            // Tuer TOUS les états de pare-feu associés à l\'IP du client (coupe immédiatement tous les flux)
-            @mwexec("/sbin/pfctl -k " . escapeshellarg($session["ip"]) . " 2>/dev/null");
-            @mwexec("/sbin/pfctl -k 0.0.0.0/0 -k " . escapeshellarg($session["ip"]) . " 2>/dev/null");
-            $disconnected++;
         }
-        if (!empty($errors)) {
-            return "WARN: " . $disconnected . " session(s) déconnectée(s), erreurs: " . implode(", ", $errors);
+
+        // 1) Parcourir les sessions du portail captif
+        $sessions = captiveportal_read_db();
+        if (is_array($sessions)) {
+            foreach ($sessions as $session) {
+                if (!empty($target_zone) && ($session["cpzone"] ?? "") !== $target_zone) continue;
+                if (strtolower($session["mac"] ?? "") !== $search_mac) continue;
+                $ip = $session["ip"] ?? "";
+                $res = @captiveportal_disconnect($session, true, "Déconnecté par l\'administration (app RADIUS)");
+                if ($res) {
+                    $disconnected_cp++;
+                    if (filter_var($ip, FILTER_VALIDATE_IP) && !in_array($ip, $known_ips)) {
+                        $known_ips[] = $ip;
+                    }
+                } else {
+                    $errors[] = "Échec disconnect CP session IP " . $ip;
+                }
+            }
         }
-        return "OK: " . $disconnected . " session(s) du portail captif déconnectée(s) pour la MAC " . $search_mac;
+
+        // 2) Tuer les états pf pour TOUTES les IPs connues (CP + radacct)
+        foreach ($known_ips as $ip) {
+            if (!filter_var($ip, FILTER_VALIDATE_IP)) continue;
+            kill_states_for_ip($ip, $killed_states, $ips_killed, $errors);
+        }
+
+        return json_encode([
+            "cp_disconnected" => $disconnected_cp,
+            "states_killed" => $killed_states,
+            "ips" => $ips_killed,
+            "errors" => $errors
+        ]);
         ',
         $mac,
-        $pf['cp_zone']
+        $targetZone,
+        $ipsJson
     );
 
-    // Construire la requête XML-RPC (pas besoin d'extension PHP xmlrpc, on génère le XML manuellement)
-    $xmlPayload = sprintf(
-        '<?xml version="1.0" encoding="UTF-8"?>
-        <methodCall>
-            <methodName>%s</methodName>
-            <params>
-                <param>
-                    <value><string>%s</string></value>
-                </param>
-            </params>
-        </methodCall>',
-        'pfsense.exec_php',
-        htmlspecialchars($pfSensePhpCode, ENT_XML1, 'UTF-8')
-    );
+    // Tenter l'appel XML-RPC : d'abord le schéma configuré, puis les alternatives
+    $attempts = [];
+    $schema = $pf['use_https'] ?? true;
+    if (is_string($schema) && strtolower($schema) === 'false') $schema = false;
+    else $schema = true;
 
-    // Appel XML-RPC via cURL
-    $url = sprintf('https://%s:%d/xmlrpc.php', $pf['host'], $pf['port']);
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $xmlPayload,
-        CURLOPT_HTTPHEADER => ['Content-Type: text/xml; charset=utf-8'],
-        CURLOPT_USERPWD => $pf['user'] . ':' . $pf['pass'],
-        CURLOPT_TIMEOUT => 10,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_SSL_VERIFYPEER => $pf['verify_ssl'],
-        CURLOPT_SSL_VERIFYHOST => $pf['verify_ssl'] ? 2 : 0,
-    ]);
+    $attempts[] = ['https' => $schema, 'port' => (int)$pf['port']];
+    // alternatives automatiques
+    if ($schema === true) {
+        $attempts[] = ['https' => false, 'port' => ($pf['port'] === 443 ? 80 : $pf['port'])]; // fallback http
+    } else {
+        $attempts[] = ['https' => true, 'port' => ($pf['port'] === 80 ? 443 : $pf['port'])];
+    }
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
+    $lastError = '';
+    foreach ($attempts as $i => $att) {
+        $result = _pfsense_xmlrpc_call($att['https'], $att['port'], $pf, $pfSensePhpCode);
+        if ($result['ok']) {
+            // Parser la réponse JSON
+            $data = @json_decode($result['value'], true);
+            if (is_array($data)) {
+                $cp = (int)($data['cp_disconnected'] ?? 0);
+                $st = (int)($data['states_killed'] ?? 0);
+                $ips = $data['ips'] ?? [];
+                $errs = $data['errors'] ?? [];
+                $msg = "pfSense: $cp session(s) CP déconnectée(s), $st IP(s) purgée(s) dans pf";
+                if (!empty($ips)) $msg .= " (" . implode(', ', $ips) . ")";
+                if (!empty($errs)) $msg .= " | warnings: " . implode(' ; ', $errs);
+                if ($cp === 0 && $st === 0) {
+                    return [
+                        'success' => false,
+                        'message' => "pfSense contacté mais aucune session/état trouvé pour la MAC $mac. Vérifiez que le client est bien connecté via le portail captif et que la MAC est dans le bon format. L'appareil conservera l'accès jusqu'à sa prochaine reconnexion."
+                    ];
+                }
+                return ['success' => true, 'message' => $msg];
+            }
+            // Si la réponse n'est pas JSON (vieux pfSense), on la renvoie brute
+            $v = trim((string)$result['value']);
+            if ($v === '' || str_starts_with($v, 'OK:')) {
+                return ['success' => true, 'message' => 'pfSense: déconnexion effectuée (' . $v . ')'];
+            }
+            return ['success' => false, 'message' => 'Réponse pfSense inattendue: ' . substr($v, 0, 200)];
+        }
+        $lastError = $result['error'];
+    }
 
-    // Gérer les erreurs de connexion
-    if ($curlError) {
-        // Essayer l'ancien nom de méthode exec_php si pfsense.exec_php échoue (compatibilité pfSense < 2.5)
+    return ['success' => false, 'message' => 'Impossible de contacter pfSense: ' . $lastError];
+}
+
+/**
+ * Effectue UN appel XML-RPC à pfSense et retourne le résultat ou l'erreur.
+ */
+function _pfsense_xmlrpc_call(bool $https, int $port, array $pf, string $phpCode): array {
+    $proto = $https ? 'https' : 'http';
+    $url = sprintf('%s://%s:%d/xmlrpc.php', $proto, $pf['host'], $port);
+
+    // Essayer d'abord pfsense.exec_php (versions récentes), puis exec_php (anciennes)
+    foreach (['pfsense.exec_php', 'exec_php'] as $methodName) {
         $xmlPayload = sprintf(
             '<?xml version="1.0" encoding="UTF-8"?>
             <methodCall>
-                <methodName>exec_php</methodName>
+                <methodName>%s</methodName>
                 <params>
-                    <param>
-                        <value><string>%s</string></value>
-                    </param>
+                    <param><value><string>%s</string></value></param>
                 </params>
             </methodCall>',
-            htmlspecialchars($pfSensePhpCode, ENT_XML1, 'UTF-8')
+            $methodName,
+            htmlspecialchars($phpCode, ENT_XML1, 'UTF-8')
         );
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -133,33 +208,33 @@ function pfsense_disconnect_mac(string $mac): array {
             CURLOPT_SSL_VERIFYHOST => $pf['verify_ssl'] ? 2 : 0,
         ]);
         $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
         curl_close($ch);
 
-        if ($curlError) {
-            return ['success' => false, 'message' => 'Erreur de connexion à pfSense : ' . $curlError];
+        if ($curlErr) {
+            return ['ok' => false, 'error' => "$proto:$port → $curlErr"];
         }
-    }
+        if ($httpCode !== 200) {
+            $errMsg = "$proto:$port → HTTP $httpCode";
+            if ($httpCode === 401) $errMsg .= " (identifiants incorrects)";
+            if ($httpCode === 403) $errMsg .= " (accès refusé - vérifiez les droits du compte et la règle de pare-feu)";
+            if ($httpCode === 0)   $errMsg .= " (pas de réponse - port fermé ou IP injoignable)";
+            return ['ok' => false, 'error' => $errMsg];
+        }
 
-    if ($httpCode !== 200) {
-        return ['success' => false, 'message' => 'Erreur pfSense : code HTTP ' . $httpCode . ' (vérifiez identifiants et accès au port d\'administration)'];
+        // Parser la réponse
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($response);
+        if (!$xml) {
+            return ['ok' => false, 'error' => "$proto:$port → réponse XML invalide"];
+        }
+        $value = (string)($xml->params->param->value->string ?? '');
+        if ($value === '') {
+            // Quelques réponses ont la valeur dans <struct>
+            $value = $response;
+        }
+        return ['ok' => true, 'value' => $value];
     }
-
-    // Parser la réponse XML-RPC
-    libxml_use_internal_errors(true);
-    $xml = simplexml_load_string($response);
-    if (!$xml) {
-        return ['success' => false, 'message' => 'Réponse invalide de pfSense'];
-    }
-
-    // Rechercher la valeur de retour
-    $returnValue = (string)$xml->params->param->value->string ?? '';
-    if (str_starts_with($returnValue, 'OK:')) {
-        return ['success' => true, 'message' => $returnValue];
-    }
-    if (str_starts_with($returnValue, 'WARN:')) {
-        return ['success' => true, 'message' => $returnValue];
-    }
-    return ['success' => false, 'message' => 'Erreur pfSense : ' . $returnValue];
+    return ['ok' => false, 'error' => 'méthodes XML-RPC non disponibles'];
 }

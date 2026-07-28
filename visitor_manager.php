@@ -137,9 +137,12 @@ switch ($action) {
                         $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
                         $updateStmt->execute([$v['username']]);
                         
-                        // Delete from radcheck to cut internet access
+                        // Supprimer les lignes radcheck et ajouter un rejet explicite
                         $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
                         $deleteStmt->execute([$v['username']]);
+
+                        $rejectStmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
+                        $rejectStmt->execute([$v['username']]);
 
                         // Clôturer les sessions RADIUS actives
                         $visitorMac = $v['mac_address'] ?? '';
@@ -152,15 +155,16 @@ switch ($action) {
                             $closeStmt->execute([$v['username']]);
 
                             // Déconnexion immédiate du portail captif pfSense
-                            @normalizeMacAddress($visitorMac);
-                            pfsense_disconnect_mac($visitorMac);
+                            try {
+                                @normalizeMacAddress($visitorMac);
+                                pfsense_disconnect_mac($visitorMac, $pdo);
+                            } catch (Throwable $ignored) {}
                         }
                         
                         $pdo->commit();
                         $v['status'] = 'expired';
                     } catch (Exception $e) {
                         if ($pdo->inTransaction()) $pdo->rollBack();
-                        // Log error or ignore for this iteration
                     }
                 }
 

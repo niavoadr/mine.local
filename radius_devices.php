@@ -185,9 +185,7 @@ function addDevice(PDO $connexion)
       $stmtDel1->execute([$macCompact]);
       $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE $normalizedMacWhere");
       $stmtDel2->execute([$macCompact]);
-    }
-
-    // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
+    }    // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
     // Une seule ligne dans radcheck avec le secret partagé
     // Le secret est relu ici via env.php : une variable globale n'est pas
     // visible dans la portée d'une fonction en PHP.
@@ -262,6 +260,7 @@ function deleteDevice(PDO $connexion)
 
   try {
     $normalizedMacWhere = normalizedMacSqlWhere();
+
     // 1. Supprimer de radusergroup
     $sql1 = "DELETE FROM radusergroup WHERE $normalizedMacWhere";
     $stmt1 = $connexion->prepare($sql1);
@@ -272,8 +271,15 @@ function deleteDevice(PDO $connexion)
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$macCompact]);
 
-    // 3. Clôturer immédiatement toutes les sessions actives de cette MAC dans radacct
-    // pour éviter les "fausses" sessions affichées comme connectées
+    // 2.bis Ajouter une entrée de REJET explicite pour bloquer toute nouvelle authentification
+    // même si la déconnexion pfSense échoue (FreeRADIUS renverra Access-Reject).
+    // Cela garantit que l'appareil ne peut pas se ré-authentifier tant qu'un admin ne le réautorise pas.
+    $sqlReject = "INSERT INTO radcheck (username, attribute, op, value)
+                  VALUES (?, 'Auth-Type', ':=', 'Reject')";
+    $stmtRej = $connexion->prepare($sqlReject);
+    $stmtRej->execute([$mac]);
+
+    // 3. Clôturer immédiatement toutes les sessions actives dans radacct
     $sqlCloseSessions = "UPDATE radacct
                           SET acctstoptime = NOW(),
                               acctterminatecause = 'Admin-Reset',
@@ -286,22 +292,23 @@ function deleteDevice(PDO $connexion)
 
     $connexion->commit();
 
-    // 4. Déconnecter immédiatement le client du portail captif pfSense
-    $pfResult = pfsense_disconnect_mac($mac);
-    $finalMessage = 'Appareil supprimé avec succès';
+    // 4. Déconnecter immédiatement le client sur pfSense (passe PDO pour lire radacct si besoin)
+    $pfResult = pfsense_disconnect_mac($mac, $connexion);
+
+    $message = 'Appareil supprimé. ';
     if ($closedSessions > 0) {
-      $finalMessage .= ' (' . $closedSessions . ' session(s) RADIUS clôturée(s)';
+      $message .= "$closedSessions session(s) RADIUS clôturée(s). ";
     }
     if ($pfResult['success']) {
-      $finalMessage .= ', déconnexion pfSense effectuée';
-    } else if ($closedSessions > 0) {
-      $finalMessage .= ', ATTENTION: déconnexion pfSense échouée: ' . $pfResult['message'];
+      $message .= '✅ ' . $pfResult['message'];
     } else {
-      $finalMessage .= ' | Attention: ' . $pfResult['message'];
+      $message .= '⚠️ Déconnexion pfSense non effective : ' . $pfResult['message']
+                . " Une règle de rejet a été ajoutée, l'appareil ne pourra pas se reconnecter,"
+                . " mais les flux déjà établis peuvent persister quelques minutes le temps que le bail DHCP / la session expire,"
+                . " ou que vous redemandiez une re-auth sur le switch/AP.";
     }
-    if ($closedSessions > 0) $finalMessage .= ')';
 
-    echo json_encode(['success' => true, 'message' => $finalMessage]);
+    echo json_encode(['success' => true, 'message' => $message]);
   } catch (Exception $e) {
     if ($connexion->inTransaction()) {
       $connexion->rollBack();
