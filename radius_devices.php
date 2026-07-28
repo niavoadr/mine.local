@@ -16,6 +16,9 @@ try {
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
 
+// Inclure le helper de déconnexion pfSense
+require_once __DIR__ . '/pfsense_disconnect.php';
+
 // Headers JSON
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
@@ -258,11 +261,8 @@ function deleteDevice(PDO $connexion)
   $connexion->beginTransaction();
 
   try {
-    // 1. Supprimer de radusergroup
-    // NB : sous PostgreSQL les littéraux de chaîne doivent être entre APOSTROPHES ('...').
-    // Les guillemets doubles ("...") sont réservés aux identifiants (noms de colonnes) et
-    // provoquaient l'erreur "column "-" does not exist" lors de la suppression.
     $normalizedMacWhere = normalizedMacSqlWhere();
+    // 1. Supprimer de radusergroup
     $sql1 = "DELETE FROM radusergroup WHERE $normalizedMacWhere";
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$macCompact]);
@@ -272,8 +272,36 @@ function deleteDevice(PDO $connexion)
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$macCompact]);
 
+    // 3. Clôturer immédiatement toutes les sessions actives de cette MAC dans radacct
+    // pour éviter les "fausses" sessions affichées comme connectées
+    $sqlCloseSessions = "UPDATE radacct
+                          SET acctstoptime = NOW(),
+                              acctterminatecause = 'Admin-Reset',
+                              acctsessiontime = EXTRACT(EPOCH FROM (NOW() - acctstarttime))::bigint
+                          WHERE regexp_replace(lower(callingstationid), '[^0-9a-f]', '', 'g') = ?
+                            AND acctstoptime IS NULL";
+    $stmtClose = $connexion->prepare($sqlCloseSessions);
+    $stmtClose->execute([$macCompact]);
+    $closedSessions = $stmtClose->rowCount();
+
     $connexion->commit();
-    echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
+
+    // 4. Déconnecter immédiatement le client du portail captif pfSense
+    $pfResult = pfsense_disconnect_mac($mac);
+    $finalMessage = 'Appareil supprimé avec succès';
+    if ($closedSessions > 0) {
+      $finalMessage .= ' (' . $closedSessions . ' session(s) RADIUS clôturée(s)';
+    }
+    if ($pfResult['success']) {
+      $finalMessage .= ', déconnexion pfSense effectuée';
+    } else if ($closedSessions > 0) {
+      $finalMessage .= ', ATTENTION: déconnexion pfSense échouée: ' . $pfResult['message'];
+    } else {
+      $finalMessage .= ' | Attention: ' . $pfResult['message'];
+    }
+    if ($closedSessions > 0) $finalMessage .= ')';
+
+    echo json_encode(['success' => true, 'message' => $finalMessage]);
   } catch (Exception $e) {
     if ($connexion->inTransaction()) {
       $connexion->rollBack();

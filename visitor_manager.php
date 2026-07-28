@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/connexion.php';
+require_once __DIR__ . '/pfsense_disconnect.php';
 
 if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     http_response_code(401);
@@ -139,6 +140,21 @@ switch ($action) {
                         // Delete from radcheck to cut internet access
                         $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
                         $deleteStmt->execute([$v['username']]);
+
+                        // Clôturer les sessions RADIUS actives
+                        $visitorMac = $v['mac_address'] ?? '';
+                        if ($visitorMac && $visitorMac !== '00:00:00:00:00:00') {
+                            $closeStmt = $pdo->prepare("UPDATE radacct
+                                SET acctstoptime = NOW(),
+                                    acctterminatecause = 'Session-Timeout',
+                                    acctsessiontime = EXTRACT(EPOCH FROM (NOW() - acctstarttime))::bigint
+                                WHERE username = ? AND acctstoptime IS NULL");
+                            $closeStmt->execute([$v['username']]);
+
+                            // Déconnexion immédiate du portail captif pfSense
+                            @normalizeMacAddress($visitorMac);
+                            pfsense_disconnect_mac($visitorMac);
+                        }
                         
                         $pdo->commit();
                         $v['status'] = 'expired';
