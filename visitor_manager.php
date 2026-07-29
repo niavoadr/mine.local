@@ -62,8 +62,6 @@ switch ($action) {
                 $userDept = $userRow['department'];
             }
 
-            $expiresAt = date('Y-m-d H:i:s', strtotime("+$duration minutes"));
-
             // Valeurs temporaires : la vraie MAC/NAS sera renseignée par
             // check_visitor.php lors de la première connexion.
             $dummyMac = '00:00:00:00:00:00';
@@ -75,16 +73,22 @@ switch ($action) {
             // On n'ajoute plus username/password dans radcheck : l'autorisation
             // radcheck sera créée plus tard avec la MAC du client si le portail
             // captif valide les identifiants.
+            // Important : expires_at est calculé côté PostgreSQL avec la même
+            // horloge que le nettoyage (NOW()). Cela évite qu'un décalage de
+            // fuseau horaire PHP/PostgreSQL expire le visiteur immédiatement.
             $stmt = $pdo->prepare("INSERT INTO visitor (username, password_hash, department, created_by, expires_at, duration, status, mac_address, nas_ip)
-                                   VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)");
-            $stmt->execute([$username, $hashedPassword, $userDept, $createdBy, $expiresAt, $duration, $dummyMac, $dummyNasIp]);
+                                   VALUES (?, ?, ?, ?, NOW() + (CAST(? AS INTEGER) * INTERVAL '1 minute'), ?, 'active', ?, ?)
+                                   RETURNING expires_at::text AS expires_at");
+            $stmt->execute([$username, $hashedPassword, $userDept, $createdBy, $duration, $duration, $dummyMac, $dummyNasIp]);
+            $createdVisitor = $stmt->fetch(PDO::FETCH_ASSOC);
+            $expiresAt = $createdVisitor['expires_at'] ?? null;
 
             $pdo->commit();
 
             jsonResponse(true, 'Visiteur créé avec succès !', [
                 'username' => $username,
                 'password' => $password,
-                'expires_at' => date('d/m/Y H:i:s', strtotime($expiresAt))
+                'expires_at' => $expiresAt ? date('d/m/Y H:i:s', strtotime($expiresAt)) : null
             ]);
 
         } catch (Exception $e) {
