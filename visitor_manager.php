@@ -82,9 +82,6 @@ switch ($action) {
             // Si la colonne a une contrainte NOT NULL, il faut fournir une valeur.
             // Mais je vais modifier la requête pour ne pas inclure la colonne department dans l'INSERT si c'est ce qui est souhaité.
             
-            $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$username, 'Cleartext-Password', ':=', $password]);
-
             $pdo->commit();
 
             jsonResponse(true, 'Visiteur créé avec succès !', [
