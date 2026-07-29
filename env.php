@@ -146,7 +146,6 @@ if (!function_exists('get_captive_portal_ssh_config')) {
       'port' => $port,
       'password' => (string) env('CAPTIVE_PORTAL_SSH_PASSWORD', ''),
       'timeout' => $timeout,
-      'strict_host_key_checking' => trim((string) env('CAPTIVE_PORTAL_SSH_STRICT_HOST_KEY_CHECKING', 'accept-new')),
       'disconnect_command' => trim((string) env('CAPTIVE_PORTAL_DISCONNECT_COMMAND', '')),
     ];
   }

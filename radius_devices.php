@@ -444,7 +444,7 @@ function disconnectCaptivePortalByMac($mac)
     '-o', 'PreferredAuthentications=password,keyboard-interactive',
     '-o', 'NumberOfPasswordPrompts=1',
     '-o', 'ConnectTimeout=' . $config['timeout'],
-    '-o', 'StrictHostKeyChecking=' . ($config['strict_host_key_checking'] ?: 'accept-new'),
+    '-o', 'StrictHostKeyChecking=accept-new',
     '-p', (string) $config['port'],
     $config['user'] . '@' . $config['host'],
     $remoteCommand,
