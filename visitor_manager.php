@@ -29,6 +29,14 @@ function generateRandomPassword($length = 10) {
     return $randomPassword;
 }
 
+function cleanAndNormalizeMacAddress($macRaw) {
+    $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string)$macRaw));
+    if (strlen($cleanMac) !== 12) {
+        return null;
+    }
+    return implode(':', str_split($cleanMac, 2));
+}
+
 switch ($action) {
     case 'create_visitor':
         $username = trim($_POST['username'] ?? '');
@@ -109,14 +117,18 @@ switch ($action) {
                         v.expires_at, 
                         v.duration, 
                         v.date_creation,
+                        v.department,
+                        v.mac_address as registered_mac,
+                        v.nas_ip as registered_nas_ip,
                         u.username as creator_name,
-                        a.callingstationid as mac_address,
+                        a.callingstationid as session_mac,
                         a.framedipaddress as ip_address,
+                        a.nasipaddress as session_nas_ip,
                         a.acctstarttime as last_session_start
                     FROM visitor v
                     JOIN users u ON v.created_by = u.id
                     LEFT JOIN (
-                        SELECT DISTINCT ON (username) username, callingstationid, framedipaddress, acctstarttime
+                        SELECT DISTINCT ON (username) username, callingstationid, framedipaddress, nasipaddress, acctstarttime
                         FROM radacct
                         ORDER BY username, acctstarttime DESC
                     ) a ON v.username = a.username
@@ -125,6 +137,14 @@ switch ($action) {
             $stmt = $pdo->query($sql);
             $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Fetch the RADIUS MAC secret
+            $RADIUS_MAC_SECRET = '';
+            try {
+                $RADIUS_MAC_SECRET = get_radius_mac_secret();
+            } catch (Throwable $e) {
+                // ignore
+            }
+
             // Update expired status if needed and prepare data for display
             $now = new DateTime();
             foreach ($visitors as &$v) {
@@ -132,6 +152,12 @@ switch ($action) {
                 if ($v['status'] === 'active' && $expiry < $now) {
                     try {
                         $pdo->beginTransaction();
+                        
+                        // First, get the visitor's registered MAC address
+                        $getMacStmt = $pdo->prepare("SELECT mac_address FROM visitor WHERE username = ?");
+                        $getMacStmt->execute([$v['username']]);
+                        $vMac = $getMacStmt->fetchColumn();
+
                         // Update in visitor table
                         $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
                         $updateStmt->execute([$v['username']]);
@@ -140,11 +166,55 @@ switch ($action) {
                         $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
                         $deleteStmt->execute([$v['username']]);
                         
+                        // Delete MAC address from radcheck if registered and valid
+                        if ($vMac && $vMac !== '00:00:00:00:00:00') {
+                            $normalizedVMac = cleanAndNormalizeMacAddress($vMac);
+                            if ($normalizedVMac) {
+                                $deleteMacStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
+                                $deleteMacStmt->execute([$normalizedVMac]);
+                            }
+                        }
+                        
                         $pdo->commit();
                         $v['status'] = 'expired';
                     } catch (Exception $e) {
                         if ($pdo->inTransaction()) $pdo->rollBack();
                         // Log error or ignore for this iteration
+                    }
+                }
+
+                // Synchronize and auto-register MAC address and NAS IP for active visitors if they have logged in
+                if ($v['status'] === 'active' && !empty($v['session_mac']) && $v['session_mac'] !== '00:00:00:00:00:00') {
+                    $sessionMacNormalized = cleanAndNormalizeMacAddress($v['session_mac']);
+                    $registeredMacNormalized = cleanAndNormalizeMacAddress($v['registered_mac']);
+                    
+                    $sessionNasIp = !empty($v['session_nas_ip']) ? $v['session_nas_ip'] : '0.0.0.0';
+                    $registeredNasIp = !empty($v['registered_nas_ip']) ? $v['registered_nas_ip'] : '0.0.0.0';
+                    
+                    if ($sessionMacNormalized && ($registeredMacNormalized === null || $registeredMacNormalized === '00:00:00:00:00:00' || $registeredMacNormalized !== $sessionMacNormalized || $registeredNasIp !== $sessionNasIp)) {
+                        try {
+                            $pdo->beginTransaction();
+                            
+                            // Update the visitor table with both actual MAC address and NAS IP
+                            $updateMacStmt = $pdo->prepare("UPDATE visitor SET mac_address = ?, nas_ip = ? WHERE username = ?");
+                            $updateMacStmt->execute([$sessionMacNormalized, $sessionNasIp, $v['username']]);
+                            
+                            // Insert/update into radcheck for MAC authentication
+                            // Check if this MAC is already in radcheck
+                            $checkMacStmt = $pdo->prepare("SELECT COUNT(*) FROM radcheck WHERE username = ?");
+                            $checkMacStmt->execute([$sessionMacNormalized]);
+                            if ($checkMacStmt->fetchColumn() == 0 && !empty($RADIUS_MAC_SECRET)) {
+                                // Insert with the RADIUS_MAC_SECRET as value and the visitor's department if defined
+                                $insertMacStmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value, department) VALUES (?, 'Cleartext-Password', ':=', ?, ?)");
+                                $insertMacStmt->execute([$sessionMacNormalized, $RADIUS_MAC_SECRET, $v['department']]);
+                            }
+                            
+                            $pdo->commit();
+                            $v['registered_mac'] = $sessionMacNormalized;
+                            $v['registered_nas_ip'] = $sessionNasIp;
+                        } catch (Exception $e) {
+                            if ($pdo->inTransaction()) $pdo->rollBack();
+                        }
                     }
                 }
 
@@ -156,8 +226,14 @@ switch ($action) {
                 // Durée = Durée en minutes (formatée)
                 $v['display_duration'] = $v['duration'] . ' min';
                 
-                // Keep real-time info if available
-                $v['mac_address'] = $v['mac_address'] ?: 'N/A';
+                // Show registered MAC or fallback to session MAC or N/A
+                $finalMac = 'N/A';
+                if (!empty($v['registered_mac']) && $v['registered_mac'] !== '00:00:00:00:00:00') {
+                    $finalMac = $v['registered_mac'];
+                } elseif (!empty($v['session_mac']) && $v['session_mac'] !== '00:00:00:00:00:00') {
+                    $finalMac = $v['session_mac'];
+                }
+                $v['mac_address'] = $finalMac;
                 $v['ip_address'] = $v['ip_address'] ?: 'N/A';
             }
 
