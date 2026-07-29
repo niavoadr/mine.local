@@ -273,12 +273,197 @@ function deleteDevice(PDO $connexion)
     $stmt2->execute([$macCompact]);
 
     $connexion->commit();
-    echo json_encode(['success' => true, 'message' => 'Appareil supprimé avec succès']);
+
+    // 3. Couper immédiatement la session active sur le portail captif, si configuré.
+    // La suppression en base empêche les futures authentifications ; cette commande SSH
+    // force la déconnexion de la session déjà ouverte pour synchroniser les deux états.
+    $disconnectResult = disconnectCaptivePortalByMac($mac);
+
+    $message = 'Appareil supprimé avec succès';
+    if ($disconnectResult['enabled'] && $disconnectResult['success']) {
+      $message = 'Appareil supprimé et déconnecté du portail captif avec succès';
+    } elseif ($disconnectResult['enabled'] && !$disconnectResult['success']) {
+      $message = 'Appareil supprimé, mais la déconnexion SSH du portail captif a échoué';
+    }
+
+    echo json_encode([
+      'success' => true,
+      'message' => $message,
+      'disconnect' => $disconnectResult,
+    ]);
   } catch (Exception $e) {
     if ($connexion->inTransaction()) {
       $connexion->rollBack();
     }
     throw new Exception('Erreur lors de la suppression: ' . $e->getMessage());
+  }
+}
+
+/**
+ * Remplace les placeholders MAC dans la commande distante configurée.
+ *
+ * Placeholders disponibles dans CAPTIVE_PORTAL_DISCONNECT_COMMAND :
+ *   {mac}                 -> aa:bb:cc:dd:ee:ff
+ *   {mac_upper}           -> AA:BB:CC:DD:EE:FF
+ *   {mac_compact}         -> aabbccddeeff
+ *   {mac_compact_upper}   -> AABBCCDDEEFF
+ *
+ * Les valeurs remplacées sont protégées avec escapeshellarg() pour éviter une injection.
+ */
+function buildCaptivePortalDisconnectCommand($template, $mac)
+{
+  $compact = str_replace(':', '', $mac);
+
+  return strtr($template, [
+    '{mac}'               => escapeshellarg($mac),
+    '{mac_upper}'         => escapeshellarg(strtoupper($mac)),
+    '{mac_compact}'       => escapeshellarg($compact),
+    '{mac_compact_upper}' => escapeshellarg(strtoupper($compact)),
+  ]);
+}
+
+/**
+ * Exécute une commande locale avec timeout, puis retourne stdout/stderr/code.
+ */
+function runCommandWithTimeout(array $args, $timeoutSeconds)
+{
+  if (!function_exists('proc_open')) {
+    throw new Exception('La fonction PHP proc_open est désactivée; impossible de lancer SSH');
+  }
+
+  $command = implode(' ', array_map('escapeshellarg', $args));
+  $descriptors = [
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+  ];
+
+  $process = proc_open($command, $descriptors, $pipes);
+  if (!is_resource($process)) {
+    throw new Exception('Impossible de lancer la commande SSH');
+  }
+
+  fclose($pipes[0]);
+  stream_set_blocking($pipes[1], false);
+  stream_set_blocking($pipes[2], false);
+
+  $stdout = '';
+  $stderr = '';
+  $deadline = time() + max(1, (int) $timeoutSeconds);
+  $timedOut = false;
+  $exitCode = null;
+
+  while (true) {
+    $status = proc_get_status($process);
+    $stdout .= stream_get_contents($pipes[1]);
+    $stderr .= stream_get_contents($pipes[2]);
+
+    if (!$status['running']) {
+      $exitCode = isset($status['exitcode']) ? (int) $status['exitcode'] : null;
+      break;
+    }
+
+    if (time() >= $deadline) {
+      $timedOut = true;
+      proc_terminate($process);
+      usleep(200000);
+      $status = proc_get_status($process);
+      if ($status['running']) {
+        proc_terminate($process, 9);
+      }
+      break;
+    }
+
+    usleep(100000);
+  }
+
+  $stdout .= stream_get_contents($pipes[1]);
+  $stderr .= stream_get_contents($pipes[2]);
+  fclose($pipes[1]);
+  fclose($pipes[2]);
+
+  $closeCode = proc_close($process);
+  if ($exitCode === null || $exitCode < 0) {
+    $exitCode = $closeCode;
+  }
+
+  return [
+    'exit_code' => $timedOut ? 124 : $exitCode,
+    'stdout' => trim($stdout),
+    'stderr' => trim($stderr),
+    'timed_out' => $timedOut,
+  ];
+}
+
+/**
+ * Déconnecte une MAC du portail captif via SSH.
+ *
+ * Activation/configuration dans .env :
+ *   CAPTIVE_PORTAL_SSH_ENABLED=true
+ *   CAPTIVE_PORTAL_SSH_HOST=192.0.2.1
+ *   CAPTIVE_PORTAL_SSH_USER=admin
+ *   CAPTIVE_PORTAL_SSH_PORT=22
+ *   CAPTIVE_PORTAL_SSH_KEY=/var/www/.ssh/captive_portal_ed25519
+ *   CAPTIVE_PORTAL_DISCONNECT_COMMAND="sudo /usr/local/bin/disconnect-captive-client --mac {mac}"
+ */
+function disconnectCaptivePortalByMac($mac)
+{
+  $config = get_captive_portal_ssh_config();
+
+  if (!$config['enabled']) {
+    return [
+      'enabled' => false,
+      'success' => false,
+      'skipped' => true,
+      'message' => 'Déconnexion SSH non activée',
+    ];
+  }
+
+  if ($config['host'] === '' || $config['user'] === '' || $config['disconnect_command'] === '') {
+    return [
+      'enabled' => true,
+      'success' => false,
+      'message' => 'Configuration SSH incomplète: host, user et commande sont requis',
+    ];
+  }
+
+  $remoteCommand = buildCaptivePortalDisconnectCommand($config['disconnect_command'], $mac);
+
+  $sshArgs = [
+    'ssh',
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=' . $config['timeout'],
+    '-o', 'StrictHostKeyChecking=' . ($config['strict_host_key_checking'] ?: 'accept-new'),
+    '-p', (string) $config['port'],
+  ];
+
+  if ($config['key'] !== '') {
+    $sshArgs[] = '-i';
+    $sshArgs[] = $config['key'];
+  }
+
+  $sshArgs[] = $config['user'] . '@' . $config['host'];
+  $sshArgs[] = $remoteCommand;
+
+  try {
+    $result = runCommandWithTimeout($sshArgs, $config['timeout'] + 5);
+    $success = ($result['exit_code'] === 0);
+
+    return [
+      'enabled' => true,
+      'success' => $success,
+      'message' => $success ? 'Déconnexion portail captif effectuée' : 'Commande SSH en échec',
+      'exit_code' => $result['exit_code'],
+      'stdout' => $result['stdout'],
+      'stderr' => $result['stderr'],
+      'timed_out' => $result['timed_out'],
+    ];
+  } catch (Exception $e) {
+    return [
+      'enabled' => true,
+      'success' => false,
+      'message' => $e->getMessage(),
+    ];
   }
 }
 ?>

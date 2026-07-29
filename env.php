@@ -102,3 +102,52 @@ if (!function_exists('get_radius_mac_secret')) {
     return trim((string) $secret);
   }
 }
+
+if (!function_exists('env_bool')) {
+  /**
+   * Récupère une variable booléenne depuis le .env.
+   * Valeurs considérées comme true : 1, true, yes, on.
+   */
+  function env_bool($key, $default = false)
+  {
+    $value = env($key, $default ? 'true' : 'false');
+
+    if (is_bool($value)) {
+      return $value;
+    }
+
+    return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+  }
+}
+
+if (!function_exists('get_captive_portal_ssh_config')) {
+  /**
+   * Récupère la configuration SSH du portail captif depuis le fichier .env.
+   */
+  function get_captive_portal_ssh_config()
+  {
+    // S'assurer que le .env est bien chargé (utile si l'ordre d'inclusion change)
+    load_env(__DIR__ . '/.env');
+
+    $port = (int) env('CAPTIVE_PORTAL_SSH_PORT', '22');
+    if ($port <= 0 || $port > 65535) {
+      $port = 22;
+    }
+
+    $timeout = (int) env('CAPTIVE_PORTAL_SSH_TIMEOUT', '10');
+    if ($timeout <= 0) {
+      $timeout = 10;
+    }
+
+    return [
+      'enabled' => env_bool('CAPTIVE_PORTAL_SSH_ENABLED', false),
+      'host' => trim((string) env('CAPTIVE_PORTAL_SSH_HOST', '')),
+      'user' => trim((string) env('CAPTIVE_PORTAL_SSH_USER', '')),
+      'port' => $port,
+      'key' => trim((string) env('CAPTIVE_PORTAL_SSH_KEY', '')),
+      'timeout' => $timeout,
+      'strict_host_key_checking' => trim((string) env('CAPTIVE_PORTAL_SSH_STRICT_HOST_KEY_CHECKING', 'accept-new')),
+      'disconnect_command' => trim((string) env('CAPTIVE_PORTAL_DISCONNECT_COMMAND', '')),
+    ];
+  }
+}

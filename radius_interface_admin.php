@@ -441,13 +441,19 @@
                     mac_address: mac
                 }, function(response) {
                     if (response.success) {
-                        alert('✅ Appareil supprimé !');
+                        let message = response.message || 'Appareil supprimé !';
+                        if (response.disconnect && response.disconnect.enabled && !response.disconnect.success) {
+                            message += '\n\n⚠️ Détail SSH: ' + (response.disconnect.message || 'déconnexion non effectuée');
+                        }
+                        alert('✅ ' + message);
                         loadDevices();
                         loadStats();
                     } else {
                         alert('❌ Erreur: ' + response.error);
                     }
-                }, 'json');
+                }, 'json').fail(function() {
+                    alert('❌ Erreur de communication avec le serveur');
+                });
             }
         }
 
