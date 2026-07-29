@@ -325,7 +325,7 @@ function buildCaptivePortalDisconnectCommand($template, $mac)
 /**
  * Exécute une commande locale avec timeout, puis retourne stdout/stderr/code.
  */
-function runCommandWithTimeout(array $args, $timeoutSeconds)
+function runCommandWithTimeout(array $args, $timeoutSeconds, array $envVars = [])
 {
   if (!function_exists('proc_open')) {
     throw new Exception('La fonction PHP proc_open est désactivée; impossible de lancer SSH');
@@ -338,7 +338,12 @@ function runCommandWithTimeout(array $args, $timeoutSeconds)
     2 => ['pipe', 'w'],
   ];
 
-  $process = proc_open($command, $descriptors, $pipes);
+  $currentEnv = getenv();
+  if (!is_array($currentEnv)) {
+    $currentEnv = [];
+  }
+
+  $process = proc_open($command, $descriptors, $pipes, null, array_merge($currentEnv, $envVars));
   if (!is_resource($process)) {
     throw new Exception('Impossible de lancer la commande SSH');
   }
@@ -403,7 +408,7 @@ function runCommandWithTimeout(array $args, $timeoutSeconds)
  *   CAPTIVE_PORTAL_SSH_HOST=192.0.2.1
  *   CAPTIVE_PORTAL_SSH_USER=admin
  *   CAPTIVE_PORTAL_SSH_PORT=22
- *   CAPTIVE_PORTAL_SSH_KEY=/var/www/.ssh/captive_portal_ed25519
+ *   CAPTIVE_PORTAL_SSH_PASSWORD=mot_de_passe_ssh
  *   CAPTIVE_PORTAL_DISCONNECT_COMMAND="sudo /usr/local/bin/disconnect-captive-client --mac {mac}"
  */
 function disconnectCaptivePortalByMac($mac)
@@ -419,34 +424,36 @@ function disconnectCaptivePortalByMac($mac)
     ];
   }
 
-  if ($config['host'] === '' || $config['user'] === '' || $config['disconnect_command'] === '') {
+  if ($config['host'] === '' || $config['user'] === '' || $config['password'] === '' || $config['disconnect_command'] === '') {
     return [
       'enabled' => true,
       'success' => false,
-      'message' => 'Configuration SSH incomplète: host, user et commande sont requis',
+      'message' => 'Configuration SSH incomplète: host, user, password et commande sont requis',
     ];
   }
 
   $remoteCommand = buildCaptivePortalDisconnectCommand($config['disconnect_command'], $mac);
 
+  // Utilise sshpass avec SSHPASS en variable d'environnement pour éviter
+  // d'afficher le mot de passe dans la ligne de commande du processus.
+  // Le paquet système "sshpass" doit être installé sur le serveur web.
   $sshArgs = [
+    'sshpass',
+    '-e',
     'ssh',
-    '-o', 'BatchMode=yes',
+    '-o', 'PreferredAuthentications=password,keyboard-interactive',
+    '-o', 'NumberOfPasswordPrompts=1',
     '-o', 'ConnectTimeout=' . $config['timeout'],
     '-o', 'StrictHostKeyChecking=' . ($config['strict_host_key_checking'] ?: 'accept-new'),
     '-p', (string) $config['port'],
+    $config['user'] . '@' . $config['host'],
+    $remoteCommand,
   ];
 
-  if ($config['key'] !== '') {
-    $sshArgs[] = '-i';
-    $sshArgs[] = $config['key'];
-  }
-
-  $sshArgs[] = $config['user'] . '@' . $config['host'];
-  $sshArgs[] = $remoteCommand;
-
   try {
-    $result = runCommandWithTimeout($sshArgs, $config['timeout'] + 5);
+    $result = runCommandWithTimeout($sshArgs, $config['timeout'] + 5, [
+      'SSHPASS' => $config['password'],
+    ]);
     $success = ($result['exit_code'] === 0);
 
     return [
