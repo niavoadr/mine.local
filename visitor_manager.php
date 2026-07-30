@@ -148,11 +148,8 @@ switch ($action) {
                     }
                 }
 
-                // Format dates for display
-                // Début = Date de création du compte
-                $v['display_start'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
-                // Fin = Date d'expiration (Création + Durée)
-                $v['display_end'] = date('d/m/Y H:i:s', strtotime($v['expires_at']));
+                // Date de création du compte
+                $v['display_created_at'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
                 // Durée = Durée en minutes (formatée)
                 $v['display_duration'] = $v['duration'] . ' min';
                 

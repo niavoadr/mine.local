@@ -576,15 +576,14 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                         <th>MAC</th>
                                         <th>IP</th>
                                         <th>Créé par</th>
-                                        <th>Début</th>
-                                        <th>Fin</th>
+                                        <th>Date de création</th>
                                         <th>Durée</th>
                                         <th>Statut</th>
                                     </tr>
                                 </thead>
                                 <tbody id="visitor-table-body">
                                     <tr>
-                                        <td colspan="8" class="text-center py-5 text-muted">
+                                        <td colspan="7" class="text-center py-5 text-muted">
                                             <i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement des visiteurs...
                                         </td>
                                     </tr>
@@ -925,7 +924,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 }
             },
             error: function() {
-                $('#visitor-table-body').html('<tr><td colspan="8" class="text-center text-danger py-4">Une erreur de communication est survenue.</td></tr>');
+                $('#visitor-table-body').html('<tr><td colspan="7" class="text-center text-danger py-4">Une erreur de communication est survenue.</td></tr>');
             }
         });
     }
@@ -933,7 +932,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     function displayVisitors(records) {
         let html = '';
         if (records.length === 0) {
-            html = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Aucun visiteur enregistré.</td></tr>';
+            html = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-info-circle me-2"></i>Aucun visiteur enregistré.</td></tr>';
         } else {
             records.forEach(function(record) {
                 const statusClass = record.status === 'active' ? 'badge bg-success text-dark fw-bold' : 'badge bg-danger';
@@ -945,8 +944,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td><code>${record.mac_address}</code></td>
                         <td>${record.ip_address}</td>
                         <td><small class="text-muted">${record.creator_name}</small></td>
-                        <td>${record.display_start}</td>
-                        <td>${record.display_end}</td>
+                        <td>${record.display_created_at}</td>
                         <td>${record.display_duration}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
