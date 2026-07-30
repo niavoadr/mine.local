@@ -30,10 +30,39 @@ require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/visitor_radius_helpers.php';
 ob_clean();
 
-if (PHP_SAPI !== 'cli') {
-  header('Content-Type: application/json; charset=utf-8');
+function captive_get_allowed_origins()
+{
+  // Origine du portail captif pfSense indiquée pour cette installation.
+  $origins = ['http://192.168.0.1:8002'];
+
+  // Optionnel : ajouter/modifier les origines autorisées sans changer le code.
+  // Exemple .env : CHECK_VISITOR_ALLOWED_ORIGINS=http://192.168.0.1:8002,http://autre-portail
+  $configuredOrigins = trim((string) env('CHECK_VISITOR_ALLOWED_ORIGINS', ''));
+  if ($configuredOrigins !== '') {
+    $origins = array_merge($origins, preg_split('/[\s,]+/', $configuredOrigins));
+  }
+
+  return array_values(array_unique(array_filter(array_map('trim', $origins))));
+}
+
+function captive_send_cors_headers()
+{
+  $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+  $allowedOrigins = captive_get_allowed_origins();
+
+  if ($origin !== '' && (in_array('*', $allowedOrigins, true) || in_array($origin, $allowedOrigins, true))) {
+    header('Access-Control-Allow-Origin: ' . (in_array('*', $allowedOrigins, true) ? '*' : $origin));
+  }
+
+  header('Vary: Origin');
   header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
   header('Access-Control-Allow-Headers: Content-Type, X-Client-Mac, X-Mac-Address, X-Forwarded-For');
+  header('Access-Control-Max-Age: 600');
+}
+
+if (PHP_SAPI !== 'cli') {
+  captive_send_cors_headers();
+  header('Content-Type: application/json; charset=utf-8');
 
   if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     echo json_encode(['success' => true]);
