@@ -106,7 +106,6 @@ function normalizedMacSqlWhere()
 function getDevices(PDO $connexion)
 {
   try {
-    // Utilisation de GROUP BY pour éviter les doublons si plusieurs attributs radcheck existent pour une même MAC
     $sql = "SELECT 
                     MIN(rc.id) as id,
                     rc.username as mac_address,
@@ -116,19 +115,17 @@ function getDevices(PDO $connexion)
                 FROM radcheck rc
                 LEFT JOIN radusergroup rg ON LOWER(rc.username) = LOWER(rg.username)  
                 LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname AND rgr.attribute = 'WISPr-Bandwidth-Max-Down'
+                WHERE rc.username ~* '^([0-9a-f]{2}[:.-]?){5}[0-9a-f]{2}$' OR rc.username ~* '^[0-9a-f]{12}$'
                 GROUP BY rc.username
                 ORDER BY department, rc.username";
 
     $stmt = $connexion->query($sql);
-
     $devices = [];
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
       try {
         $displayMac = normalizeMacAddress($row['mac_address']);
       } catch (Exception $e) {
-        // Sécurité : si d'anciens enregistrements non-MAC existent dans radcheck,
-        // on ne casse pas l'affichage de la page.
         $displayMac = strtolower((string) $row['mac_address']);
       }
 

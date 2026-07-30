@@ -297,7 +297,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <span><i class="fas fa-list me-2"></i> Appareils enregistrés sur le réseau</span>
+                        <span><i class="fas fa-list me-2"></i> Appareils autorisés</span>
                         <button class="btn btn-sm btn-outline-light" onclick="loadDevices()" style="border-radius: 8px;">
                             <i class="fas fa-sync-alt me-1"></i> Actualiser
                         </button>
