@@ -23,6 +23,9 @@
  *  - CLI  : php check_visitor.php cleanup_expired
  *  - CLI  : php check_visitor.php <username> <password> <mac> [nas_ip]
  *  - CLI  : php check_visitor.php username=<username> password=<password> mac=<mac>
+ *
+ * Diagnostic temporaire : mettre CHECK_VISITOR_DEBUG=true dans .env pour écrire
+ * les requêtes reçues (mots de passe masqués) dans check_visitor_debug.log.
  */
 
 ob_start();
@@ -30,10 +33,68 @@ require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/visitor_radius_helpers.php';
 ob_clean();
 
+function captive_env_bool($key, $default = false)
+{
+  $value = env($key, $default ? 'true' : 'false');
+
+  if (is_bool($value)) {
+    return $value;
+  }
+
+  return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+}
+
+function captive_sanitize_debug_data($data)
+{
+  if (!is_array($data)) {
+    return $data;
+  }
+
+  $sanitized = [];
+  foreach ($data as $key => $value) {
+    $normalizedKey = captive_normalize_param_name($key);
+
+    if (strpos($normalizedKey, 'pass') !== false || strpos($normalizedKey, 'password') !== false) {
+      $sanitized[$key] = '***';
+    } elseif (is_array($value)) {
+      $sanitized[$key] = captive_sanitize_debug_data($value);
+    } else {
+      $sanitized[$key] = $value;
+    }
+  }
+
+  return $sanitized;
+}
+
+function captive_debug_log($event, array $context = [])
+{
+  if (!captive_env_bool('CHECK_VISITOR_DEBUG', false)) {
+    return;
+  }
+
+  $entry = [
+    'date' => date('c'),
+    'event' => $event,
+    'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? '',
+    'origin' => $_SERVER['HTTP_ORIGIN'] ?? '',
+    'method' => $_SERVER['REQUEST_METHOD'] ?? (PHP_SAPI === 'cli' ? 'CLI' : ''),
+    'context' => captive_sanitize_debug_data($context),
+  ];
+
+  @file_put_contents(
+    __DIR__ . '/check_visitor_debug.log',
+    json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+    FILE_APPEND | LOCK_EX
+  );
+}
+
 function captive_get_allowed_origins()
 {
-  // Origine du portail captif pfSense indiquée pour cette installation.
-  $origins = ['http://192.168.0.1:8002'];
+  // Origines possibles du portail captif pfSense pour cette installation.
+  $origins = [
+    'http://192.168.0.1:8002',
+    'http://192.168.0.1',
+  ];
 
   // Optionnel : ajouter/modifier les origines autorisées sans changer le code.
   // Exemple .env : CHECK_VISITOR_ALLOWED_ORIGINS=http://192.168.0.1:8002,http://autre-portail
@@ -65,6 +126,10 @@ if (PHP_SAPI !== 'cli') {
   header('Content-Type: application/json; charset=utf-8');
 
   if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    captive_debug_log('cors_preflight', [
+      'allowed_origins' => captive_get_allowed_origins(),
+      'request_headers' => $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'] ?? '',
+    ]);
     echo json_encode(['success' => true]);
     exit();
   }
@@ -72,6 +137,13 @@ if (PHP_SAPI !== 'cli') {
 
 function captive_json_response($success, $message = '', $data = null, $httpCode = 200)
 {
+  captive_debug_log('response', [
+    'success' => $success,
+    'message' => $message,
+    'http_code' => $httpCode,
+    'data' => $data,
+  ]);
+
   if (PHP_SAPI !== 'cli') {
     http_response_code($httpCode);
   }
@@ -298,6 +370,12 @@ try {
 
   $params = captive_collect_request_params();
   $action = strtolower((string) captive_get_param($params, ['action'], 'auth'));
+
+  captive_debug_log('request_received', [
+    'action' => $action,
+    'params' => $params,
+    'allowed_origins' => captive_get_allowed_origins(),
+  ]);
 
   // Nettoie les visiteurs expirés à chaque appel afin de retirer les MAC de
   // radcheck dès qu'une nouvelle requête portail/cron passe par ce fichier.
