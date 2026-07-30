@@ -6,13 +6,6 @@ ob_start();
 require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/connexion.php';
 
-// Récupération du secret MAC via la fonction centralisée (comme pour la DB)
-try {
-  $RADIUS_MAC_SECRET = get_radius_mac_secret();
-} catch (Throwable $e) {
-  $RADIUS_MAC_SECRET = '';
-}
-
 // Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
 
@@ -184,20 +177,15 @@ function addDevice(PDO $connexion)
       $stmtDel2->execute([$macCompact]);
     }
 
-    // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
-    // Une seule ligne dans radcheck avec le secret partagé
-    // Le secret est relu ici via env.php : une variable globale n'est pas
-    // visible dans la portée d'une fonction en PHP.
-    $RADIUS_MAC_SECRET = get_radius_mac_secret();
-
-    if ($RADIUS_MAC_SECRET === '') {
-      throw new Exception('RADIUS_MAC_SECRET non configuré dans le fichier .env');
-    }
-
+    // === MAC Authentication Bypass (MAB) via un backend d'authentification ===
+    // L'authentification est déléguée au serveur (Debian / FreeRADIUS) :
+    // aucun secret partagé n'est stocké côté application.
+    // Une seule ligne dans radcheck qui accepte directement la MAC :
+    //   username = adresse MAC, attribute = 'Auth-Type', op = ':=', value = 'Accept'
     $sql = "INSERT INTO radcheck (username, attribute, op, value, department) 
-               VALUES (?, 'Cleartext-Password', ':=', ?, ?)";
+               VALUES (?, 'Auth-Type', ':=', 'Accept', ?)";
     $stmt = $connexion->prepare($sql);
-    $stmt->execute([$mac, $RADIUS_MAC_SECRET, $deptEnum]);
+    $stmt->execute([$mac, $deptEnum]);
 
     // Associer au groupe départemental dans radusergroup
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 

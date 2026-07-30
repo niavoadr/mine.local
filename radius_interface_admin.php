@@ -228,7 +228,7 @@
                                 <i class="fas fa-network-wired"></i>
                                 Gestion des Appareils RADIUS
                             </h1>
-                            <p class="text-muted mb-0">Authentification MAC avec RADIUS MAC secret (MAB)</p>
+                            <p class="text-muted mb-0">Authentification par adresse MAC (MAB) — Auth-Type := Accept</p>
                         </div>
                     </div>
                 </div>
