@@ -40,7 +40,6 @@ $statusLabels = $statusLabels ?? [
               </span>
               <div>
                 <strong><?= manager_escape($user['username']) ?></strong>
-                <small>ID #<?= (int) $user['id'] ?></small>
               </div>
             </div>
           </td>

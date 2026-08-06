@@ -30,7 +30,7 @@ CREATE TYPE DEPARTMENT_ENUM AS ENUM (
 
 CREATE TYPE GROUPNAME_ENUM AS ENUM (
 	'communication_group',
-	'daj_groupe',
+	'daj_group',
 	'finance_group',
 	'rh_group',
 	'sg_group'

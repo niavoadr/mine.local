@@ -221,7 +221,7 @@ function getDepartmentMap()
 {
   return [
     'communication' => ['enum' => 'Communication', 'group' => 'communication_group'],
-    'daj'           => ['enum' => 'Directeur des Affaires Juridiques', 'group' => 'daj_groupe'],
+    'daj'           => ['enum' => 'Directeur des Affaires Juridiques', 'group' => 'daj_group'],
     'finance'       => ['enum' => 'Finance', 'group' => 'finance_group'],
     'rh'            => ['enum' => 'Ressources Humaines', 'group' => 'rh_group'],
     'sg'            => ['enum' => 'Secrétariat Général', 'group' => 'sg_group'],
