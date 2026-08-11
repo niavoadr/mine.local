@@ -6,6 +6,18 @@ ob_start();
 require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/connexion.php';
 
+// Vérification de session
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    ob_clean();
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Session expirée']);
+    ob_end_flush();
+    exit();
+}
+
 // Récupération du secret MAC via la fonction centralisée (comme pour la DB)
 try {
   $RADIUS_MAC_SECRET = get_radius_mac_secret();
