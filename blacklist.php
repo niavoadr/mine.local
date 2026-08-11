@@ -1,5 +1,28 @@
 <?php
 require_once __DIR__ . '/connexion.php';
+
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Session expirée']);
+    exit();
+}
+
+// Vérifier que l'utilisateur est ADMIN
+$pdo_temp = $connexion;
+$stmt_role = $pdo_temp->prepare("SELECT role FROM users WHERE username = ?");
+$stmt_role->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
+$user_role = $stmt_role->fetchColumn();
+
+if ($user_role !== 'ADMIN') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Accès réservé aux administrateurs']);
+    exit();
+}
+
 header('Content-Type: application/json');
 
 $pdo = $connexion;
@@ -10,10 +33,10 @@ $pdo = $connexion;
  * L'adresse IP et le nombre de tentatives proviennent directement de la
  * table `security_event` (colonne `source_ip` pour l'IP, colonne
  * `attempts` pour les tentatives), agrégées par adresse MAC.
+ *
+ * Le blocage est effectif : ajout/suppression dans radcheck avec
+ * Auth-Type := Reject pour que FreeRADIUS rejette l'appareil.
  */
-
-// Durée de blocage par défaut (jours) si aucune durée n'est fournie
-define('BLACKLIST_DEFAULT_DAYS', 30);
 
 function jsonResponse($success, $message = '', $data = null)
 {
@@ -53,8 +76,7 @@ switch ($action) {
                   SELECT SUM(se.attempts)
                   FROM security_event se
                   WHERE se.mac_address = b.mac_address
-                ), 0) AS blocked_attempts,
-                b.expires_at
+                ), 0) AS blocked_attempts
               FROM blacklist b
               ORDER BY b.blocked_at DESC";
       $stmt = $pdo->query($sql);
@@ -95,9 +117,6 @@ switch ($action) {
   case 'add_blacklist':
     $mac = trim($_POST['mac_address'] ?? '');
     $reason = trim($_POST['reason'] ?? '');
-    $days = isset($_POST['duration_days']) && $_POST['duration_days'] !== ''
-      ? max(1, (int) $_POST['duration_days'])
-      : BLACKLIST_DEFAULT_DAYS;
 
     if ($mac === '' || $reason === '') {
       jsonResponse(false, 'Adresse MAC et raison sont obligatoires');
@@ -107,8 +126,7 @@ switch ($action) {
     }
 
     try {
-      // Calcul de l'expiration côté PHP (évite tout problème de binding d'intervalle)
-      $expiresAt = date('Y-m-d H:i:s', strtotime("+{$days} days"));
+      $pdo->beginTransaction();
 
       // Si déjà bloquée, on renouvelle le blocage ; sinon on insère
       $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?");
@@ -117,17 +135,27 @@ switch ($action) {
 
       if ($existing) {
         $stmt = $pdo->prepare("UPDATE blacklist
-                  SET reason = ?, blocked_at = now(), expires_at = ?
+                  SET reason = ?, blocked_at = now()
                   WHERE mac_address = ?");
-        $stmt->execute([$reason, $expiresAt, $mac]);
+        $stmt->execute([$reason, $mac]);
       } else {
-        $stmt = $pdo->prepare("INSERT INTO blacklist (mac_address, reason, expires_at)
-                  VALUES (?, ?, ?)");
-        $stmt->execute([$mac, $reason, $expiresAt]);
+        $stmt = $pdo->prepare("INSERT INTO blacklist (mac_address, reason)
+                  VALUES (?, ?)");
+        $stmt->execute([$mac, $reason]);
       }
 
-      jsonResponse(true, 'Appareil ajouté à la liste noire');
+      // Bloquer dans radcheck : Auth-Type := Reject pour FreeRADIUS
+      // D'abord supprimer tout ancien Reject pour cette MAC
+      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'");
+      $stmt->execute([$mac]);
+      // Ensuite insérer le Reject
+      $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
+      $stmt->execute([$mac]);
+
+      $pdo->commit();
+      jsonResponse(true, 'Appareil ajouté à la liste noire et bloqué sur le réseau');
     } catch (PDOException $e) {
+      if ($pdo->inTransaction()) $pdo->rollBack();
       jsonResponse(false, "Erreur lors de l'ajout à la liste noire");
     }
     break;
@@ -138,10 +166,20 @@ switch ($action) {
       jsonResponse(false, 'Adresse MAC requise');
     }
     try {
+      $pdo->beginTransaction();
+
+      // Supprimer de la blacklist
       $stmt = $pdo->prepare("DELETE FROM blacklist WHERE mac_address = ?");
       $stmt->execute([$mac]);
-      jsonResponse(true, 'Appareil débloqué avec succès');
+
+      // Supprimer le blocage de radcheck
+      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'");
+      $stmt->execute([$mac]);
+
+      $pdo->commit();
+      jsonResponse(true, 'Appareil débloqué avec succès sur le réseau');
     } catch (Exception $e) {
+      if ($pdo->inTransaction()) $pdo->rollBack();
       jsonResponse(false, 'Erreur lors du déblocage');
     }
     break;

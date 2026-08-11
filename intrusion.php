@@ -1,5 +1,28 @@
 <?php
 require_once __DIR__ . '/connexion.php';
+
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Session expirée']);
+    exit();
+}
+
+// Vérifier que l'utilisateur est ADMIN
+$pdo_temp = $connexion;
+$stmt_role = $pdo_temp->prepare("SELECT role FROM users WHERE username = ?");
+$stmt_role->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
+$user_role = $stmt_role->fetchColumn();
+
+if ($user_role !== 'ADMIN') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Accès réservé aux administrateurs']);
+    exit();
+}
+
 header('Content-Type: application/json');
 
 $pdo = $connexion;
@@ -11,6 +34,10 @@ $pdo = $connexion;
  *   critical -> 'critical' (Critique)
  *   warning  -> 'medium'   (Moyenne)
  *   info     -> 'low'      (Faible)
+ *
+ * L'action auto_block_intrusion permet au script snort_sync.php
+ * d'insérer les alertes Snort et de bloquer automatiquement
+ * les appareils en cas de sévérité critical ou warning.
  */
 
 // Affichage : valeur d'enum -> badge de sévérité du dashboard
@@ -23,7 +50,6 @@ $severityDisplay = [
 // Filtre inverse : sévérité du dashboard -> valeur d'enum (3 niveaux en base)
 $severityFilter = [
   'critical' => 'critical',
-  'high'     => 'warning',
   'medium'   => 'warning',
   'low'      => 'info',
 ];
@@ -32,6 +58,12 @@ function jsonResponse($success, $message = '', $data = null)
 {
   echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
   exit();
+}
+
+function isValidMac($mac)
+{
+  // Accepte les formats AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, AABB.CCDD.EEFF
+  return (bool) preg_match('/^([0-9A-Fa-f]{2}[:\-\.]){5}[0-9A-Fa-f]{2}$/', $mac);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -113,13 +145,73 @@ if ($action === 'get_intrusions') {
     );
 
     jsonResponse(true, '', [
-      'critical'   => (int) ($counts['critical'] ?? 0),
-      'medium'     => (int) ($counts['warning'] ?? 0),
-      'suspicious' => (int) ($counts['info'] ?? 0),
+      'critical' => (int) ($counts['critical'] ?? 0),
+      'medium'   => (int) ($counts['warning'] ?? 0),
+      'low'      => (int) ($counts['info'] ?? 0),
     ]);
   } catch (Exception $e) {
     jsonResponse(false, 'Erreur lors de la récupération des statistiques');
   }
+} elseif ($action === 'auto_block_intrusion') {
+    // Cette action est appelée par le script cron qui lit les alertes Snort de pfSense
+    // Elle insère dans security_event, puis bloque automatiquement dans blacklist + radcheck
+
+    $event_type = trim($_POST['event_type'] ?? '');
+    $severity   = trim($_POST['severity'] ?? '');     // critical, warning, info
+    $source_ip  = trim($_POST['source_ip'] ?? '');
+    $mac_address = trim($_POST['mac_address'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $source_info = trim($_POST['source_info'] ?? 'Snort');
+    $attempts    = max(1, (int) ($_POST['attempts'] ?? 1));
+
+    // Validation
+    if ($event_type === '' || $severity === '') {
+      jsonResponse(false, 'event_type et severity sont obligatoires');
+    }
+    if (!in_array($severity, ['critical', 'warning', 'info'])) {
+      jsonResponse(false, 'Sévérité invalide (critical, warning ou info)');
+    }
+    if ($mac_address !== '' && !isValidMac($mac_address)) {
+      jsonResponse(false, "Format d'adresse MAC invalide");
+    }
+
+    try {
+      $pdo->beginTransaction();
+
+      // 1. Insérer dans security_event
+      $stmt = $pdo->prepare("INSERT INTO security_event (event_type, security_status, source_ip, mac_address, details, attempts)
+                VALUES (?, ?, ?::inet, ?::macaddr, ?, ?)");
+      $details = json_encode(['description' => $description, 'source' => $source_info]);
+      $stmt->execute([$event_type, $severity, $source_ip ?: null, $mac_address ?: null, $details, $attempts]);
+
+      // 2. Auto-blocage : si la sévérité est critical ou warning, bloquer automatiquement
+      if (($severity === 'critical' || $severity === 'warning') && $mac_address !== '') {
+
+        // Vérifier si déjà dans blacklist
+        $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
+        $stmt->execute([$mac_address]);
+        $already_blocked = $stmt->fetchColumn();
+
+        if (!$already_blocked) {
+          // Ajouter dans blacklist
+          $stmt = $pdo->prepare("INSERT INTO blacklist (mac_address, reason) VALUES (?::macaddr, ?)");
+          $auto_reason = 'Auto-blocage: intrusion ' . $event_type . ' (' . $severity . ')';
+          $stmt->execute([$mac_address, $auto_reason]);
+
+          // Bloquer dans radcheck
+          $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'");
+          $stmt->execute([$mac_address]);
+          $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
+          $stmt->execute([$mac_address]);
+        }
+      }
+
+      $pdo->commit();
+      jsonResponse(true, 'Intrusion enregistrée' . (($severity === 'critical' || $severity === 'warning') && $mac_address !== '' ? ' et appareil bloqué' : ''));
+    } catch (Exception $e) {
+      if ($pdo->inTransaction()) $pdo->rollBack();
+      jsonResponse(false, "Erreur lors de l'enregistrement de l'intrusion");
+    }
 } else {
   jsonResponse(false, 'Action non reconnue');
 }

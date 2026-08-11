@@ -683,8 +683,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     </div>
                     <div class="col-md-4">
                         <div class="stats-card">
-                            <h5><i class="fas fa-eye me-2"></i> Tentatives Suspectes</h5>
-                            <h2 id="suspicious-attempts">0</h2>
+                            <h5><i class="fas fa-eye me-2"></i> Alertes Faibles</h5>
+                            <h2 id="low-alerts">0</h2>
                         </div>
                     </div>
                 </div>
@@ -701,7 +701,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                 <select class="form-select" id="intrusion-severity">
                                     <option value="">Toutes</option>
                                     <option value="critical">Critique</option>
-                                    <option value="high">Élevée</option>
                                     <option value="medium">Moyenne</option>
                                     <option value="low">Faible</option>
                                 </select>
@@ -1171,7 +1170,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 if (response.success) {
                     $('#critical-alerts').text(response.data.critical || 0);
                     $('#medium-alerts').text(response.data.medium || 0);
-                    $('#suspicious-attempts').text(response.data.suspicious || 0);
+                    $('#low-alerts').text(response.data.low || 0);
                 }
             }
         });
@@ -1180,9 +1179,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     function getSeverityBadge(severity) {
         const badges = {
             'critical': '<span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i> Critique</span>',
-            'high': '<span class="badge bg-danger">Élevée</span>',
-            'medium': '<span class="badge bg-warning text-dark fw-bold">Moyenne</span>',
-            'low': '<span class="badge bg-info text-dark fw-bold">Faible</span>'
+            'medium': '<span class="badge bg-warning text-dark fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Moyenne</span>',
+            'low': '<span class="badge bg-info text-dark fw-bold"><i class="fas fa-info-circle me-1"></i> Faible</span>'
         };
         return badges[severity] || '<span class="badge bg-secondary">Inconnue</span>';
     }
