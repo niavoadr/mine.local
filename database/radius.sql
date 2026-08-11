@@ -165,8 +165,7 @@ CREATE TABLE IF NOT EXISTS blacklist (
 	id BIGSERIAL NOT NULL PRIMARY KEY,
 	mac_address MACADDR NOT NULL,
 	reason VARCHAR(255) NOT NULL,
-	blocked_at TIMESTAMP NOT NULL DEFAULT now(),
-	expires_at TIMESTAMP NOT NULL
+	blocked_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS security_event (
@@ -188,3 +187,15 @@ CREATE TABLE IF NOT EXISTS session_users (
     last_seen TIMESTAMP NOT NULL DEFAULT now(),
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
+('communication_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
+('communication_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('daj_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
+('daj_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('finance_group', 'WISPr-Bandwidth-Max-Down', ':=', '30000000'),
+('finance_group', 'WISPr-Bandwidth-Max-Up', ':=', '30000000'),
+('rh_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
+('rh_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('sg_group', 'WISPr-Bandwidth-Max-Down', ':=', '50000000'),
+('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000');
