@@ -1,31 +1,13 @@
 <?php
 require_once __DIR__ . '/connexion.php';
+require_once __DIR__ . '/env.php';
 
 session_start();
 
-if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Session expirée']);
-    exit();
-}
-
-// Vérifier que l'utilisateur est ADMIN
-$pdo_temp = $connexion;
-$stmt_role = $pdo_temp->prepare("SELECT role FROM users WHERE username = ?");
-$stmt_role->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
-$user_role = $stmt_role->fetchColumn();
-
-if ($user_role !== 'ADMIN') {
-    http_response_code(403);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Accès réservé aux administrateurs']);
-    exit();
-}
-
-header('Content-Type: application/json');
-
 $pdo = $connexion;
+
+// Lire l'action tôt (nécessaire pour les vérifications d'authentification)
+$action = $_POST['action'] ?? '';
 
 /*
  * Lecture des détections d'intrusion depuis la table `security_event`.
@@ -70,7 +52,60 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   jsonResponse(false, 'Méthode non autorisée');
 }
 
-$action = $_POST['action'] ?? '';
+// ============ AUTHENTIFICATION ============
+// Deux modes d'authentification :
+// 1. Session ADMIN (utilisateur connecté via le dashboard)
+// 2. Jeton API CRON (pour snort_sync.php qui tourne sans session)
+$is_admin_session = false;
+$is_cron_api      = false;
+
+// Vérifier le jeton API cron (prioritaire pour auto_block_intrusion)
+$cron_api_token = env('CRON_API_TOKEN', '');
+if ($cron_api_token !== '' && isset($_POST['cron_token']) && $_POST['cron_token'] === $cron_api_token) {
+    $is_cron_api = true;
+}
+
+// Vérifier la session ADMIN
+if (!$is_cron_api) {
+    if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Session expirée']);
+        exit();
+    }
+
+    $stmt_role = $pdo->prepare("SELECT role FROM users WHERE username = ?");
+    $stmt_role->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
+    $user_role = $stmt_role->fetchColumn();
+
+    if ($user_role !== 'ADMIN') {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Accès réservé aux administrateurs']);
+        exit();
+    }
+
+    $is_admin_session = true;
+}
+
+// L'action auto_block_intrusion est réservée au cron (jeton API)
+// Les autres actions sont réservées à la session ADMIN
+if ($is_cron_api && $action !== 'auto_block_intrusion') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Le jeton cron ne permet que auto_block_intrusion']);
+    exit();
+}
+if ($is_admin_session && $action === 'auto_block_intrusion') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Action auto_block_intrusion réservée au cron']);
+    exit();
+}
+
+header('Content-Type: application/json');
+
+// ============ ACTIONS ============
 
 if ($action === 'get_intrusions') {
   $severity = $_POST['severity'] ?? '';

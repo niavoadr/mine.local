@@ -13,6 +13,7 @@
 $PFSENSE_URL        = getenv('PFSENSE_URL')        ?: 'https://192.168.1.1';
 $PFSENSE_API_KEY    = getenv('PFSENSE_API_KEY')    ?: '';
 $PFSENSE_API_SECRET = getenv('PFSENSE_API_SECRET') ?: '';
+$CRON_API_TOKEN     = getenv('CRON_API_TOKEN')     ?: '';
 
 // Chemin vers intrusion.php (même dossier, accessible via le serveur web local)
 $INTRUSION_PHP_URL = 'http://localhost/intrusion.php';
@@ -111,6 +112,7 @@ function pushIntrusion($intrusionUrl, $alert)
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => http_build_query([
             'action'      => 'auto_block_intrusion',
+            'cron_token'  => $CRON_API_TOKEN,
             'event_type'  => $alert['event_type'],
             'severity'    => $alert['severity'],
             'source_ip'   => $alert['source_ip'],
