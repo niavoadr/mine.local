@@ -1042,31 +1042,80 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         });
     }
 
-    function addToBlacklist() {
-        const mac = $('#blacklist-mac').val();
-        const reason = $('#blacklist-reason').val();
+    function addToBlacklist(forceMac, forceReason) {
+        const mac = forceMac || $('#blacklist-mac').val();
+        const reason = forceReason || $('#blacklist-reason').val();
         
         if (!mac || !reason) {
             alert('Veuillez remplir tous les champs');
             return;
         }
         
+        // D'abord vérifier le statut de la MAC dans radcheck
+        $.ajax({
+            url: 'blacklist.php',
+            type: 'POST',
+            data: {
+                action: 'check_mac_status',
+                mac_address: mac
+            },
+            dataType: 'json',
+            success: function(check) {
+                if (!check.success) {
+                    alert('❌ Erreur: ' + check.message);
+                    return;
+                }
+
+                var status = check.data;
+
+                // Déjà bloqué dans la liste noire
+                if (status.is_blocked && status.in_blacklist) {
+                    alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
+                    return;
+                }
+
+                // Appareil autorisé → demander confirmation
+                if (status.is_authorized) {
+                    var dept = status.department ? ' (' + status.department + ')' : '';
+                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
+                        doAddBlacklist(mac, reason, true);
+                    }
+                    return;
+                }
+
+                // Pas dans radcheck ou déjà bloqué → procéder directement
+                doAddBlacklist(mac, reason, false);
+            },
+            error: function() {
+                // Si check_mac_status échoue, on tente quand même l'ajout
+                doAddBlacklist(mac, reason, false);
+            }
+        });
+    }
+
+    function doAddBlacklist(mac, reason, force) {
         $.ajax({
             url: 'blacklist.php',
             type: 'POST',
             data: {
                 action: 'add_blacklist',
                 mac_address: mac,
-                reason: reason
+                reason: reason,
+                force: force ? '1' : '0'
             },
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    alert('✅ Appareil ajouté à la liste noire');
+                    alert('✅ Appareil ajouté à la liste noire et bloqué sur le réseau');
                     $('#blacklist-mac').val('');
                     $('#blacklist-reason').val('');
                     loadBlacklist();
                     loadBlacklistStats();
+                } else if (response.message === 'APPAREIL_DEJA_AUTORISE') {
+                    // Double vérification côté serveur : demander confirmation
+                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
+                        doAddBlacklist(mac, reason, true);
+                    }
                 } else {
                     alert('❌ Erreur: ' + response.message);
                 }
@@ -1200,26 +1249,80 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             alert('Impossible de bloquer: adresse MAC non disponible');
             return;
         }
-        if (confirm('Voulez-vous bloquer cet appareil suite à cette intrusion ?')) {
-            $.ajax({
-                url: 'blacklist.php',
-                type: 'POST',
-                data: {
-                    action: 'add_blacklist',
-                    mac_address: mac,
-                    reason: 'Intrusion détectée: ' + type
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        alert('✅ Appareil bloqué avec succès');
-                        loadIntrusions();
-                    } else {
-                        alert('❌ Erreur: ' + response.message);
-                    }
+
+        var reason = 'Intrusion détectée: ' + type;
+
+        // Vérifier d'abord le statut dans radcheck
+        $.ajax({
+            url: 'blacklist.php',
+            type: 'POST',
+            data: {
+                action: 'check_mac_status',
+                mac_address: mac
+            },
+            dataType: 'json',
+            success: function(check) {
+                if (!check.success) {
+                    alert('❌ Erreur: ' + check.message);
+                    return;
                 }
-            });
-        }
+
+                var status = check.data;
+
+                // Déjà bloqué
+                if (status.is_blocked && status.in_blacklist) {
+                    alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
+                    return;
+                }
+
+                // Appareil autorisé → confirmer la suppression de l'accès
+                if (status.is_authorized) {
+                    var dept = status.department ? ' (' + status.department + ')' : '';
+                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué suite à l\'intrusion.\n\nContinuer ?')) {
+                        doBlockFromIntrusion(mac, reason, true);
+                    }
+                    return;
+                }
+
+                // Sinon, confirmation simple puis blocage
+                if (confirm('Voulez-vous bloquer cet appareil suite à cette intrusion ?')) {
+                    doBlockFromIntrusion(mac, reason, false);
+                }
+            },
+            error: function() {
+                if (confirm('Voulez-vous bloquer cet appareil suite à cette intrusion ?')) {
+                    doBlockFromIntrusion(mac, reason, false);
+                }
+            }
+        });
+    }
+
+    function doBlockFromIntrusion(mac, reason, force) {
+        $.ajax({
+            url: 'blacklist.php',
+            type: 'POST',
+            data: {
+                action: 'add_blacklist',
+                mac_address: mac,
+                reason: reason,
+                force: force ? '1' : '0'
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    alert('✅ Appareil bloqué avec succès');
+                    loadIntrusions();
+                    loadBlacklist();
+                    loadBlacklistStats();
+                } else if (response.message === 'APPAREIL_DEJA_AUTORISE') {
+                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué.\n\nContinuer ?')) {
+                        doBlockFromIntrusion(mac, reason, true);
+                    }
+                } else {
+                    alert('❌ Erreur: ' + response.message);
+                }
+            }
+        });
     }
     </script>
 </body>
