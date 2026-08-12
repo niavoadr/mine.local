@@ -1,5 +1,15 @@
 <?php
 require_once __DIR__ . '/connexion.php';
+
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Session expirée']);
+    exit();
+}
+
 header('Content-Type: application/json');
 
 // Fonction utilitaire pour retourner une réponse JSON et arrêter le script
