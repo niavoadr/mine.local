@@ -2,7 +2,7 @@
 /**
  * snort_sync.php — Synchronisation des alertes Snort (pfSense) vers security_event.
  *
- * Ce script se connecte à pfSense via SSH (sans API) pour lire les logs Snort,
+ * Ce script se connecte à pfSense via SSH (avec mot de passe) pour lire les logs Snort,
  * puis insère les nouvelles alertes dans security_event via intrusion.php.
  *
  * Utilisation cron (toutes les 2 minutes) :
@@ -10,47 +10,47 @@
  *
  * Prérequis :
  *   - SSH activé sur pfSense (System → Advanced → Secure Shell)
- *   - Clé SSH configurée du serveur web vers pfSense (sans mot de passe)
- *   - Aucun package supplémentaire à installer
+ *   - sshpass installé sur le serveur web (apt install sshpass)
+ *   - Le mot de passe SSH de pfSense dans le fichier .env
  */
 
 require_once __DIR__ . '/env.php';
 
 // ============ CONFIGURATION ============
-$PFSENSE_SSH_HOST    = env('PFSENSE_SSH_HOST', '');
-$PFSENSE_SSH_PORT    = (int) env('PFSENSE_SSH_PORT', '22');
-$PFSENSE_SSH_USER    = env('PFSENSE_SSH_USER', 'root');
-$PFSENSE_SSH_KEY_PATH = env('PFSENSE_SSH_KEY_PATH', '/root/.ssh/id_rsa');
-$CRON_API_TOKEN      = env('CRON_API_TOKEN', '');
+$PFSENSE_SSH_HOST     = env('PFSENSE_SSH_HOST', '');
+$PFSENSE_SSH_PORT     = (int) env('PFSENSE_SSH_PORT', '22');
+$PFSENSE_SSH_USER     = env('PFSENSE_SSH_USER', 'root');
+$PFSENSE_SSH_PASSWORD = env('PFSENSE_SSH_PASSWORD', '');
+$CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
 
 // Chemin des logs Snort sur pfSense
-$PFSENSE_SNORT_LOG   = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_alerts');
+$PFSENSE_SNORT_LOG    = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_alerts');
 
 // URL vers intrusion.php (serveur web local)
-$INTRUSION_PHP_URL   = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
+$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
 
 // Fichier de horodatage pour ne pas importer les mêmes alertes deux fois
-$LAST_SYNC_FILE      = __DIR__ . '/.snort_last_sync';
+$LAST_SYNC_FILE       = __DIR__ . '/.snort_last_sync';
 
 // ============ FONCTIONS ============
 
 /**
- * Lit les logs Snort depuis pfSense via SSH (en utilisant exec + ssh).
+ * Lit les logs Snort depuis pfSense via SSH avec mot de passe (sshpass).
  * Retourne le contenu texte du log.
  */
-function fetchSnortLogSsh($host, $port, $user, $keyPath, $snortLog)
+function fetchSnortLogSsh($host, $port, $user, $password, $snortLog)
 {
     $sshCmd = sprintf(
-        'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 -p %d -i %s %s@%s "clog %s 2>/dev/null || cat %s 2>/dev/null"',
+        'sshpass -p %s ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p %d %s@%s "clog %s 2>/dev/null || cat %s 2>/dev/null"',
+        escapeshellarg($password),
         $port,
-        escapeshellarg($keyPath),
         escapeshellarg($user),
         escapeshellarg($host),
         escapeshellarg($snortLog),
         escapeshellarg($snortLog)
     );
 
-    $output = '';
+    $outputLines = [];
     $exitCode = 0;
     exec($sshCmd . ' 2>&1', $outputLines, $exitCode);
 
@@ -68,9 +68,6 @@ function fetchSnortLogSsh($host, $port, $user, $keyPath, $snortLog)
  *
  * Format typique d'une ligne Snort dans les logs pfSense :
  *   Aug 12 10:30:00 hostname snort[12345]: [1:1001:1] ALERT MESSAGE [Classification: Attempted Admin] [Priority: 1] {TCP} 192.168.1.100:12345 -> 10.0.0.1:80
- *
- * OU format syslog pfSense :
- *   <timestamp> <hostname> snort[<pid>]: [<gid>:<sid>:<rev>] <message> [Classification: <class>] [Priority: <prio>] {<proto>} <src> -> <dst>
  */
 function parseSnortLog($logContent, $sinceTimestamp = null)
 {
@@ -78,7 +75,6 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
     $lines = explode("\n", $logContent);
 
     // Regex pour parser une ligne d'alerte Snort
-    // Capture : timestamp, message, classification, priority, protocole, source IP, dest IP
     $pattern = '/^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+\S+\s+snort\[\d+\]:\s+\[(\d+):(\d+):(\d+)\]\s+(.+?)\s+\[Classification:\s*([^\]]+)\]\s+\[Priority:\s*(\d+)\]\s+\{(\w+)\}\s+([0-9.:]+)\s*->\s*([0-9.:]+)/';
 
     foreach ($lines as $line) {
@@ -88,11 +84,9 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
         if (preg_match($pattern, $line, $m)) {
             $timestamp = strtotime($m[1]);
             if (!$timestamp) {
-                // Essayer avec l'année courante (les logs Snort n'incluent pas l'année)
                 $timestamp = strtotime($m[1] . ' ' . date('Y'));
             }
 
-            // Ignorer les alertes déjà traitées
             if ($sinceTimestamp && $timestamp <= $sinceTimestamp) {
                 continue;
             }
@@ -114,7 +108,7 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
                 'event_type'   => trim($m[6]) ?: 'snort_alert',
                 'severity'     => $severity,
                 'source_ip'    => $sourceIp,
-                'mac_address'  => '',  // Pas de MAC dans les logs Snort par défaut
+                'mac_address'  => '',
                 'description'  => trim($m[5]),
                 'source_info'  => 'Snort',
                 'attempts'     => 1,
@@ -124,7 +118,6 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
         }
     }
 
-    // Trier par timestamp croissant
     usort($alerts, function ($a, $b) {
         return $a['raw_timestamp'] - $b['raw_timestamp'];
     });
@@ -169,12 +162,19 @@ if ($PFSENSE_SSH_HOST === '') {
     echo "[snort_sync] Erreur: PFSENSE_SSH_HOST non configuré dans le .env\n";
     exit(1);
 }
+if ($PFSENSE_SSH_PASSWORD === '') {
+    echo "[snort_sync] Erreur: PFSENSE_SSH_PASSWORD non configuré dans le .env\n";
+    exit(1);
+}
 if ($CRON_API_TOKEN === '') {
     echo "[snort_sync] Erreur: CRON_API_TOKEN non configuré dans le .env\n";
     exit(1);
 }
-if (!file_exists($PFSENSE_SSH_KEY_PATH)) {
-    echo "[snort_sync] Erreur: Clé SSH introuvable: $PFSENSE_SSH_KEY_PATH\n";
+
+// Vérifier que sshpass est disponible
+exec('which sshpass 2>/dev/null', $sshpassCheck, $sshpassCode);
+if ($sshpassCode !== 0) {
+    echo "[snort_sync] Erreur: sshpass n'est pas installé. Installez-le avec: apt install sshpass\n";
     exit(1);
 }
 
@@ -186,7 +186,7 @@ if (file_exists($LAST_SYNC_FILE)) {
 
 // Récupérer les logs Snort depuis pfSense via SSH
 echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\n";
-$result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $PFSENSE_SSH_KEY_PATH, $PFSENSE_SNORT_LOG);
+$result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $PFSENSE_SSH_PASSWORD, $PFSENSE_SNORT_LOG);
 
 if (!$result['success']) {
     echo "[snort_sync] Erreur: " . $result['error'] . "\n";
@@ -213,7 +213,6 @@ foreach ($alerts as $alert) {
         echo "[snort_sync] Échec insertion: " . ($res['message'] ?? 'erreur inconnue') . "\n";
     }
 
-    // Garder le timestamp le plus récent
     if ($alert['raw_timestamp'] > $latestTimestamp) {
         $latestTimestamp = $alert['raw_timestamp'];
     }
