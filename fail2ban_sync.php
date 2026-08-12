@@ -5,9 +5,9 @@
  * Même tuyau que snort_sync.php, source séparée :
  *   Fail2ban.log  →  parse Ban/Unban  →  POST intrusion.php (source_info=Fail2ban)
  *
- * Ne lit PAS les logs Snort et n'écrit pas dans la blacklist directement.
- * Le blocage RADIUS (MAC) est délégué à intrusion.php, uniquement si une MAC
- * a pu être résolue depuis radacct (IP → MAC).
+ * Politique de blocage (Fail2ban seul, jamais Snort) :
+ *   warning  → IP déjà bannie par iptables, pas de blacklist MAC
+ *   critical → IP (iptables) + MAC (blacklist / radcheck) si résolue via radacct
  *
  * Utilisation cron (toutes les 2 minutes) :
  *   */2 * * * * /usr/bin/php /chemin/vers/mine.local/fail2ban_sync.php >> /var/log/fail2ban_sync.log 2>&1
@@ -151,7 +151,9 @@ function fetchFail2banLog($logPath, $sshHost, $sshPort, $sshUser, $keyPath)
 
 /**
  * Associe un jail + action Fail2ban à un event_type / sévérité du dashboard.
- * Ban sshd/recidive → critical, autres Ban → warning, Unban → info (pas d'auto-blocage).
+ *   Ban sshd / recidive → critical → blocage IP + MAC
+ *   Autres Ban          → warning  → blocage IP seulement
+ *   Unban               → info     → aucun blocage (on ne débloque pas la MAC)
  */
 function mapFail2banEvent($jail, $action)
 {
@@ -241,14 +243,18 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
         $attempts = max(1, (int) ($foundCounts[$countKey] ?? 1));
 
         if ($action === 'ban') {
+            $scope = ($mapped['severity'] === 'critical')
+                ? 'IP + MAC si l\'appareil est connu'
+                : 'IP uniquement';
             $description = sprintf(
-                'Fail2ban a banni %s (jail %s, %d tentative(s))',
+                'Fail2ban a banni %s (%s, jail %s, %d tentative(s))',
                 $ip,
+                $scope,
                 $jail,
                 $attempts
             );
         } else {
-            $description = sprintf('Fail2ban a débanni %s (jail %s)', $ip, $jail);
+            $description = sprintf('Fail2ban a débanni l\'IP %s (jail %s)', $ip, $jail);
         }
 
         $events[] = [

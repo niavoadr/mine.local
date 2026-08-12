@@ -17,9 +17,11 @@ $action = $_POST['action'] ?? '';
  *   warning  -> 'medium'   (Moyenne)
  *   info     -> 'low'      (Faible)
  *
- * L'action auto_block_intrusion permet au script snort_sync.php
- * d'insérer les alertes Snort et de bloquer automatiquement
- * les appareils en cas de sévérité critical ou warning.
+ * L'action auto_block_intrusion est utilisée par les crons :
+ *   - snort_sync.php     → affichage seul (jamais de blacklist)
+ *   - fail2ban_sync.php  → seul autorisé à bloquer, selon la gravité :
+ *       warning  = IP déjà bannie par Fail2ban (iptables), pas de MAC
+ *       critical = blacklist + radcheck Reject si une MAC est connue
  *
  * Les adresses MAC sont normalisées via normalizeMacAddress() (même
  * méthode que radius_devices.php et blacklist.php) pour éviter les
@@ -76,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // ============ AUTHENTIFICATION ============
 // Deux modes d'authentification :
 // 1. Session ADMIN (utilisateur connecté via le dashboard)
-// 2. Jeton API CRON (pour snort_sync.php qui tourne sans session)
+// 2. Jeton API CRON (snort_sync.php / fail2ban_sync.php, sans session)
 $is_admin_session = false;
 $is_cron_api      = false;
 
@@ -217,8 +219,11 @@ if ($action === 'get_intrusions') {
     jsonResponse(false, 'Erreur lors de la récupération des statistiques');
   }
 } elseif ($action === 'auto_block_intrusion') {
-    // Cette action est appelée par le script cron qui lit les alertes Snort de pfSense
-    // Elle insère dans security_event, puis bloque automatiquement dans blacklist + radcheck
+    // Appelée par snort_sync.php (affichage seul) et fail2ban_sync.php (blocage).
+    // Snort / toute autre source : INSERT security_event uniquement.
+    // Fail2ban :
+    //   warning  → l'IP est déjà bannie par iptables, on n'écrit pas la blacklist
+    //   critical → blacklist + radcheck Reject si une MAC a été résolue
 
     $event_type = trim($_POST['event_type'] ?? '');
     $severity   = trim($_POST['severity'] ?? '');     // critical, warning, info
@@ -227,6 +232,7 @@ if ($action === 'get_intrusions') {
     $description = trim($_POST['description'] ?? '');
     $source_info = trim($_POST['source_info'] ?? 'Snort');
     $attempts    = max(1, (int) ($_POST['attempts'] ?? 1));
+    $isFail2ban  = strcasecmp($source_info, 'Fail2ban') === 0;
 
     // Validation
     if ($event_type === '' || $severity === '') {
@@ -251,14 +257,15 @@ if ($action === 'get_intrusions') {
     try {
       $pdo->beginTransaction();
 
-      // 1. Insérer dans security_event
+      // 1. Toujours enregistrer l'événement (Snort comme Fail2ban)
       $stmt = $pdo->prepare("INSERT INTO security_event (event_type, security_status, source_ip, mac_address, details, attempts)
                 VALUES (?, ?, ?::inet, ?::macaddr, ?, ?)");
       $details = json_encode(['description' => $description, 'source' => $source_info]);
       $stmt->execute([$event_type, $severity, $source_ip ?: null, $mac_address ?: null, $details, $attempts]);
 
-      // 2. Auto-blocage : si la sévérité est critical ou warning, bloquer automatiquement
-      if (($severity === 'critical' || $severity === 'warning') && $mac_address !== '') {
+      // 2. Auto-blocage MAC : Fail2ban + criticité uniquement
+      $macBlocked = false;
+      if ($isFail2ban && $severity === 'critical' && $mac_address !== '') {
 
         // Vérifier si déjà dans blacklist (MACADDR : insensible à la casse)
         $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
@@ -266,23 +273,34 @@ if ($action === 'get_intrusions') {
         $already_blocked = $stmt->fetchColumn();
 
         if (!$already_blocked) {
-          // Ajouter dans blacklist
           $stmt = $pdo->prepare("INSERT INTO blacklist (mac_address, reason) VALUES (?::macaddr, ?)");
-          $auto_reason = 'Auto-blocage: intrusion ' . $event_type . ' (' . $severity . ')';
+          $auto_reason = 'Fail2ban: ' . $event_type . ' (' . $severity . ')';
           $stmt->execute([$mac_address, $auto_reason]);
 
-          // Bloquer dans radcheck via comparaison insensible à la casse/format
           $normalizedMacWhere = normalizedMacSqlWhere();
           $stmt = $pdo->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type'");
           $stmt->execute([$macCompact]);
-          // Insérer avec la MAC normalisée
           $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
           $stmt->execute([$mac_address]);
         }
+        $macBlocked = true;
       }
 
       $pdo->commit();
-      jsonResponse(true, 'Intrusion enregistrée' . (($severity === 'critical' || $severity === 'warning') && $mac_address !== '' ? ' et appareil bloqué' : ''));
+
+      if (!$isFail2ban) {
+        $message = 'Intrusion enregistrée';
+      } elseif ($macBlocked) {
+        $message = 'Intrusion enregistrée et appareil bloqué';
+      } elseif ($severity === 'warning' || $severity === 'critical') {
+        $message = $severity === 'critical'
+          ? 'Intrusion enregistrée (IP bloquée par Fail2ban, MAC inconnue)'
+          : 'Intrusion enregistrée (IP bloquée par Fail2ban)';
+      } else {
+        $message = 'Intrusion enregistrée';
+      }
+
+      jsonResponse(true, $message);
     } catch (Exception $e) {
       if ($pdo->inTransaction()) $pdo->rollBack();
       jsonResponse(false, "Erreur lors de l'enregistrement de l'intrusion");

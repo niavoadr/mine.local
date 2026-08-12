@@ -1,8 +1,14 @@
 # Fail2ban — mine.local
 
-Fail2ban reste un service système. Ce dossier ne contient que le filtre / la jail du portail web. Les bans sont ensuite **lus** (pas écrits) par `fail2ban_sync.php` et poussés dans `security_event` avec `source_info=Fail2ban`.
+Fail2ban reste un service système. Ce dossier ne contient que le filtre / la jail du portail web. Les bans sont ensuite **lus** par `fail2ban_sync.php` et poussés dans `security_event` avec `source_info=Fail2ban`.
 
-Snort, la blacklist et `intrusion.php` ne sont pas modifiés.
+**Rôles :**
+
+| Source | Affichage dashboard | Blocage |
+|---|---|---|
+| Snort | oui (badge bleu) | non |
+| Fail2ban warning (ex. `mine-login`) | oui (badge rouge) | **IP** via iptables |
+| Fail2ban critical (ex. `sshd`, `recidive`) | oui (badge rouge) | **IP** via iptables + **MAC** via blacklist / RADIUS si l'appareil est dans `radacct` |
 
 ## 1. Installer Fail2ban
 
