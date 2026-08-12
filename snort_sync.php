@@ -2,108 +2,140 @@
 /**
  * snort_sync.php — Synchronisation des alertes Snort (pfSense) vers security_event.
  *
- * Ce script doit être exécuté par un cron, par exemple :
+ * Ce script se connecte à pfSense via SSH (sans API) pour lire les logs Snort,
+ * puis insère les nouvelles alertes dans security_event via intrusion.php.
+ *
+ * Utilisation cron (toutes les 2 minutes) :
  *   */2 * * * * /usr/bin/php /chemin/vers/mine.local/snort_sync.php >> /var/log/snort_sync.log 2>&1
  *
- * Il appelle l'API pfSense pour récupérer les alertes Snort récentes,
- * puis les insère dans security_event via intrusion.php (action auto_block_intrusion).
+ * Prérequis :
+ *   - Clé SSH configurée pour accéder à pfSense sans mot de passe
+ *   - PHP extension ssh2 installée (pecl install ssh2)
+ *   - OU utilisation de exec() + commande ssh (si ssh2 non disponible)
  */
 
-// ============ CONFIGURATION ============
-$PFSENSE_URL        = getenv('PFSENSE_URL')        ?: 'https://192.168.1.1';
-$PFSENSE_API_KEY    = getenv('PFSENSE_API_KEY')    ?: '';
-$PFSENSE_API_SECRET = getenv('PFSENSE_API_SECRET') ?: '';
-$CRON_API_TOKEN     = getenv('CRON_API_TOKEN')     ?: '';
+require_once __DIR__ . '/env.php';
 
-// Chemin vers intrusion.php (même dossier, accessible via le serveur web local)
-$INTRUSION_PHP_URL = 'http://localhost/intrusion.php';
+// ============ CONFIGURATION ============
+$PFSENSE_SSH_HOST    = env('PFSENSE_SSH_HOST', '');
+$PFSENSE_SSH_PORT    = (int) env('PFSENSE_SSH_PORT', '22');
+$PFSENSE_SSH_USER    = env('PFSENSE_SSH_USER', 'root');
+$PFSENSE_SSH_KEY_PATH = env('PFSENSE_SSH_KEY_PATH', '/root/.ssh/id_rsa');
+$CRON_API_TOKEN      = env('CRON_API_TOKEN', '');
+
+// Chemin des logs Snort sur pfSense
+$PFSENSE_SNORT_LOG   = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_alerts');
+
+// URL vers intrusion.php (serveur web local)
+$INTRUSION_PHP_URL   = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
 
 // Fichier de horodatage pour ne pas importer les mêmes alertes deux fois
-$LAST_SYNC_FILE = __DIR__ . '/.snort_last_sync';
+$LAST_SYNC_FILE      = __DIR__ . '/.snort_last_sync';
 
 // ============ FONCTIONS ============
 
 /**
- * Appelle l'API pfSense pour récupérer les alertes Snort récentes.
- *
- * NOTE : L'endpoint exact dépend de ta version de pfSense et du package Snort/Suricata.
- * PfSense 2.x avec le package Snort expose les alertes via :
- *   - L'API REST pfSense (si installée)
- *   - Ou directement en lisant les fichiers de log snort via SSH/SCP
- *
- * Adapté pour pfSense 2.7+ avec pfSense API v2 :
- *   GET /api/v2/services/snort/alerts
+ * Lit les logs Snort depuis pfSense via SSH (en utilisant exec + ssh).
+ * Retourne le contenu texte du log.
  */
-function fetchSnortAlerts($baseUrl, $apiKey, $apiSecret, $sinceTimestamp = null)
+function fetchSnortLogSsh($host, $port, $user, $keyPath, $snortLog)
 {
-    $url = rtrim($baseUrl, '/') . '/api/v2/services/snort/alerts';
+    $sshCmd = sprintf(
+        'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 -p %d -i %s %s@%s "clog %s 2>/dev/null || cat %s 2>/dev/null"',
+        $port,
+        escapeshellarg($keyPath),
+        escapeshellarg($user),
+        escapeshellarg($host),
+        escapeshellarg($snortLog),
+        escapeshellarg($snortLog)
+    );
 
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false, // pfSense souvent en auto-signé
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'Authorization: Basic ' . base64_encode($apiKey . ':' . $apiSecret),
-        ],
-        CURLOPT_TIMEOUT        => 30,
-    ]);
+    $output = '';
+    $exitCode = 0;
+    exec($sshCmd . ' 2>&1', $outputLines, $exitCode);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode !== 200 || $response === false) {
-        return ['success' => false, 'error' => "HTTP $httpCode"];
+    if ($exitCode !== 0) {
+        $error = implode("\n", $outputLines);
+        return ['success' => false, 'error' => "SSH échoué (code $exitCode): $error"];
     }
 
-    $data = json_decode($response, true);
-    if (!$data) {
-        return ['success' => false, 'error' => 'Réponse JSON invalide'];
-    }
+    $output = implode("\n", $outputLines);
+    return ['success' => true, 'log' => $output];
+}
 
-    // Filtrer les alertes depuis le dernier timestamp
+/**
+ * Parse les lignes du log Snort de pfSense et retourne un tableau d'alertes.
+ *
+ * Format typique d'une ligne Snort dans les logs pfSense :
+ *   Aug 12 10:30:00 hostname snort[12345]: [1:1001:1] ALERT MESSAGE [Classification: Attempted Admin] [Priority: 1] {TCP} 192.168.1.100:12345 -> 10.0.0.1:80
+ *
+ * OU format syslog pfSense :
+ *   <timestamp> <hostname> snort[<pid>]: [<gid>:<sid>:<rev>] <message> [Classification: <class>] [Priority: <prio>] {<proto>} <src> -> <dst>
+ */
+function parseSnortLog($logContent, $sinceTimestamp = null)
+{
     $alerts = [];
-    $items = $data['data'] ?? $data['alerts'] ?? [];
+    $lines = explode("\n", $logContent);
 
-    foreach ($items as $item) {
-        $alertTime = strtotime($item['timestamp'] ?? 'now');
+    // Regex pour parser une ligne d'alerte Snort
+    // Capture : timestamp, message, classification, priority, protocole, source IP, dest IP
+    $pattern = '/^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+\S+\s+snort\[\d+\]:\s+\[(\d+):(\d+):(\d+)\]\s+(.+?)\s+\[Classification:\s*([^\]]+)\]\s+\[Priority:\s*(\d+)\]\s+\{(\w+)\}\s+([0-9.:]+)\s*->\s*([0-9.:]+)/';
 
-        if ($sinceTimestamp && $alertTime <= $sinceTimestamp) {
-            continue; // Déjà traité
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+
+        if (preg_match($pattern, $line, $m)) {
+            $timestamp = strtotime($m[1]);
+            if (!$timestamp) {
+                // Essayer avec l'année courante (les logs Snort n'incluent pas l'année)
+                $timestamp = strtotime($m[1] . ' ' . date('Y'));
+            }
+
+            // Ignorer les alertes déjà traitées
+            if ($sinceTimestamp && $timestamp <= $sinceTimestamp) {
+                continue;
+            }
+
+            // Mapper la priorité Snort vers notre enum
+            $priority = (int) $m[7];
+            if ($priority <= 1) {
+                $severity = 'critical';
+            } elseif ($priority <= 2) {
+                $severity = 'warning';
+            } else {
+                $severity = 'info';
+            }
+
+            // Extraire l'IP source (sans le port)
+            $sourceIp = preg_replace('/:\d+$/', '', $m[9]);
+
+            $alerts[] = [
+                'event_type'   => trim($m[6]) ?: 'snort_alert',
+                'severity'     => $severity,
+                'source_ip'    => $sourceIp,
+                'mac_address'  => '',  // Pas de MAC dans les logs Snort par défaut
+                'description'  => trim($m[5]),
+                'source_info'  => 'Snort',
+                'attempts'     => 1,
+                'timestamp'    => date('Y-m-d H:i:s', $timestamp),
+                'raw_timestamp'=> $timestamp,
+            ];
         }
-
-        // Mapper la sévérité Snort (priority 1=high, 2=medium, 3=low) vers notre enum
-        $priority = (int) ($item['priority'] ?? 3);
-        if ($priority <= 1) {
-            $severity = 'critical';
-        } elseif ($priority <= 2) {
-            $severity = 'warning';
-        } else {
-            $severity = 'info';
-        }
-
-        $alerts[] = [
-            'event_type'   => $item['classification'] ?? $item['rule_category'] ?? 'snort_alert',
-            'severity'     => $severity,
-            'source_ip'    => $item['src_ip']   ?? $item['source_ip']  ?? '',
-            'mac_address'  => $item['src_mac']  ?? $item['mac_address'] ?? '',
-            'description'  => $item['message']  ?? $item['description'] ?? '',
-            'source_info'  => 'Snort',
-            'attempts'     => 1,
-            'timestamp'    => $item['timestamp'] ?? date('Y-m-d H:i:s'),
-        ];
     }
 
-    return ['success' => true, 'alerts' => $alerts];
+    // Trier par timestamp croissant
+    usort($alerts, function ($a, $b) {
+        return $a['raw_timestamp'] - $b['raw_timestamp'];
+    });
+
+    return $alerts;
 }
 
 /**
  * Pousse une alerte vers intrusion.php (action auto_block_intrusion)
  */
-function pushIntrusion($intrusionUrl, $alert)
+function pushIntrusion($intrusionUrl, $cronToken, $alert)
 {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -112,7 +144,7 @@ function pushIntrusion($intrusionUrl, $alert)
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => http_build_query([
             'action'      => 'auto_block_intrusion',
-            'cron_token'  => $CRON_API_TOKEN,
+            'cron_token'  => $cronToken,
             'event_type'  => $alert['event_type'],
             'severity'    => $alert['severity'],
             'source_ip'   => $alert['source_ip'],
@@ -132,28 +164,46 @@ function pushIntrusion($intrusionUrl, $alert)
 
 // ============ EXÉCUTION PRINCIPALE ============
 
+// Vérifier la configuration
+if ($PFSENSE_SSH_HOST === '') {
+    echo "[snort_sync] Erreur: PFSENSE_SSH_HOST non configuré dans le .env\n";
+    exit(1);
+}
+if ($CRON_API_TOKEN === '') {
+    echo "[snort_sync] Erreur: CRON_API_TOKEN non configuré dans le .env\n";
+    exit(1);
+}
+if (!file_exists($PFSENSE_SSH_KEY_PATH)) {
+    echo "[snort_sync] Erreur: Clé SSH introuvable: $PFSENSE_SSH_KEY_PATH\n";
+    exit(1);
+}
+
 // Lire le timestamp de la dernière synchronisation
 $lastSync = null;
 if (file_exists($LAST_SYNC_FILE)) {
     $lastSync = (int) file_get_contents($LAST_SYNC_FILE);
 }
 
-// Récupérer les alertes Snort depuis pfSense
-$result = fetchSnortAlerts($PFSENSE_URL, $PFSENSE_API_KEY, $PFSENSE_API_SECRET, $lastSync);
+// Récupérer les logs Snort depuis pfSense via SSH
+echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\n";
+$result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $PFSENSE_SSH_KEY_PATH, $PFSENSE_SNORT_LOG);
 
 if (!$result['success']) {
     echo "[snort_sync] Erreur: " . $result['error'] . "\n";
     exit(1);
 }
 
-$alerts = $result['alerts'];
+// Parser les alertes
+$alerts = parseSnortLog($result['log'], $lastSync);
 echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\n";
 
 // Pousser chaque alerte dans intrusion.php
 $blocked = 0;
 $inserted = 0;
+$latestTimestamp = $lastSync;
+
 foreach ($alerts as $alert) {
-    $res = pushIntrusion($INTRUSION_PHP_URL, $alert);
+    $res = pushIntrusion($INTRUSION_PHP_URL, $CRON_API_TOKEN, $alert);
     if ($res && ($res['success'] ?? false)) {
         $inserted++;
         if (strpos($res['message'] ?? '', 'bloqué') !== false) {
@@ -162,9 +212,16 @@ foreach ($alerts as $alert) {
     } else {
         echo "[snort_sync] Échec insertion: " . ($res['message'] ?? 'erreur inconnue') . "\n";
     }
+
+    // Garder le timestamp le plus récent
+    if ($alert['raw_timestamp'] > $latestTimestamp) {
+        $latestTimestamp = $alert['raw_timestamp'];
+    }
 }
 
 // Mettre à jour le timestamp de dernière synchronisation
-file_put_contents($LAST_SYNC_FILE, (string) time());
+if ($latestTimestamp > $lastSync) {
+    file_put_contents($LAST_SYNC_FILE, (string) $latestTimestamp);
+}
 
 echo "[snort_sync] Terminé: $inserted insérée(s), $blocked bloquée(s)\n";
