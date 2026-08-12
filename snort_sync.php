@@ -19,7 +19,7 @@ require_once __DIR__ . '/env.php';
 $PFSENSE_SSH_HOST     = env('PFSENSE_SSH_HOST', '');
 $PFSENSE_SSH_PORT     = (int) env('PFSENSE_SSH_PORT', '22');
 $PFSENSE_SSH_USER     = env('PFSENSE_SSH_USER', 'root');
-$PFSENSE_SSH_KEY_PATH = env('PFSENSE_SSH_KEY_PATH', '/root/.ssh/id_rsa');
+$PFSENSE_SSH_KEY      = env('PFSENSE_SSH_KEY', '');       // Contenu de la clé privée SSH (collé directement)
 $CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
 
 // Chemin des logs Snort sur pfSense
@@ -157,14 +157,19 @@ if ($PFSENSE_SSH_HOST === '') {
     echo "[snort_sync] Erreur: PFSENSE_SSH_HOST non configuré dans le .env\n";
     exit(1);
 }
+if ($PFSENSE_SSH_KEY === '') {
+    echo "[snort_sync] Erreur: PFSENSE_SSH_KEY non configuré dans le .env\n";
+    exit(1);
+}
 if ($CRON_API_TOKEN === '') {
     echo "[snort_sync] Erreur: CRON_API_TOKEN non configuré dans le .env\n";
     exit(1);
 }
-if (!file_exists($PFSENSE_SSH_KEY_PATH)) {
-    echo "[snort_sync] Erreur: Clé SSH introuvable: $PFSENSE_SSH_KEY_PATH\n";
-    exit(1);
-}
+
+// Écrire la clé SSH dans un fichier temporaire pour SSH
+$sshKeyTmpFile = tempnam(sys_get_temp_dir(), 'ssh_key_');
+file_put_contents($sshKeyTmpFile, $PFSENSE_SSH_KEY);
+chmod($sshKeyTmpFile, 0600);
 
 $lastSync = null;
 if (file_exists($LAST_SYNC_FILE)) {
@@ -172,7 +177,7 @@ if (file_exists($LAST_SYNC_FILE)) {
 }
 
 echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\n";
-$result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $PFSENSE_SSH_KEY_PATH, $PFSENSE_SNORT_LOG);
+$result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $sshKeyTmpFile, $PFSENSE_SNORT_LOG);
 
 if (!$result['success']) {
     echo "[snort_sync] Erreur: " . $result['error'] . "\n";
@@ -204,6 +209,11 @@ foreach ($alerts as $alert) {
 
 if ($latestTimestamp > $lastSync) {
     file_put_contents($LAST_SYNC_FILE, (string) $latestTimestamp);
+}
+
+// Supprimer le fichier temporaire de la clé SSH
+if (file_exists($sshKeyTmpFile)) {
+    unlink($sshKeyTmpFile);
 }
 
 echo "[snort_sync] Terminé: $inserted insérée(s), $blocked bloquée(s)\n";
