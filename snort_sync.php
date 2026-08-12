@@ -7,7 +7,6 @@
  *
  * Utilisation cron (toutes les 2 minutes) :
  *   *\/2 * * * * /usr/bin/php /chemin/vers/mine.local/snort_sync.php >> /var/log/snort_sync.log 2>&1
- *
  * Prérequis :
  *   - SSH activé sur pfSense (System → Advanced → Secure Shell)
  *   - Clé SSH configurée du serveur web vers pfSense (sans mot de passe)
