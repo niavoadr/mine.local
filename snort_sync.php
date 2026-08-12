@@ -9,9 +9,9 @@
  *   */2 * * * * /usr/bin/php /chemin/vers/mine.local/snort_sync.php >> /var/log/snort_sync.log 2>&1
  *
  * Prérequis :
- *   - Clé SSH configurée pour accéder à pfSense sans mot de passe
- *   - PHP extension ssh2 installée (pecl install ssh2)
- *   - OU utilisation de exec() + commande ssh (si ssh2 non disponible)
+ *   - SSH activé sur pfSense (System → Advanced → Secure Shell)
+ *   - Clé SSH configurée du serveur web vers pfSense (sans mot de passe)
+ *   - Aucun package supplémentaire à installer
  */
 
 require_once __DIR__ . '/env.php';
