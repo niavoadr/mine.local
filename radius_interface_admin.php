@@ -410,19 +410,42 @@
                 return;
             }
 
+            // Vérifier d'abord le statut de la MAC dans radcheck
+            $.post('radius_devices.php', {
+                action: 'check_mac_status',
+                mac_address: macColon
+            }, function(check) {
+                if (check.success && check.data.is_rejected) {
+                    if (confirm('⚠️ Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
+                        doAddDevice(macColon, department, true);
+                    }
+                    return;
+                }
+                doAddDevice(macColon, department, false);
+            }, 'json').fail(function() {
+                doAddDevice(macColon, department, false);
+            });
+        });
+
+        function doAddDevice(mac, department, force) {
             $('.loading').show();
             $('button[type="submit"]').prop('disabled', true);
             
             $.post('radius_devices.php', {
                 action: 'add_device',
-                mac_address: macColon,
-                department: department
+                mac_address: mac,
+                department: department,
+                force: force ? '1' : '0'
             }, function(response) {
                 if (response.success) {
-                    alert('✅ Appareil ajouté avec succès (Format : ' + macColon + ')');
+                    alert('✅ Appareil ajouté avec succès (Format : ' + mac + ')');
                     $('#addDeviceForm')[0].reset();
                     loadDevices();
                     loadStats();
+                } else if (response.error === 'APPAREIL_DEJA_BLOQUE') {
+                    if (confirm('⚠️ Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
+                        doAddDevice(mac, department, true);
+                    }
                 } else {
                     alert('❌ Erreur: ' + response.error);
                 }
@@ -432,7 +455,7 @@
                 $('.loading').hide();
                 $('button[type="submit"]').prop('disabled', false);
             });
-        });
+        }
 
         function deleteDevice(mac) {
             if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?\n\nMAC: ' + mac)) {

@@ -42,6 +42,10 @@ try {
   }
 
   switch ($action) {
+    case 'check_mac_status':
+      checkMacStatus($connexion);
+      break;
+
     case 'get_devices':
       getDevices($connexion);
       break;
@@ -115,6 +119,50 @@ function normalizedMacSqlWhere()
   return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
 }
 
+function checkMacStatus(PDO $connexion)
+{
+  $macRaw = trim($_POST['mac_address'] ?? '');
+  if ($macRaw === '') {
+    throw new Exception('Adresse MAC requise');
+  }
+
+  $mac = normalizeMacAddress($macRaw);
+  if ($mac === false) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
+
+  $macCompact = compactMacAddress($mac);
+  $normalizedMacWhere = normalizedMacSqlWhere();
+
+  // Vérifier dans radcheck
+  $stmt = $connexion->prepare("SELECT attribute, value FROM radcheck WHERE $normalizedMacWhere");
+  $stmt->execute([$macCompact]);
+  $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  $is_rejected = false;
+
+  foreach ($rows as $row) {
+    if ($row['attribute'] === 'Auth-Type' && $row['value'] === 'Reject') {
+      $is_rejected = true;
+    }
+  }
+
+  // Vérifier si dans la table blacklist
+  $stmt = $connexion->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
+  $stmt->execute([$mac]);
+  $in_blacklist = (bool) $stmt->fetchColumn();
+
+  ob_clean();
+  echo json_encode([
+    'success' => true,
+    'data' => [
+      'exists'       => count($rows) > 0,
+      'is_rejected'  => $is_rejected,
+      'in_blacklist' => $in_blacklist,
+    ],
+  ]);
+}
+
 function getDevices(PDO $connexion)
 {
   try {
@@ -161,6 +209,7 @@ function addDevice(PDO $connexion)
 {
   $macRaw = $_POST['mac_address'] ?? '';
   $department = $_POST['department'] ?? '';
+  $force = ($_POST['force'] ?? '0') === '1';
 
   if (empty($macRaw) || empty($department)) {
     throw new Exception('Adresse MAC et département requis');
@@ -181,17 +230,35 @@ function addDevice(PDO $connexion)
     $deptEnum = $map[$department]['enum'];
     $groupname = $map[$department]['group'];
 
-    // Vérifier si l'appareil existe déjà, quel que soit le format précédent
-    // en base : f8:a2..., F8-A2..., f8a2..., etc.
+    // Vérifier si l'appareil est bloqué dans radcheck (Auth-Type := Reject)
     $normalizedMacWhere = normalizedMacSqlWhere();
+    $stmtReject = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type' AND value = 'Reject'");
+    $stmtReject->execute([$macCompact]);
+    $is_rejected = ((int) $stmtReject->fetchColumn()) > 0;
+
+    if ($is_rejected && !$force) {
+      // Appareil bloqué mais l'utilisateur n'a pas confirmé
+      if ($connexion->inTransaction()) $connexion->rollBack();
+      ob_clean();
+      echo json_encode(['success' => false, 'error' => 'APPAREIL_DEJA_BLOQUE', 'data' => ['mac_address' => $mac]]);
+      return;
+    }
+
+    // Supprimer toutes les entrées existantes pour cette MAC
+    // (anciens doublons, ou Reject si force=1)
     $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE $normalizedMacWhere");
     $stmtCheck->execute([$macCompact]);
     if ($stmtCheck->fetchColumn() > 0) {
-      // Nettoyer les doublons potentiels existants avant ré-insertion propre
       $stmtDel1 = $connexion->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere");
       $stmtDel1->execute([$macCompact]);
       $stmtDel2 = $connexion->prepare("DELETE FROM radusergroup WHERE $normalizedMacWhere");
       $stmtDel2->execute([$macCompact]);
+    }
+
+    // Si l'appareil était dans la blacklist, le supprimer aussi
+    if ($is_rejected && $force) {
+      $stmtBl = $connexion->prepare("DELETE FROM blacklist WHERE mac_address = ?::macaddr");
+      $stmtBl->execute([$mac]);
     }
 
     // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
