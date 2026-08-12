@@ -8,6 +8,23 @@ define('CHEF_DEPT', 5);
 $msg = '';
 $username_value = '';
 
+/**
+ * Journalise un échec de connexion pour Fail2ban (logs/auth.log).
+ * N'écrit rien en base : Snort / security_event / blacklist ne sont pas touchés.
+ */
+function logFailedLogin($username)
+{
+  $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+  $username = preg_replace('/[\r\n\t]+/', ' ', (string) $username);
+  $username = substr($username, 0, 128);
+  $line = sprintf("%s [FAIL2BAN] Failed login from %s user=%s\n", date('Y-m-d H:i:s'), $ip, $username);
+  $logDir = __DIR__ . '/logs';
+  if (!is_dir($logDir)) {
+    @mkdir($logDir, 0750, true);
+  }
+  @file_put_contents($logDir . '/auth.log', $line, FILE_APPEND | LOCK_EX);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset($_POST['pass'])) {
   $username_value = $_POST['username'];
 
@@ -45,9 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
         die();
       } else {
         $msg = 'Login ou mot de passe incorrect.';
+        logFailedLogin($username_value);
       }
     } else {
       $msg = 'Utilisateur non trouvé ou inactif.';
+      logFailedLogin($username_value);
     }
   } catch (PDOException $e) {
     $msg = 'Erreur de connexion à la base de données.';
