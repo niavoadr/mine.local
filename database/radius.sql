@@ -165,8 +165,7 @@ CREATE TABLE IF NOT EXISTS blacklist (
 	id BIGSERIAL NOT NULL PRIMARY KEY,
 	mac_address MACADDR NOT NULL,
 	reason VARCHAR(255) NOT NULL,
-	blocked_at TIMESTAMP NOT NULL DEFAULT now(),
-	expires_at TIMESTAMP NOT NULL
+	blocked_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS security_event (
@@ -188,3 +187,18 @@ CREATE TABLE IF NOT EXISTS session_users (
     last_seen TIMESTAMP NOT NULL DEFAULT now(),
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- =============================================================================
+-- Index pour les vérifications FreeRADIUS (blacklist_check + visitor_one_device)
+-- =============================================================================
+
+-- Index sur radcheck pour la recherche rapide des entrées Reject (liste noire)
+CREATE INDEX IF NOT EXISTS idx_radcheck_auth_reject
+    ON radcheck (attribute, value)
+    WHERE attribute = 'Auth-Type' AND value = 'Reject';
+
+-- Index sur radacct pour la vérification visiteur 1 identifiant = 1 appareil
+-- Permet de trouver rapidement les sessions d'un visiteur déjà connecté
+CREATE INDEX IF NOT EXISTS idx_radacct_visitor_mac
+    ON radacct (username, CallingStationId)
+    WHERE AcctStartTime IS NOT NULL;
