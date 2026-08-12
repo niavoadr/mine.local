@@ -1043,8 +1043,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     }
 
     function addToBlacklist(forceMac, forceReason) {
-        const mac = forceMac || $('#blacklist-mac').val();
-        const reason = forceReason || $('#blacklist-reason').val();
+        // Quand appelé via .on('click'), forceMac est un Event jQuery — on l'ignore
+        const mac = (typeof forceMac === 'string' && forceMac) ? forceMac : $('#blacklist-mac').val();
+        const reason = (typeof forceReason === 'string' && forceReason) ? forceReason : $('#blacklist-reason').val();
         
         if (!mac || !reason) {
             alert('Veuillez remplir tous les champs');
