@@ -1,5 +1,14 @@
 <?php
 require_once './connexion.php';
+
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    http_response_code(401);
+    echo 'Session expirée';
+    exit();
+}
+
 //update code//
 // Vérifier si le formulaire a été soumis
 if (isset($_POST['id']) && isset($_POST['username'])) {

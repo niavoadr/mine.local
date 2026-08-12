@@ -1,7 +1,17 @@
 <?php
 require_once __DIR__ . '/connexion.php';
 
+session_start();
+
+if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Session expirée']);
+    exit();
+}
+
 /*
+
  * Affiche les derniers événements de sécurité (table `security_event`)
  * sous forme de lignes colorées par sévérité, consommées par l'onglet
  * "Alertes" du dashboard (conteneur .log-console).
