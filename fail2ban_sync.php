@@ -2,45 +2,24 @@
 /**
  * fail2ban_sync.php — Synchronisation des bans Fail2ban vers security_event.
  *
- * Même tuyau que snort_sync.php, source séparée :
- *   Fail2ban.log  →  parse Ban/Unban  →  POST intrusion.php (source_info=Fail2ban)
+ * Fail2ban tourne en local sur le Debian (même machine que PHP / FreeRADIUS).
+ * Pas de SSH : on lit /var/log/fail2ban.log, puis POST intrusion.php.
  *
- * Politique de blocage (Fail2ban seul, jamais Snort) :
+ * Politique (Fail2ban seul, jamais Snort) :
  *   warning  → IP déjà bannie par iptables, pas de blacklist MAC
- *   critical → IP (iptables) + MAC (blacklist / radcheck) si résolue via radacct
+ *   critical → IP + MAC (blacklist / radcheck) si l'appareil est dans radacct
  *
- * Utilisation cron (toutes les 2 minutes) :
- *   */2 * * * * /usr/bin/php /chemin/vers/mine.local/fail2ban_sync.php >> /var/log/fail2ban_sync.log 2>&1
- *
- * Prérequis :
- *   - Fail2ban installé sur le serveur web (ou joignable en SSH)
- *   - Filtre / jail fournis dans fail2ban/ copiés vers /etc/fail2ban/
- *   - CRON_API_TOKEN configuré dans le .env (le même que pour Snort)
+ * Cron :
+ *   */2 * * * * /usr/bin/php /usr/src/app/portail/admin/mine.local/fail2ban_sync.php >> /var/log/fail2ban_sync.log 2>&1
  */
 
 require_once __DIR__ . '/env.php';
 
-// ============ CONFIGURATION ============
-$FAIL2BAN_LOG         = env('FAIL2BAN_LOG', '/var/log/fail2ban.log');
-$FAIL2BAN_SSH_HOST    = env('FAIL2BAN_SSH_HOST', '');
-$FAIL2BAN_SSH_PORT    = (int) env('FAIL2BAN_SSH_PORT', '22');
-$FAIL2BAN_SSH_USER    = env('FAIL2BAN_SSH_USER', '');
-$FAIL2BAN_SSH_KEY     = env('FAIL2BAN_SSH_KEY', '');
-$CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
-$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
-$LAST_SYNC_FILE       = __DIR__ . '/.fail2ban_last_sync';
+$FAIL2BAN_LOG      = env('FAIL2BAN_LOG', '/var/log/fail2ban.log');
+$CRON_API_TOKEN    = env('CRON_API_TOKEN', '');
+$INTRUSION_PHP_URL = env('INTRUSION_PHP_URL', 'http://portail.cpanel/intrusion.php');
+$LAST_SYNC_FILE    = __DIR__ . '/.fail2ban_last_sync';
 
-// Si aucune clé dédiée n'est fournie, on réutilise celle de pfSense (même machine distante)
-if ($FAIL2BAN_SSH_KEY === '') {
-    $FAIL2BAN_SSH_KEY = env('PFSENSE_SSH_KEY', '');
-}
-
-// ============ FONCTIONS ============
-
-/**
- * Normalise une adresse MAC au format xx:xx:xx:xx:xx:xx (minuscules).
- * Copie locale — on n'importe pas blacklist.php / intrusion.php.
- */
 function normalizeMacAddress($macRaw)
 {
     $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
@@ -50,11 +29,6 @@ function normalizeMacAddress($macRaw)
     return implode(':', str_split($cleanMac, 2));
 }
 
-/**
- * Connexion BDD optionnelle (uniquement pour résoudre IP → MAC).
- * Si la BDD est indisponible, le sync continue sans MAC : l'événement
- * est quand même enregistré, sans auto-blocage RADIUS.
- */
 function tryDbConnection()
 {
     try {
@@ -82,9 +56,6 @@ function tryDbConnection()
     }
 }
 
-/**
- * Résout une IP vers la dernière MAC vue dans radacct (session active d'abord).
- */
 function resolveMacFromIp($pdo, $ip)
 {
     if (!$pdo || $ip === '') {
@@ -112,30 +83,8 @@ function resolveMacFromIp($pdo, $ip)
     }
 }
 
-/**
- * Lit le journal Fail2ban en local, ou via SSH si FAIL2BAN_SSH_HOST est défini.
- */
-function fetchFail2banLog($logPath, $sshHost, $sshPort, $sshUser, $keyPath)
+function fetchFail2banLog($logPath)
 {
-    if ($sshHost !== '') {
-        $sshCmd = sprintf(
-            'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 -p %d -i %s %s@%s "cat %s 2>/dev/null"',
-            $sshPort,
-            escapeshellarg($keyPath),
-            escapeshellarg($sshUser),
-            escapeshellarg($sshHost),
-            escapeshellarg($logPath)
-        );
-        $outputLines = [];
-        $exitCode = 0;
-        exec($sshCmd . ' 2>&1', $outputLines, $exitCode);
-        if ($exitCode !== 0) {
-            $error = implode("\n", $outputLines);
-            return ['success' => false, 'error' => "SSH échoué (code $exitCode): $error"];
-        }
-        return ['success' => true, 'log' => implode("\n", $outputLines)];
-    }
-
     if (!file_exists($logPath)) {
         return ['success' => false, 'missing' => true, 'error' => "Fichier introuvable: $logPath"];
     }
@@ -149,12 +98,6 @@ function fetchFail2banLog($logPath, $sshHost, $sshPort, $sshUser, $keyPath)
     return ['success' => true, 'log' => $content];
 }
 
-/**
- * Associe un jail + action Fail2ban à un event_type / sévérité du dashboard.
- *   Ban sshd / recidive → critical → blocage IP + MAC
- *   Autres Ban          → warning  → blocage IP seulement
- *   Unban               → info     → aucun blocage (on ne débloque pas la MAC)
- */
 function mapFail2banEvent($jail, $action)
 {
     $jail = strtolower((string) $jail);
@@ -172,16 +115,6 @@ function mapFail2banEvent($jail, $action)
     return ['event_type' => 'brute_force', 'severity' => 'warning'];
 }
 
-/**
- * Parse /var/log/fail2ban.log.
- *
- * Formats supportés :
- *   2026-08-12 14:30:00,123 fail2ban.actions [1234]: NOTICE  [sshd] Ban 192.168.1.50
- *   2026-08-12 14:35:00,123 fail2ban.actions [1234]: NOTICE  [sshd] Unban 192.168.1.50
- *   2026-08-12 14:29:50,001 fail2ban.filter  [1234]: INFO    [sshd] Found 192.168.1.50
- *
- * Les lignes "Restore Ban" (redémarrage de Fail2ban) sont ignorées pour éviter les doublons.
- */
 function parseFail2banLog($logContent, $sinceTimestamp = null)
 {
     $events = [];
@@ -199,10 +132,7 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
 
         if (preg_match($foundPattern, $line, $m)) {
             $timestamp = strtotime($m[1]);
-            if (!$timestamp) {
-                continue;
-            }
-            if ($sinceTimestamp && $timestamp <= $sinceTimestamp) {
+            if (!$timestamp || ($sinceTimestamp && $timestamp <= $sinceTimestamp)) {
                 continue;
             }
             $ip = $m[3];
@@ -217,17 +147,12 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
         if (!preg_match($actionPattern, $line, $m)) {
             continue;
         }
-
-        // Restore Ban = rechargement de Fail2ban, déjà connu
         if (strcasecmp($m[3], 'Restore Ban') === 0) {
             continue;
         }
 
         $timestamp = strtotime($m[1]);
-        if (!$timestamp) {
-            continue;
-        }
-        if ($sinceTimestamp && $timestamp <= $sinceTimestamp) {
+        if (!$timestamp || ($sinceTimestamp && $timestamp <= $sinceTimestamp)) {
             continue;
         }
 
@@ -265,7 +190,6 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
             'description'   => $description,
             'source_info'   => 'Fail2ban',
             'attempts'      => $attempts,
-            'timestamp'     => date('Y-m-d H:i:s', $timestamp),
             'raw_timestamp' => $timestamp,
         ];
     }
@@ -277,10 +201,6 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
     return $events;
 }
 
-/**
- * Pousse un événement vers intrusion.php (action auto_block_intrusion).
- * Identique à snort_sync.php — on ne touche pas à l'API existante.
- */
 function pushIntrusion($intrusionUrl, $cronToken, $alert)
 {
     $ch = curl_init();
@@ -314,61 +234,22 @@ function pushIntrusion($intrusionUrl, $cronToken, $alert)
     return is_array($decoded) ? $decoded : ['success' => false, 'message' => 'réponse invalide'];
 }
 
-// ============ EXÉCUTION PRINCIPALE ============
-
 if ($CRON_API_TOKEN === '') {
     echo "[fail2ban_sync] Erreur: CRON_API_TOKEN non configuré dans le .env\n";
     exit(1);
 }
 
-$useSsh = ($FAIL2BAN_SSH_HOST !== '');
-$sshKeyTmpFile = null;
+$lastSync = file_exists($LAST_SYNC_FILE) ? (int) file_get_contents($LAST_SYNC_FILE) : null;
 
-if ($useSsh) {
-    if ($FAIL2BAN_SSH_USER === '') {
-        echo "[fail2ban_sync] Erreur: FAIL2BAN_SSH_USER requis quand FAIL2BAN_SSH_HOST est défini\n";
-        exit(1);
-    }
-    if ($FAIL2BAN_SSH_KEY === '') {
-        echo "[fail2ban_sync] Erreur: FAIL2BAN_SSH_KEY (ou PFSENSE_SSH_KEY) requis pour le SSH\n";
-        exit(1);
-    }
-    $sshKeyTmpFile = tempnam(sys_get_temp_dir(), 'ssh_key_');
-    file_put_contents($sshKeyTmpFile, $FAIL2BAN_SSH_KEY);
-    chmod($sshKeyTmpFile, 0600);
-}
-
-$lastSync = null;
-if (file_exists($LAST_SYNC_FILE)) {
-    $lastSync = (int) file_get_contents($LAST_SYNC_FILE);
-}
-
-if ($useSsh) {
-    echo "[fail2ban_sync] Connexion SSH à $FAIL2BAN_SSH_HOST...\n";
-} else {
-    echo "[fail2ban_sync] Lecture locale de $FAIL2BAN_LOG...\n";
-}
-
-$result = fetchFail2banLog(
-    $FAIL2BAN_LOG,
-    $FAIL2BAN_SSH_HOST,
-    $FAIL2BAN_SSH_PORT,
-    $FAIL2BAN_SSH_USER,
-    $sshKeyTmpFile ?: ''
-);
+echo "[fail2ban_sync] Lecture locale de $FAIL2BAN_LOG...\n";
+$result = fetchFail2banLog($FAIL2BAN_LOG);
 
 if (!$result['success']) {
     if (!empty($result['missing'])) {
         echo "[fail2ban_sync] Info: " . $result['error'] . " (Fail2ban pas encore installé ?)\n";
-        if ($sshKeyTmpFile && file_exists($sshKeyTmpFile)) {
-            unlink($sshKeyTmpFile);
-        }
         exit(0);
     }
     echo "[fail2ban_sync] Erreur: " . $result['error'] . "\n";
-    if ($sshKeyTmpFile && file_exists($sshKeyTmpFile)) {
-        unlink($sshKeyTmpFile);
-    }
     exit(1);
 }
 
@@ -404,8 +285,4 @@ if ($latestTimestamp > ($lastSync ?: 0)) {
     file_put_contents($LAST_SYNC_FILE, (string) $latestTimestamp);
 }
 
-if ($sshKeyTmpFile && file_exists($sshKeyTmpFile)) {
-    unlink($sshKeyTmpFile);
-}
-
-echo "[fail2ban_sync] Terminé: $inserted insérée(s), $blocked bloquée(s)\n";
+echo "[fail2ban_sync] Terminé: $inserted insérée(s), $blocked MAC bloquée(s)\n";

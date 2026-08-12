@@ -28,7 +28,7 @@ $CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
 $PFSENSE_SNORT_LOG    = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_re032559/alert');
 
 // URL vers intrusion.php (serveur web local)
-$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
+$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://portail.cpanel/intrusion.php');
 
 // Fichier de horodatage pour ne pas importer les mêmes alertes deux fois
 $LAST_SYNC_FILE       = __DIR__ . '/.snort_last_sync';
