@@ -36,6 +36,10 @@ $pdo = $connexion;
  *
  * Le blocage est effectif : ajout/suppression dans radcheck avec
  * Auth-Type := Reject pour que FreeRADIUS rejette l'appareil.
+ *
+ * Les adresses MAC sont normalisées via normalizeMacAddress() (même
+ * méthode que radius_devices.php) pour éviter les problèmes de casse
+ * et de format (AA-BB-CC-DD-EE-FF vs aa:bb:cc:dd:ee:ff, etc.).
  */
 
 function jsonResponse($success, $message = '', $data = null)
@@ -44,10 +48,41 @@ function jsonResponse($success, $message = '', $data = null)
   exit();
 }
 
-function isValidMac($mac)
+/**
+ * Normalise une adresse MAC au format attendu par FreeRADIUS et la base :
+ *   xx:xx:xx:xx:xx:xx (minuscules, séparateur deux-points)
+ * Les saisies avec majuscules, tirets, points, espaces, etc. sont acceptées
+ * tant qu'elles contiennent exactement 12 caractères hexadécimaux.
+ * Identique à la méthode utilisée dans radius_devices.php.
+ */
+function normalizeMacAddress($macRaw)
 {
-  // Accepte les formats AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, AABB.CCDD.EEFF
-  return (bool) preg_match('/^([0-9A-Fa-f]{2}[:\-\.]){5}[0-9A-Fa-f]{2}$/', $mac);
+  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
+
+  if (strlen($cleanMac) !== 12) {
+    return false;
+  }
+
+  return implode(':', str_split($cleanMac, 2));
+}
+
+/**
+ * Retourne la version sans séparateur d'une MAC normalisée, pour comparer
+ * proprement avec d'anciennes valeurs stockées en base sous plusieurs formats.
+ */
+function compactMacAddress($mac)
+{
+  return str_replace(':', '', normalizeMacAddress($mac));
+}
+
+/**
+ * Clause WHERE SQL insensible à la casse et au format pour radcheck.username.
+ * Comparaison via regexp_replace : on retire tout séparateur et on passe
+ * en minuscules avant de comparer avec la valeur compactée.
+ */
+function normalizedMacSqlWhere()
+{
+  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -83,8 +118,13 @@ switch ($action) {
       $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
       $data = array_map(function ($row) {
+        // Afficher la MAC normalisée (minuscules, deux-points)
+        $displayMac = normalizeMacAddress($row['mac_address']);
+        if ($displayMac === false) {
+          $displayMac = strtolower($row['mac_address']);
+        }
         return [
-          'mac_address'      => $row['mac_address'],
+          'mac_address'      => $displayMac,
           'ip_address'       => $row['ip_address'],
           'reason'           => $row['reason'],
           'blocked_date'     => $row['blocked_date'],
@@ -115,40 +155,51 @@ switch ($action) {
     break;
 
   case 'add_blacklist':
-    $mac = trim($_POST['mac_address'] ?? '');
+    $macRaw = trim($_POST['mac_address'] ?? '');
     $reason = trim($_POST['reason'] ?? '');
 
-    if ($mac === '' || $reason === '') {
+    if ($macRaw === '' || $reason === '') {
       jsonResponse(false, 'Adresse MAC et raison sont obligatoires');
     }
-    if (!isValidMac($mac)) {
+
+    // Normaliser la MAC : minuscules, format xx:xx:xx:xx:xx:xx
+    $mac = normalizeMacAddress($macRaw);
+    if ($mac === false) {
       jsonResponse(false, "Format d'adresse MAC invalide");
     }
+
+    $macCompact = compactMacAddress($macRaw);
 
     try {
       $pdo->beginTransaction();
 
       // Si déjà bloquée, on renouvelle le blocage ; sinon on insère
-      $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?");
+      // blacklist.mac_address est de type MACADDR : la comparaison est insensible à la casse
+      $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
       $stmt->execute([$mac]);
       $existing = $stmt->fetchColumn();
 
       if ($existing) {
         $stmt = $pdo->prepare("UPDATE blacklist
                   SET reason = ?, blocked_at = now()
-                  WHERE mac_address = ?");
+                  WHERE mac_address = ?::macaddr");
         $stmt->execute([$reason, $mac]);
       } else {
         $stmt = $pdo->prepare("INSERT INTO blacklist (mac_address, reason)
-                  VALUES (?, ?)");
+                  VALUES (?::macaddr, ?)");
         $stmt->execute([$mac, $reason]);
       }
 
       // Bloquer dans radcheck : Auth-Type := Reject pour FreeRADIUS
-      // D'abord supprimer tout ancien Reject pour cette MAC
-      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'");
-      $stmt->execute([$mac]);
-      // Ensuite insérer le Reject
+      // Utiliser la même méthode que radius_devices.php :
+      // recherche insensible à la casse/format via normalizedMacSqlWhere()
+      $normalizedMacWhere = normalizedMacSqlWhere();
+
+      // Supprimer tout ancien Reject pour cette MAC (quel que soit le format stocké)
+      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type'");
+      $stmt->execute([$macCompact]);
+
+      // Insérer le Reject avec la MAC normalisée
       $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
       $stmt->execute([$mac]);
 
@@ -161,20 +212,30 @@ switch ($action) {
     break;
 
   case 'remove_blacklist':
-    $mac = trim($_POST['mac_address'] ?? '');
-    if ($mac === '') {
+    $macRaw = trim($_POST['mac_address'] ?? '');
+    if ($macRaw === '') {
       jsonResponse(false, 'Adresse MAC requise');
     }
+
+    // Normaliser la MAC
+    $mac = normalizeMacAddress($macRaw);
+    if ($mac === false) {
+      jsonResponse(false, "Format d'adresse MAC invalide");
+    }
+
+    $macCompact = compactMacAddress($macRaw);
+
     try {
       $pdo->beginTransaction();
 
-      // Supprimer de la blacklist
-      $stmt = $pdo->prepare("DELETE FROM blacklist WHERE mac_address = ?");
+      // Supprimer de la blacklist (MACADDR : insensible à la casse)
+      $stmt = $pdo->prepare("DELETE FROM blacklist WHERE mac_address = ?::macaddr");
       $stmt->execute([$mac]);
 
-      // Supprimer le blocage de radcheck
-      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'");
-      $stmt->execute([$mac]);
+      // Supprimer le blocage de radcheck via comparaison insensible à la casse/format
+      $normalizedMacWhere = normalizedMacSqlWhere();
+      $stmt = $pdo->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type' AND value = 'Reject'");
+      $stmt->execute([$macCompact]);
 
       $pdo->commit();
       jsonResponse(true, 'Appareil débloqué avec succès sur le réseau');

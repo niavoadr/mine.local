@@ -20,6 +20,10 @@ $action = $_POST['action'] ?? '';
  * L'action auto_block_intrusion permet au script snort_sync.php
  * d'insérer les alertes Snort et de bloquer automatiquement
  * les appareils en cas de sévérité critical ou warning.
+ *
+ * Les adresses MAC sont normalisées via normalizeMacAddress() (même
+ * méthode que radius_devices.php et blacklist.php) pour éviter les
+ * problèmes de casse et de format.
  */
 
 // Affichage : valeur d'enum -> badge de sévérité du dashboard
@@ -42,10 +46,27 @@ function jsonResponse($success, $message = '', $data = null)
   exit();
 }
 
-function isValidMac($mac)
+/**
+ * Normalise une adresse MAC au format xx:xx:xx:xx:xx:xx (minuscules).
+ * Même méthode que radius_devices.php et blacklist.php.
+ */
+function normalizeMacAddress($macRaw)
 {
-  // Accepte les formats AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, AABB.CCDD.EEFF
-  return (bool) preg_match('/^([0-9A-Fa-f]{2}[:\-\.]){5}[0-9A-Fa-f]{2}$/', $mac);
+  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
+  if (strlen($cleanMac) !== 12) {
+    return false;
+  }
+  return implode(':', str_split($cleanMac, 2));
+}
+
+function compactMacAddress($mac)
+{
+  return str_replace(':', '', normalizeMacAddress($mac));
+}
+
+function normalizedMacSqlWhere()
+{
+  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -151,12 +172,20 @@ if ($action === 'get_intrusions') {
         // Repli lisible si le JSON details ne contient pas de description
         $description = ucfirst(str_replace('_', ' ', $row['event_type']));
       }
+      // Afficher la MAC normalisée
+      $displayMac = $row['mac_address'];
+      if ($displayMac !== 'N/A') {
+        $norm = normalizeMacAddress($displayMac);
+        if ($norm !== false) {
+          $displayMac = $norm;
+        }
+      }
       return [
         'timestamp'   => date('d/m/Y H:i:s', strtotime($row['created_at'])),
         'type'        => $row['event_type'],
         'severity'    => $severityDisplay[$row['security_status']] ?? 'low',
         'ip_address'  => $row['source_ip'],
-        'mac_address' => $row['mac_address'],
+        'mac_address' => $displayMac,
         'description' => $description,
         'source_info' => $row['source_info'] !== null && $row['source_info'] !== ''
           ? $row['source_info']
@@ -206,8 +235,17 @@ if ($action === 'get_intrusions') {
     if (!in_array($severity, ['critical', 'warning', 'info'])) {
       jsonResponse(false, 'Sévérité invalide (critical, warning ou info)');
     }
-    if ($mac_address !== '' && !isValidMac($mac_address)) {
-      jsonResponse(false, "Format d'adresse MAC invalide");
+
+    // Normaliser la MAC si fournie (même méthode que radius_devices.php et blacklist.php)
+    $macCompact = '';
+    if ($mac_address !== '') {
+      $macNormalized = normalizeMacAddress($mac_address);
+      if ($macNormalized === false) {
+        jsonResponse(false, "Format d'adresse MAC invalide");
+      }
+      $macCompact = compactMacAddress($mac_address);
+      // Utiliser la MAC normalisée pour toutes les opérations
+      $mac_address = $macNormalized;
     }
 
     try {
@@ -222,7 +260,7 @@ if ($action === 'get_intrusions') {
       // 2. Auto-blocage : si la sévérité est critical ou warning, bloquer automatiquement
       if (($severity === 'critical' || $severity === 'warning') && $mac_address !== '') {
 
-        // Vérifier si déjà dans blacklist
+        // Vérifier si déjà dans blacklist (MACADDR : insensible à la casse)
         $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
         $stmt->execute([$mac_address]);
         $already_blocked = $stmt->fetchColumn();
@@ -233,9 +271,11 @@ if ($action === 'get_intrusions') {
           $auto_reason = 'Auto-blocage: intrusion ' . $event_type . ' (' . $severity . ')';
           $stmt->execute([$mac_address, $auto_reason]);
 
-          // Bloquer dans radcheck
-          $stmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'");
-          $stmt->execute([$mac_address]);
+          // Bloquer dans radcheck via comparaison insensible à la casse/format
+          $normalizedMacWhere = normalizedMacSqlWhere();
+          $stmt = $pdo->prepare("DELETE FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type'");
+          $stmt->execute([$macCompact]);
+          // Insérer avec la MAC normalisée
           $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')");
           $stmt->execute([$mac_address]);
         }
