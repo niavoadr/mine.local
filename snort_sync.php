@@ -18,12 +18,12 @@ require_once __DIR__ . '/env.php';
 // ============ CONFIGURATION ============
 $PFSENSE_SSH_HOST     = env('PFSENSE_SSH_HOST', '');
 $PFSENSE_SSH_PORT     = (int) env('PFSENSE_SSH_PORT', '22');
-$PFSENSE_SSH_USER     = env('PFSENSE_SSH_USER', 'root');
+$PFSENSE_SSH_USER     = env('PFSENSE_SSH_USER', 'admin');
 $PFSENSE_SSH_KEY      = env('PFSENSE_SSH_KEY', '');       // Contenu de la clé privée SSH (collé directement)
 $CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
 
-// Chemin des logs Snort sur pfSense
-$PFSENSE_SNORT_LOG    = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_alerts');
+// Chemin des logs Snort sur pfSense (par interface, ex: snort_re032559/alert)
+$PFSENSE_SNORT_LOG    = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_re032559/alert');
 
 // URL vers intrusion.php (serveur web local)
 $INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
@@ -39,8 +39,10 @@ $LAST_SYNC_FILE       = __DIR__ . '/.snort_last_sync';
  */
 function fetchSnortLogSsh($host, $port, $user, $keyPath, $snortLog)
 {
+    // Sur pfSense, les fichiers alert sont des fichiers normaux (pas clog)
+    // On utilise cat en priorité, clog en fallback pour les anciens formats
     $sshCmd = sprintf(
-        'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 -p %d -i %s %s@%s "clog %s 2>/dev/null || cat %s 2>/dev/null"',
+        'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 -p %d -i %s %s@%s "cat %s 2>/dev/null || clog %s 2>/dev/null"',
         $port,
         escapeshellarg($keyPath),
         escapeshellarg($user),
@@ -63,23 +65,82 @@ function fetchSnortLogSsh($host, $port, $user, $keyPath, $snortLog)
 }
 
 /**
- * Parse les lignes du log Snort de pfSense et retourne un tableau d'alertes.
+ * Parse les alertes Snort de pfSense.
  *
- * Format typique d'une ligne Snort dans les logs pfSense :
- *   Aug 12 10:30:00 hostname snort[12345]: [1:1001:1] ALERT MESSAGE [Classification: Attempted Admin] [Priority: 1] {TCP} 192.168.1.100:12345 -> 10.0.0.1:80
+ * Supporte DEUX formats :
+ *
+ * 1. Format CSV pfSense (le plus courant) :
+ *    08/10/26-13:38:44.636592 ,120,3,2,"(http_inspect) MESSAGE",TCP,192.168.1.1,80,192.168.0.99,43182,47908,Classification,3,alert,Allow
+ *
+ * 2. Format standard Snort syslog (fallback) :
+ *    Aug 12 10:30:00 hostname snort[12345]: [1:1001:1] MESSAGE [Classification: ...] [Priority: 1] {TCP} 192.168.1.100:12345 -> 10.0.0.1:80
  */
 function parseSnortLog($logContent, $sinceTimestamp = null)
 {
     $alerts = [];
     $lines = explode("\n", $logContent);
 
-    $pattern = '/^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+\S+\s+snort\[\d+\]:\s+\[(\d+):(\d+):(\d+)\]\s+(.+?)\s+\[Classification:\s*([^\]]+)\]\s+\[Priority:\s*(\d+)\]\s+\{(\w+)\}\s+([0-9.:]+)\s*->\s*([0-9.:]+)/';
+    // Format CSV pfSense :
+    // timestamp ,gid,sid,rev,"message",proto,src_ip,src_port,dst_ip,dst_port,pkt_len,classification,priority,action_type,action
+    $pfsensePattern = '/^(\d{2}\/\d{2}\/\d{2}-\d{2}:\d{2}:\d{2}\.\d+)\s*,(\d+),(\d+),(\d+),"([^"]+)",(\w+),([0-9.]+),(\d+),([0-9.]+),(\d+),(\d+),([^,]*),(\d+),([^,]*),([^,]*)/';
+
+    // Format standard Snort syslog (fallback)
+    $standardPattern = '/^(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+\S+\s+snort\[\d+\]:\s+\[(\d+):(\d+):(\d+)\]\s+(.+?)\s+\[Classification:\s*([^\]]+)\]\s+\[Priority:\s*(\d+)\]\s+\{(\w+)\}\s+([0-9.:]+)\s*->\s*([0-9.:]+)/';
 
     foreach ($lines as $line) {
         $line = trim($line);
         if ($line === '') continue;
 
-        if (preg_match($pattern, $line, $m)) {
+        // --- Format CSV pfSense ---
+        if (preg_match($pfsensePattern, $line, $m)) {
+            // Timestamp : MM/DD/YY-HH:MM:SS.micro
+            // Convertir en format lisible par strtotime
+            $tsStr = $m[1];
+            // 08/10/26 = MM/DD/YY → on convertit en DD/MM/YY pour strtotime
+            if (preg_match('/^(\d{2})\/(\d{2})\/(\d{2})-(\d{2}:\d{2}:\d{2})/', $tsStr, $tm)) {
+                $tsForStrtotime = $tm[2] . '/' . $tm[1] . '/' . $tm[3] . ' ' . $tm[4];
+                $timestamp = strtotime($tsForStrtotime);
+                if (!$timestamp) {
+                    // Fallback : essayer YY-MM-DD
+                    $tsForStrtotime = '20' . $tm[3] . '-' . $tm[1] . '-' . $tm[2] . ' ' . $tm[4];
+                    $timestamp = strtotime($tsForStrtotime);
+                }
+            } else {
+                $timestamp = strtotime($tsStr);
+            }
+
+            if (!$timestamp) continue;
+            if ($sinceTimestamp && $timestamp <= $sinceTimestamp) continue;
+
+            $priority = (int) $m[13];
+            if ($priority <= 1) {
+                $severity = 'critical';
+            } elseif ($priority <= 2) {
+                $severity = 'warning';
+            } else {
+                $severity = 'info';
+            }
+
+            $sourceIp    = $m[7];  // IP source
+            $description = trim($m[5]);
+            $classification = trim($m[12]);
+
+            $alerts[] = [
+                'event_type'   => $classification ?: 'snort_alert',
+                'severity'     => $severity,
+                'source_ip'    => $sourceIp,
+                'mac_address'  => '',
+                'description'  => $description,
+                'source_info'  => 'Snort',
+                'attempts'     => 1,
+                'timestamp'    => date('Y-m-d H:i:s', $timestamp),
+                'raw_timestamp'=> $timestamp,
+            ];
+            continue;
+        }
+
+        // --- Format standard Snort syslog (fallback) ---
+        if (preg_match($standardPattern, $line, $m)) {
             $timestamp = strtotime($m[1]);
             if (!$timestamp) {
                 $timestamp = strtotime($m[1] . ' ' . date('Y'));
@@ -176,7 +237,7 @@ if (file_exists($LAST_SYNC_FILE)) {
     $lastSync = (int) file_get_contents($LAST_SYNC_FILE);
 }
 
-echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\n";
+echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\\n";
 $result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $sshKeyTmpFile, $PFSENSE_SNORT_LOG);
 
 if (!$result['success']) {
@@ -185,7 +246,7 @@ if (!$result['success']) {
 }
 
 $alerts = parseSnortLog($result['log'], $lastSync);
-echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\n";
+echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\\n";
 
 $blocked = 0;
 $inserted = 0;
