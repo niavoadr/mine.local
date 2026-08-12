@@ -127,7 +127,9 @@ function getDevices(PDO $connexion)
                 FROM radcheck rc
                 LEFT JOIN radusergroup rg ON LOWER(rc.username) = LOWER(rg.username)  
                 LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname AND rgr.attribute = 'WISPr-Bandwidth-Max-Down'
-                WHERE rc.username ~* '^([0-9a-f]{2}[:.-]?){5}[0-9a-f]{2}$' OR rc.username ~* '^[0-9a-f]{12}$'
+                WHERE rc.attribute = 'Cleartext-Password'
+                  AND rc.department IS NOT NULL
+                  AND (rc.username ~* '^([0-9a-f]{2}[:.-]?){5}[0-9a-f]{2}$' OR rc.username ~* '^[0-9a-f]{12}$')
                 GROUP BY rc.username
                 ORDER BY department, rc.username";
 
