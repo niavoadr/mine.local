@@ -25,7 +25,12 @@ if ($sshKeygen !== '') {
     $tmpKey = $tmpDir . '/pfsense_key_' . uniqid();
     $tmpPub = $tmpKey . '.pub';
 
-    exec("ssh-keygen -t rsa -b 4096 -f " . escapeshellarg($tmpKey) . " -N '' -C 'mine.local-pfsense' 2>&1", $out, $code);
+    // Commentaire au format user@hostname (comme ssh-keygen par défaut)
+    $currentUser = get_current_user();
+    $hostname = gethostname() ?: 'server';
+    $comment = $currentUser . '@' . $hostname;
+
+    exec("ssh-keygen -t rsa -b 4096 -f " . escapeshellarg($tmpKey) . " -N '' -C " . escapeshellarg($comment) . " 2>&1", $out, $code);
 
     if ($code === 0 && file_exists($tmpKey) && file_exists($tmpPub)) {
         $privateKey = file_get_contents($tmpKey);
@@ -61,7 +66,11 @@ if ($opensslCmd !== '') {
 
     if ($code1 === 0 && file_exists($tmpKey)) {
         // Convertir en clé publique OpenSSH
-        exec("ssh-keygen -y -f " . escapeshellarg($tmpKey) . " -C 'mine.local-pfsense' 2>&1", $pubOut, $code2);
+        $currentUser = get_current_user();
+        $hostname = gethostname() ?: 'server';
+        $comment = $currentUser . '@' . $hostname;
+
+        exec("ssh-keygen -y -f " . escapeshellarg($tmpKey) . " -C " . escapeshellarg($comment) . " 2>&1", $pubOut, $code2);
 
         if ($code2 === 0 && !empty($pubOut)) {
             $privateKey = file_get_contents($tmpKey);
