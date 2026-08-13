@@ -1,5 +1,4 @@
 <?php
-/** Suivi des sessions ouvertes dans l'application. */
 
 function register_app_session(PDO $pdo): void
 {
@@ -7,8 +6,7 @@ function register_app_session(PDO $pdo): void
     return;
   }
 
-  // La table ne possède volontairement aucun index : on remplace la ligne
-  // de session manuellement à chaque heartbeat.
+
   $delete = $pdo->prepare('DELETE FROM session_users WHERE session_id = ?');
   $delete->execute([session_id()]);
 

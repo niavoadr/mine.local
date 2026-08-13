@@ -1,5 +1,4 @@
 <?php
-/** Vue PHP du gestionnaire de comptes administrateur. */
 require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 

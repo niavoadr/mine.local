@@ -8,10 +8,6 @@ define('CHEF_DEPT', 5);
 $msg = '';
 $username_value = '';
 
-/**
- * Journalise un échec de connexion pour Fail2ban (logs/auth.log).
- * N'écrit rien en base : Snort / security_event / blacklist ne sont pas touchés.
- */
 function logFailedLogin($username)
 {
   $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
@@ -36,27 +32,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
       if (password_verify($_POST['pass'], $row['password_hash'])) {
-        // Variables de session alignées sur le schéma `users` (consommées par les dashboards)
         $_SESSION['user'] = $row['username'];
         $_SESSION['nom_utilisateur'] = $row['username'];
         $_SESSION['role'] = $row['role'];
         $_SESSION['role_lib'] = $row['role'] === 'ADMIN' ? 'Administrateur' : 'Utilisateur';
         $_SESSION['user_id'] = $row['id'];
 
-        // Mise à jour de la dernière connexion (non bloquant)
         try {
           $connexion->prepare('UPDATE users SET last_login = now() WHERE id = ?')->execute([$row['id']]);
         } catch (PDOException $e) {
-          // On ignore : la connexion doit quand même aboutir
         }
 
-        // Déterminer la page de redirection
         if ($row['role'] === 'ADMIN') {
           $target_page = 'dashboard_admin.php';
         } else {
           $target_page = 'dashboard_user.php';
         }
-        // Vider le buffer et rediriger
         ob_end_clean();
         header('Location: ' . $target_page);
         die();
@@ -82,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
   <meta name="description" content="Portail de Connexion - Administration RADIUS">
   <title>Connexion - Ministère des Mines</title>
   
-  <!-- Bootstrap 5 & FontAwesome & Google Fonts -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -120,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     padding: 1.5rem;
   }
 
-  /* Orbes lumineux en arrière-plan */
   .bg-orb {
     position: absolute;
     border-radius: 50%;
@@ -152,7 +141,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     100% { transform: translate(40px, 30px) scale(1.1); }
   }
 
-  /* Conteneur principal Glassmorphism */
   .login-card {
     position: relative;
     z-index: 1;
@@ -183,7 +171,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     }
   }
 
-  /* Section de marque à gauche */
   .brand-panel {
     background: linear-gradient(135deg, rgba(20, 20, 24, 0.8) 0%, rgba(28, 20, 12, 0.85) 100%);
     border-right: 1px solid rgba(218, 165, 32, 0.2);
@@ -307,7 +294,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     padding-top: 1.25rem;
   }
 
-  /* Section de formulaire à droite */
   .form-panel {
     padding: 3.5rem 3rem;
     display: flex;
@@ -333,7 +319,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     margin: 0;
   }
 
-  /* Alertes d'erreur */
   .custom-alert {
     background: rgba(239, 68, 68, 0.12);
     border: 1px solid rgba(239, 68, 68, 0.3);
@@ -354,7 +339,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     40%, 80% { transform: translateX(5px); }
   }
 
-  /* Floating labels & inputs modernes */
   .form-floating {
     margin-bottom: 1.25rem;
     position: relative;
@@ -425,7 +409,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     color: #ffffff;
   }
 
-  /* Checkbox & Options */
   .form-options {
     display: flex;
     align-items: center;
@@ -477,7 +460,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     transform: scale(1);
   }
 
-  /* Bouton principal */
   .btn-submit {
     width: 100%;
     height: 52px;
@@ -525,7 +507,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     transform: translateY(0);
   }
 
-  /* Bouton secondaire */
   .btn-ghost {
     width: 100%;
     height: 48px;
@@ -546,7 +527,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     color: var(--gold-primary);
   }
 
-  /* Responsive Design */
   @media (max-width: 900px) {
     .login-card {
       grid-template-columns: 1fr;
@@ -591,14 +571,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
 </head>
 
 <body>
-  <!-- Orbes en arrière-plan -->
   <div class="bg-orb orb-1"></div>
   <div class="bg-orb orb-2"></div>
 
-  <!-- Conteneur Glassmorphism -->
   <div class="login-card">
-    
-    <!-- Panneau Marque / Gauche -->
     <div class="brand-panel">
       <div>
         <div class="logo-wrapper">
@@ -614,7 +590,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
         <div class="brand-hero">
           <h1>Portail Central <span>RADIUS & Gestion</span></h1>
           <p>Plateforme centralisée d'authentification, d'autorisation et de supervision du réseau et des comptes utilisateurs.</p>
-          
           <div class="feature-pills">
             <div class="feature-pill">
               <i class="fa-solid fa-lock"></i> Sécurité Haute Précision
@@ -635,14 +610,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
       </div>
     </div>
 
-    <!-- Panneau Formulaire / Droite -->
     <div class="form-panel">
       <div class="form-header">
         <h2>Authentification</h2>
         <p>Veuillez saisir vos identifiants de session</p>
       </div>
 
-      <!-- Message d'erreur -->
       <?php if (!empty($msg)): ?>
         <div class="custom-alert">
           <i class="fa-solid fa-circle-exclamation fs-5"></i>
@@ -651,8 +624,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
       <?php endif; ?>
 
       <form method="POST" action="login.php" id="loginForm">
-        
-        <!-- Nom d'utilisateur -->
         <div class="form-floating">
           <input required type="text" class="form-control" id="floatingInput" placeholder="Nom d'utilisateur" name="username" value="<?php echo htmlspecialchars(
             $username_value,
@@ -661,7 +632,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           <i class="fa-regular fa-user input-icon"></i>
         </div>
 
-        <!-- Mot de passe -->
         <div class="form-floating">
           <input required type="password" class="form-control" id="floatingPassword" placeholder="Mot de passe" name="pass" autocomplete="current-password">
           <label for="floatingPassword">Mot de passe</label>
@@ -671,7 +641,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           </button>
         </div>
 
-        <!-- Options -->
         <div class="form-options">
           <label class="custom-checkbox" for="flexCheckDefault">
             <input type="checkbox" value="remember-me" id="flexCheckDefault" name="forget">
@@ -679,12 +648,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           </label>
         </div>
 
-        <!-- Boutons -->
         <button class="btn-submit" type="submit" name="ok">
           <span>Se connecter</span>
           <i class="fa-solid fa-arrow-right-to-bracket"></i>
         </button>
-        
+
         <button type="button" class="btn-ghost" onclick="alert('Veuillez contacter l\'administrateur système pour toute demande d\'accès ou de réinitialisation.');">
           <i class="fa-regular fa-circle-question me-1"></i> S'inscrire / Assistance
         </button>
@@ -697,7 +665,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     function togglePasswordVisibility() {
       const passwordInput = document.getElementById('floatingPassword');
       const toggleIcon = document.getElementById('togglePasswordIcon');
-      
+
       if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         toggleIcon.classList.remove('fa-eye');

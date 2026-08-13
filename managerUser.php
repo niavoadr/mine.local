@@ -1,5 +1,4 @@
 <?php
-/** Vue PHP en lecture seule du gestionnaire de comptes. */
 require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 

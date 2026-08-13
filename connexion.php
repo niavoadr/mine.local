@@ -33,7 +33,6 @@ if (!function_exists('get_db_connection')) {
       PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
-    // Définir l'encodage UTF-8 pour PostgreSQL
     $pdo->exec("SET NAMES 'utf8'");
 
     return $pdo;

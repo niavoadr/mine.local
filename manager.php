@@ -2,7 +2,6 @@
 session_start();
 require_once __DIR__ . '/connexion.php';
 
-// manager.php — API des opérations du gestionnaire (les vues sont maintenant en PHP)
 if (empty($_SESSION['user'])) {
   http_response_code(401);
   header('Content-Type: application/json');
@@ -25,10 +24,6 @@ function jsonResponse($success, $message = '', $data = null)
   exit();
 }
 
-/**
- * Récupère les valeurs d'un type ENUM PostgreSQL.
- * Permet de s'adapter automatiquement au schéma (department_enum, role_enum, ...).
- */
 function getEnumValues(PDO $pdo, $typeName)
 {
   $sql = "SELECT e.enumlabel AS label
@@ -47,8 +42,6 @@ if (!isset($_POST['action'])) {
 
 $action = $_POST['action'];
 
-// La consultation est disponible aux utilisateurs connectés, mais seules les sessions
-// administrateur peuvent créer un compte ou modifier son statut.
 if (in_array($action, ['create_user', 'update_status'], true) && ($_SESSION['role_lib'] ?? '') !== 'Administrateur') {
   jsonResponse(false, 'Accès réservé aux administrateurs');
 }
@@ -56,14 +49,12 @@ if (in_array($action, ['create_user', 'update_status'], true) && ($_SESSION['rol
 switch ($action) {
   case 'get_stats':
     try {
-      // Total des utilisateurs et utilisateurs actifs (status = 'active')
       $stmt = $pdo->query("SELECT
                 COUNT(*) AS total,
                 COUNT(*) FILTER (WHERE status = 'active') AS active
               FROM users");
       $row = $stmt->fetch();
 
-      // Total des rôles = nombre de valeurs de l'enum role_enum
       $totalRoles = count(getEnumValues($pdo, 'role_enum'));
 
       jsonResponse(true, '', [
@@ -78,10 +69,8 @@ switch ($action) {
 
   case 'get_departements':
     try {
-      // Les départements sont désormais une ENUM (plus de table dédiée)
       $values = getEnumValues($pdo, 'department_enum');
       $departements = array_map(function ($label) {
-        // La valeur de l'option = le libellé de l'ENUM (utilisé tel quel dans la table users)
         return ['id' => $label, 'nom' => $label];
       }, $values);
       jsonResponse(true, '', $departements);
@@ -92,7 +81,6 @@ switch ($action) {
 
   case 'get_roles':
     try {
-      // Les rôles sont désormais une ENUM (ADMIN / USER)
       $values = getEnumValues($pdo, 'role_enum');
       $roles = array_map(function ($label) {
         return ['id' => $label, 'nom' => $label];
@@ -105,7 +93,6 @@ switch ($action) {
 
   case 'get_users':
     try {
-      // Plus de JOIN : department et role sont des colonnes ENUM de `users`
       $stmt = $pdo->query("SELECT id, username, email, department, role, status, date_creation
               FROM users
               ORDER BY date_creation DESC");
@@ -121,7 +108,6 @@ switch ($action) {
     break;
 
   case 'create_user':
-    // Champs alignés sur le schéma `users`
     $username = trim($_POST['username'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -141,14 +127,12 @@ switch ($action) {
     }
 
     try {
-      // Vérifier l'unicité du nom d'utilisateur / email
       $stmt = $pdo->prepare('SELECT COUNT(*) FROM users WHERE username = ? OR email = ?');
       $stmt->execute([$username, $email]);
       if ($stmt->fetchColumn() > 0) {
         jsonResponse(false, "Un utilisateur avec ce nom d'utilisateur ou cet email existe déjà");
       }
 
-      // Valider le département et le rôle contre les valeurs de l'ENUM
       if (!in_array($department, getEnumValues($pdo, 'department_enum'), true)) {
         jsonResponse(false, 'Département invalide');
       }
@@ -156,7 +140,6 @@ switch ($action) {
         jsonResponse(false, 'Rôle invalide');
       }
 
-      // Création (date_modification est NOT NULL sans valeur par défaut => now())
       $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
       $stmt = $pdo->prepare("INSERT INTO users
               (username, email, password_hash, department, role, status, date_modification)
@@ -166,7 +149,6 @@ switch ($action) {
       jsonResponse(true, 'Utilisateur créé avec succès !');
     } catch (PDOException $e) {
       if ($e->getCode() == '23505') {
-        // Violation de contrainte unique (username ou email)
         jsonResponse(false, "Un utilisateur avec ce nom d'utilisateur ou cet email existe déjà");
       }
       jsonResponse(false, "Erreur lors de la création de l'utilisateur");
@@ -180,14 +162,12 @@ switch ($action) {
       jsonResponse(false, 'Paramètres manquants');
     }
 
-    // Statuts valides de l'ENUM users_status_enum
     $validStatuses = ['active', 'inactive', 'suspended'];
     if (!in_array($_POST['new_status'], $validStatuses, true)) {
       jsonResponse(false, 'Statut invalide');
     }
 
     try {
-      // Vérifier l'existence de l'utilisateur
       $stmt = $pdo->prepare('SELECT id, username FROM users WHERE id = ?');
       $stmt->execute([$_POST['user_id']]);
       $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -198,7 +178,6 @@ switch ($action) {
 
       $username = $user['username'];
 
-      // Mettre à jour le statut + date_modification
       $stmt = $pdo->prepare("UPDATE users SET status = ?, date_modification = now() WHERE id = ?");
       $stmt->execute([$_POST['new_status'], $_POST['user_id']]);
 

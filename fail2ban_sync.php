@@ -1,22 +1,4 @@
 <?php
-/**
- * fail2ban_sync.php — Synchronisation des bans Fail2ban vers security_event.
- *
- * Fail2ban tourne en local sur le Debian (même machine que PHP / FreeRADIUS).
- * Sources : /var/log/fail2ban.log, journald, puis fail2ban-client (repli).
- *
- * URLs protégées (jail mine-login) :
- *   http://portail.cpanel/login.php
- *   http://192.168.0.99/login.php
- *
- * Politique (Fail2ban seul, jamais Snort) :
- *   warning  → IP (iptables Debian)
- *   critical → IP + MAC (blacklist / radcheck) si l'appareil est dans radacct
- *
- * Cron :
- *   */2 * * * * /usr/bin/php /usr/src/app/portail/admin/mine.local/fail2ban_sync.php >> /var/log/fail2ban_sync.log 2>&1
- */
-
 require_once __DIR__ . '/env.php';
 
 $FAIL2BAN_LOG      = env('FAIL2BAN_LOG', '/var/log/fail2ban.log');
@@ -349,7 +331,6 @@ echo "[fail2ban_sync] Journal: $lineCount ligne(s)\n";
 
 $events = parseFail2banLog($result['log'] ?? '', $lastSync);
 
-// Repli : IPs actuellement bannies, si le journal n'a rien donné
 if (empty($events)) {
     $live = fetchCurrentlyBanned();
     echo "[fail2ban_sync] Repli fail2ban-client: " . count($live) . " IP bannie(s) en cours\n";

@@ -32,14 +32,13 @@ function generateRandomPassword($length = 10) {
 switch ($action) {
     case 'create_visitor':
         $username = trim($_POST['username'] ?? '');
-        $duration = intval($_POST['duration'] ?? 0); // in minutes
+        $duration = intval($_POST['duration'] ?? 0);
         
         if (empty($username) || $duration <= 0) {
             jsonResponse(false, 'Le nom d\'utilisateur et une durée valide sont requis.');
         }
 
         try {
-            // Check if visitor already exists
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM visitor WHERE username = ?");
             $stmt->execute([$username]);
             if ($stmt->fetchColumn() > 0) {
@@ -49,9 +48,8 @@ switch ($action) {
             $password = generateRandomPassword(8);
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             $createdBy = $_SESSION['user_id'] ?? 1;
-            $userDept = 'Communication'; // Default
+            $userDept = 'Communication';
 
-            // Get current user ID and department if not in session
             $connectedUser = $_SESSION['user'] ?? $_SESSION['nom_utilisateur'];
             $stmt = $pdo->prepare("SELECT id, department FROM users WHERE username = ?");
             $stmt->execute([$connectedUser]);
@@ -62,26 +60,16 @@ switch ($action) {
             }
 
             $expiresAt = date('Y-m-d H:i:s', strtotime("+$duration minutes"));
-            
-            // Default values for mandatory fields that are unknown yet
+
             $dummyMac = '00:00:00:00:00:00';
             $dummyNasIp = '0.0.0.0';
 
             $pdo->beginTransaction();
 
-            // 1. Insert into visitor table
             $stmt = $pdo->prepare("INSERT INTO visitor (username, password_hash, department, created_by, expires_at, duration, status, mac_address, nas_ip) 
                                    VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)");
             $stmt->execute([$username, $hashedPassword, $userDept, $createdBy, $expiresAt, $duration, $dummyMac, $dummyNasIp]);
 
-            // 2. Insert into radcheck for RADIUS authentication
-            // Modification : La colonne department est laissée vide ou avec une valeur par défaut si elle est requise par le schéma
-            // Dans le schéma fourni, department est NOT NULL. Si on ne veut rien mettre, on peut mettre une chaîne vide si le type ENUM le permet, 
-            // mais ici c'est un ENUM. Je vais utiliser le département du créateur par défaut comme précédemment OU essayer de ne pas l'inclure si possible.
-            // Cependant, l'utilisateur demande explicitement de ne rien mettre. 
-            // Si la colonne a une contrainte NOT NULL, il faut fournir une valeur.
-            // Mais je vais modifier la requête pour ne pas inclure la colonne department dans l'INSERT si c'est ce qui est souhaité.
-            
             $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)");
             $stmt->execute([$username, 'Cleartext-Password', ':=', $password]);
 
@@ -101,8 +89,6 @@ switch ($action) {
 
     case 'get_visitors':
         try {
-            // Join visitor with users (creator) and radacct (latest session)
-            // We use a subquery to get the latest radacct record for each visitor
             $sql = "SELECT 
                         v.username, 
                         v.status, 
@@ -125,18 +111,15 @@ switch ($action) {
             $stmt = $pdo->query($sql);
             $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Update expired status if needed and prepare data for display
             $now = new DateTime();
             foreach ($visitors as &$v) {
                 $expiry = new DateTime($v['expires_at']);
                 if ($v['status'] === 'active' && $expiry < $now) {
                     try {
                         $pdo->beginTransaction();
-                        // Update in visitor table
                         $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
                         $updateStmt->execute([$v['username']]);
                         
-                        // Delete from radcheck to cut internet access
                         $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
                         $deleteStmt->execute([$v['username']]);
                         
@@ -144,16 +127,12 @@ switch ($action) {
                         $v['status'] = 'expired';
                     } catch (Exception $e) {
                         if ($pdo->inTransaction()) $pdo->rollBack();
-                        // Log error or ignore for this iteration
                     }
                 }
 
-                // Date de création du compte
                 $v['display_created_at'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
-                // Durée = Durée en minutes (formatée)
                 $v['display_duration'] = $v['duration'] . ' min';
                 
-                // Keep real-time info if available
                 $v['mac_address'] = $v['mac_address'] ?: 'N/A';
                 $v['ip_address'] = $v['ip_address'] ?: 'N/A';
             }

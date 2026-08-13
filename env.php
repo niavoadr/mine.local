@@ -1,8 +1,4 @@
 <?php
-/**
- * Chargeur de variables d'environnement (.env) simple et sécurisé sans dépendance externe.
- */
-
 if (!function_exists('load_env')) {
   function load_env($path)
   {
@@ -14,23 +10,19 @@ if (!function_exists('load_env')) {
     foreach ($lines as $line) {
       $line = trim($line);
 
-      // Ignorer les commentaires et les lignes vides
       if (empty($line) || strpos($line, '#') === 0) {
         continue;
       }
 
-      // Supprimer 'export ' si présent
       if (strpos($line, 'export ') === 0) {
         $line = substr($line, 7);
       }
 
-      // Séparer la clé et la valeur sur le premier caractère '='
       if (strpos($line, '=') !== false) {
         [$name, $value] = explode('=', $line, 2);
         $name = trim($name);
         $value = trim($value);
 
-        // Supprimer les guillemets ou apostrophes autour de la valeur
         if (
           (substr($value, 0, 1) === '"' && substr($value, -1) === '"') ||
           (substr($value, 0, 1) === "'" && substr($value, -1) === "'")
@@ -38,7 +30,6 @@ if (!function_exists('load_env')) {
           $value = substr($value, 1, -1);
         }
 
-        // Définir la variable dans $_ENV, $_SERVER et getenv
         if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
           putenv(sprintf('%s=%s', $name, $value));
           $_ENV[$name] = $value;
@@ -80,17 +71,11 @@ if (!function_exists('env')) {
   }
 }
 
-// Chargement automatique du fichier .env à la racine
 load_env(__DIR__ . '/.env');
 
 if (!function_exists('get_radius_mac_secret')) {
-  /**
-   * Récupère le secret partagé RADIUS (MAC Authentication Bypass) depuis le .env.
-   * Retourne une chaîne vide si la variable n'est pas définie.
-   */
   function get_radius_mac_secret()
   {
-    // S'assurer que le .env est bien chargé (utile si l'ordre d'inclusion change)
     load_env(__DIR__ . '/.env');
 
     $secret = env('RADIUS_MAC_SECRET', '');

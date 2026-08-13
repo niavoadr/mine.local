@@ -1,5 +1,4 @@
 <?php
-// Valeurs par défaut pour permettre l'inclusion depuis n'importe quelle vue.
 $users = $users ?? [];
 $statusLabels = $statusLabels ?? [
   'active' => 'Actif',

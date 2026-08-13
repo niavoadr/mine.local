@@ -59,7 +59,6 @@
             color: var(--gold-primary);
         }
 
-        /* Formulaire */
         .form-control, .form-select {
             background: rgba(18, 18, 22, 0.9) !important;
             border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
@@ -91,7 +90,6 @@
             box-shadow: 0 10px 22px rgba(184, 134, 11, 0.5);
         }
 
-        /* Table */
         .table-responsive {
             border-radius: 12px;
             overflow: hidden;
@@ -130,7 +128,6 @@
             color: #6ea8fe;
         }
 
-        /* Badges */
         .department-badge {
             font-size: 0.78rem;
             font-weight: 600;
@@ -146,7 +143,6 @@
         .badge-communication { background: rgba(244, 67, 54, 0.2); color: #e57373; border: 1px solid rgba(244, 67, 54, 0.4); }
         .badge-sg { background: rgba(0, 188, 212, 0.2); color: #4dd0e1; border: 1px solid rgba(0, 188, 212, 0.4); }
 
-        /* Graphique & Légende */
         .chart-wrapper {
             display: flex;
             align-items: center;
@@ -218,7 +214,6 @@
 </head>
 <body>
     <div class="container-fluid">
-        <!-- En-tête -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -236,7 +231,6 @@
         </div>
 
         <div class="row mb-4 g-4">
-            <!-- Formulaire d'ajout -->
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header">
@@ -268,7 +262,6 @@
                 </div>
             </div>
 
-            <!-- Graphique et statistiques -->
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header">
@@ -292,7 +285,6 @@
             </div>
         </div>
 
-        <!-- Tableau des appareils -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -410,7 +402,6 @@
                 return;
             }
 
-            // Vérifier d'abord le statut de la MAC dans radcheck
             $.post('radius_devices.php', {
                 action: 'check_mac_status',
                 mac_address: macColon

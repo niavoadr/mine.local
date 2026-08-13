@@ -159,7 +159,6 @@
 </head>
 <body>
     <div class="container-fluid">
-        <!-- En-tête -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -176,7 +175,6 @@
             </div>
         </div>
 
-        <!-- Section Statistiques -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -195,7 +193,6 @@
             </div>
         </div>
 
-        <!-- Liste des appareils -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -241,7 +238,6 @@
             loadStats();
         });
 
-        // Charger la liste des appareils
         function loadDevices() {
             $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {
@@ -254,7 +250,6 @@
             });
         }
 
-        // Afficher les appareils
         function displayDevices(devices) {
             let html = '';
             if (devices.length === 0) {
@@ -282,7 +277,6 @@
             $('#devicesTable').html(html);
         }
 
-        // Charger les statistiques
         function loadStats() {
             $.post('radius_devices.php', {action: 'get_devices'}, function(response) {
                 if (response.success) {

@@ -1,12 +1,9 @@
 <?php
-// Démarrer la capture de sortie pour éviter les sorties parasites
 ob_start();
 
-// Inclure le chargeur .env puis la connexion à la base
 require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/connexion.php';
 
-// Vérification de session
 session_start();
 
 if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
@@ -18,17 +15,14 @@ if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     exit();
 }
 
-// Récupération du secret MAC via la fonction centralisée (comme pour la DB)
 try {
   $RADIUS_MAC_SECRET = get_radius_mac_secret();
 } catch (Throwable $e) {
   $RADIUS_MAC_SECRET = '';
 }
 
-// Nettoyer toute sortie parasite avant d'envoyer les headers
 ob_clean();
 
-// Headers JSON
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -36,7 +30,6 @@ header('Access-Control-Allow-Headers: Content-Type');
 $action = $_POST['action'] ?? ($_GET['action'] ?? '');
 
 try {
-  // Vérifier la connexion à la base de données
   if (!isset($connexion) || !$connexion) {
     throw new Exception('Connexion à la base de données échouée');
   }
@@ -59,7 +52,6 @@ try {
       break;
 
     case 'test':
-      // Ajouter un test simple
       echo json_encode([
         'success' => true,
         'message' => 'API RADIUS fonctionnelle',
@@ -74,7 +66,6 @@ try {
       ]);
   }
 } catch (Exception $e) {
-  // S'assurer qu'on retourne du JSON même en cas d'erreur
   ob_clean();
   echo json_encode([
     'success' => false,
@@ -84,16 +75,9 @@ try {
   ]);
 }
 
-// Nettoyer et terminer
 ob_end_flush();
 exit();
 
-/**
- * Normalise une adresse MAC au format attendu par FreeRADIUS et la base :
- *   xx:xx:xx:xx:xx:xx
- * Les saisies avec majuscules, tirets, points, espaces, etc. sont acceptées
- * tant qu'elles contiennent exactement 12 caractères hexadécimaux.
- */
 function normalizeMacAddress($macRaw)
 {
   $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
@@ -105,10 +89,6 @@ function normalizeMacAddress($macRaw)
   return implode(':', str_split($cleanMac, 2));
 }
 
-/**
- * Retourne la version sans séparateur d'une MAC normalisée, pour comparer
- * proprement avec d'anciennes valeurs stockées en base sous plusieurs formats.
- */
 function compactMacAddress($macRaw)
 {
   return str_replace(':', '', normalizeMacAddress($macRaw));
@@ -134,7 +114,6 @@ function checkMacStatus(PDO $connexion)
   $macCompact = compactMacAddress($mac);
   $normalizedMacWhere = normalizedMacSqlWhere();
 
-  // Vérifier dans radcheck
   $stmt = $connexion->prepare("SELECT attribute, value FROM radcheck WHERE $normalizedMacWhere");
   $stmt->execute([$macCompact]);
   $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -147,7 +126,6 @@ function checkMacStatus(PDO $connexion)
     }
   }
 
-  // Vérifier si dans la table blacklist
   $stmt = $connexion->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
   $stmt->execute([$mac]);
   $in_blacklist = (bool) $stmt->fetchColumn();
@@ -215,14 +193,12 @@ function addDevice(PDO $connexion)
     throw new Exception('Adresse MAC et département requis');
   }
 
-  // Format requis en base : xx:xx:xx:xx:xx:xx (minuscules avec deux-points)
   $mac = normalizeMacAddress($macRaw);
   $macCompact = compactMacAddress($mac);
 
   $connexion->beginTransaction();
 
   try {
-    // Correspondance département : shortcode (frontend) -> ENUM (DB) + groupname
     $map = getDepartmentMap();
     if (!isset($map[$department])) {
       throw new Exception('Département invalide');
@@ -230,22 +206,18 @@ function addDevice(PDO $connexion)
     $deptEnum = $map[$department]['enum'];
     $groupname = $map[$department]['group'];
 
-    // Vérifier si l'appareil est bloqué dans radcheck (Auth-Type := Reject)
     $normalizedMacWhere = normalizedMacSqlWhere();
     $stmtReject = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE $normalizedMacWhere AND attribute = 'Auth-Type' AND value = 'Reject'");
     $stmtReject->execute([$macCompact]);
     $is_rejected = ((int) $stmtReject->fetchColumn()) > 0;
 
     if ($is_rejected && !$force) {
-      // Appareil bloqué mais l'utilisateur n'a pas confirmé
       if ($connexion->inTransaction()) $connexion->rollBack();
       ob_clean();
       echo json_encode(['success' => false, 'error' => 'APPAREIL_DEJA_BLOQUE', 'data' => ['mac_address' => $mac]]);
       return;
     }
 
-    // Supprimer toutes les entrées existantes pour cette MAC
-    // (anciens doublons, ou Reject si force=1)
     $stmtCheck = $connexion->prepare("SELECT COUNT(*) FROM radcheck WHERE $normalizedMacWhere");
     $stmtCheck->execute([$macCompact]);
     if ($stmtCheck->fetchColumn() > 0) {
@@ -255,16 +227,11 @@ function addDevice(PDO $connexion)
       $stmtDel2->execute([$macCompact]);
     }
 
-    // Si l'appareil était dans la blacklist, le supprimer aussi
     if ($is_rejected && $force) {
       $stmtBl = $connexion->prepare("DELETE FROM blacklist WHERE mac_address = ?::macaddr");
       $stmtBl->execute([$mac]);
     }
 
-    // === NOUVELLE MÉTHODE : RADIUS MAC Authentication (MAB) ===
-    // Une seule ligne dans radcheck avec le secret partagé
-    // Le secret est relu ici via env.php : une variable globale n'est pas
-    // visible dans la portée d'une fonction en PHP.
     $RADIUS_MAC_SECRET = get_radius_mac_secret();
 
     if ($RADIUS_MAC_SECRET === '') {
@@ -276,7 +243,6 @@ function addDevice(PDO $connexion)
     $stmt = $connexion->prepare($sql);
     $stmt->execute([$mac, $RADIUS_MAC_SECRET, $deptEnum]);
 
-    // Associer au groupe départemental dans radusergroup
     $sql2 = "INSERT INTO radusergroup (username, groupname, priority) 
                  VALUES (?, ?, 1)";
     $stmt2 = $connexion->prepare($sql2);
@@ -292,11 +258,6 @@ function addDevice(PDO $connexion)
   }
 }
 
-/**
- * Correspondance entre le shortcode envoyé par le frontend et :
- *   - la valeur de l'ENUM department_enum (colonne radcheck.department)
- *   - le groupname de l'ENUM groupname_enum (colonne radusergroup.groupname)
- */
 function getDepartmentMap()
 {
   return [
@@ -308,9 +269,6 @@ function getDepartmentMap()
   ];
 }
 
-/**
- * Convertit une valeur de l'ENUM department_enum vers le shortcode attendu par le frontend.
- */
 function enumToShortcode($enumValue)
 {
   foreach (getDepartmentMap() as $shortcode => $info) {
@@ -335,16 +293,11 @@ function deleteDevice(PDO $connexion)
   $connexion->beginTransaction();
 
   try {
-    // 1. Supprimer de radusergroup
-    // NB : sous PostgreSQL les littéraux de chaîne doivent être entre APOSTROPHES ('...').
-    // Les guillemets doubles ("...") sont réservés aux identifiants (noms de colonnes) et
-    // provoquaient l'erreur "column "-" does not exist" lors de la suppression.
     $normalizedMacWhere = normalizedMacSqlWhere();
     $sql1 = "DELETE FROM radusergroup WHERE $normalizedMacWhere";
     $stmt1 = $connexion->prepare($sql1);
     $stmt1->execute([$macCompact]);
 
-    // 2. Supprimer de radcheck
     $sql2 = "DELETE FROM radcheck WHERE $normalizedMacWhere";
     $stmt2 = $connexion->prepare($sql2);
     $stmt2->execute([$macCompact]);

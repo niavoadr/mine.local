@@ -6,36 +6,14 @@ session_start();
 
 $pdo = $connexion;
 
-// Lire l'action tôt (nécessaire pour les vérifications d'authentification)
 $action = $_POST['action'] ?? '';
 
-/*
- * Lecture des détections d'intrusion depuis la table `security_event`.
- *
- * Mapping de sévérité (security_event.security_status -> libellé frontend) :
- *   critical -> 'critical' (Critique)
- *   warning  -> 'medium'   (Moyenne)
- *   info     -> 'low'      (Faible)
- *
- * L'action auto_block_intrusion est utilisée par les crons :
- *   - snort_sync.php     → affichage seul (jamais de blacklist)
- *   - fail2ban_sync.php  → seul autorisé à bloquer, selon la gravité :
- *       warning  = IP déjà bannie par Fail2ban (iptables), pas de MAC
- *       critical = blacklist + radcheck Reject si une MAC est connue
- *
- * Les adresses MAC sont normalisées via normalizeMacAddress() (même
- * méthode que radius_devices.php et blacklist.php) pour éviter les
- * problèmes de casse et de format.
- */
-
-// Affichage : valeur d'enum -> badge de sévérité du dashboard
 $severityDisplay = [
   'critical' => 'critical',
   'warning'  => 'medium',
   'info'     => 'low',
 ];
 
-// Filtre inverse : sévérité du dashboard -> valeur d'enum (3 niveaux en base)
 $severityFilter = [
   'critical' => 'critical',
   'medium'   => 'warning',
@@ -48,10 +26,6 @@ function jsonResponse($success, $message = '', $data = null)
   exit();
 }
 
-/**
- * Normalise une adresse MAC au format xx:xx:xx:xx:xx:xx (minuscules).
- * Même méthode que radius_devices.php et blacklist.php.
- */
 function normalizeMacAddress($macRaw)
 {
   $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
@@ -75,20 +49,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   jsonResponse(false, 'Méthode non autorisée');
 }
 
-// ============ AUTHENTIFICATION ============
-// Deux modes d'authentification :
-// 1. Session ADMIN (utilisateur connecté via le dashboard)
-// 2. Jeton API CRON (snort_sync.php / fail2ban_sync.php, sans session)
 $is_admin_session = false;
 $is_cron_api      = false;
 
-// Vérifier le jeton API cron (prioritaire pour auto_block_intrusion)
 $cron_api_token = env('CRON_API_TOKEN', '');
 if ($cron_api_token !== '' && isset($_POST['cron_token']) && $_POST['cron_token'] === $cron_api_token) {
     $is_cron_api = true;
 }
 
-// Vérifier la session ADMIN
 if (!$is_cron_api) {
     if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
         http_response_code(401);
@@ -111,8 +79,6 @@ if (!$is_cron_api) {
     $is_admin_session = true;
 }
 
-// L'action auto_block_intrusion est réservée au cron (jeton API)
-// Les autres actions sont réservées à la session ADMIN
 if ($is_cron_api && $action !== 'auto_block_intrusion') {
     http_response_code(403);
     header('Content-Type: application/json');
@@ -128,7 +94,6 @@ if ($is_admin_session && $action === 'auto_block_intrusion') {
 
 header('Content-Type: application/json');
 
-// ============ ACTIONS ============
 
 if ($action === 'get_intrusions') {
   $severity = $_POST['severity'] ?? '';
@@ -171,10 +136,8 @@ if ($action === 'get_intrusions') {
     $data = array_map(function ($row) use ($severityDisplay) {
       $description = $row['description'];
       if ($description === null || $description === '') {
-        // Repli lisible si le JSON details ne contient pas de description
         $description = ucfirst(str_replace('_', ' ', $row['event_type']));
       }
-      // Afficher la MAC normalisée
       $displayMac = $row['mac_address'];
       if ($displayMac !== 'N/A') {
         $norm = normalizeMacAddress($displayMac);
@@ -219,14 +182,9 @@ if ($action === 'get_intrusions') {
     jsonResponse(false, 'Erreur lors de la récupération des statistiques');
   }
 } elseif ($action === 'auto_block_intrusion') {
-    // Appelée par snort_sync.php (affichage seul) et fail2ban_sync.php (blocage).
-    // Snort / toute autre source : INSERT security_event uniquement.
-    // Fail2ban :
-    //   warning  → l'IP est déjà bannie par iptables, on n'écrit pas la blacklist
-    //   critical → blacklist + radcheck Reject si une MAC a été résolue
 
     $event_type = trim($_POST['event_type'] ?? '');
-    $severity   = trim($_POST['severity'] ?? '');     // critical, warning, info
+    $severity   = trim($_POST['severity'] ?? '');
     $source_ip  = trim($_POST['source_ip'] ?? '');
     $mac_address = trim($_POST['mac_address'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -234,7 +192,6 @@ if ($action === 'get_intrusions') {
     $attempts    = max(1, (int) ($_POST['attempts'] ?? 1));
     $isFail2ban  = strcasecmp($source_info, 'Fail2ban') === 0;
 
-    // Validation
     if ($event_type === '' || $severity === '') {
       jsonResponse(false, 'event_type et severity sont obligatoires');
     }
@@ -242,7 +199,6 @@ if ($action === 'get_intrusions') {
       jsonResponse(false, 'Sévérité invalide (critical, warning ou info)');
     }
 
-    // Normaliser la MAC si fournie (même méthode que radius_devices.php et blacklist.php)
     $macCompact = '';
     if ($mac_address !== '') {
       $macNormalized = normalizeMacAddress($mac_address);
@@ -250,24 +206,20 @@ if ($action === 'get_intrusions') {
         jsonResponse(false, "Format d'adresse MAC invalide");
       }
       $macCompact = compactMacAddress($mac_address);
-      // Utiliser la MAC normalisée pour toutes les opérations
       $mac_address = $macNormalized;
     }
 
     try {
       $pdo->beginTransaction();
 
-      // 1. Toujours enregistrer l'événement (Snort comme Fail2ban)
       $stmt = $pdo->prepare("INSERT INTO security_event (event_type, security_status, source_ip, mac_address, details, attempts)
                 VALUES (?, ?, ?::inet, ?::macaddr, ?, ?)");
       $details = json_encode(['description' => $description, 'source' => $source_info]);
       $stmt->execute([$event_type, $severity, $source_ip ?: null, $mac_address ?: null, $details, $attempts]);
 
-      // 2. Auto-blocage MAC : Fail2ban + criticité uniquement
       $macBlocked = false;
       if ($isFail2ban && $severity === 'critical' && $mac_address !== '') {
 
-        // Vérifier si déjà dans blacklist (MACADDR : insensible à la casse)
         $stmt = $pdo->prepare("SELECT id FROM blacklist WHERE mac_address = ?::macaddr");
         $stmt->execute([$mac_address]);
         $already_blocked = $stmt->fetchColumn();

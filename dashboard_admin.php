@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-// Informations de l'utilisateur connecté. Une session absente ne doit jamais afficher un nom par défaut.
 $connected_username = trim((string) ($_SESSION['user'] ?? ($_SESSION['nom_utilisateur'] ?? '')));
 if ($connected_username === '') {
   header('Location: login.php');
@@ -49,7 +48,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             min-height: 100vh;
         }
 
-        /* ===== BARRE DE STATUT MINISTÉRIELLE ===== */
         .ministry-status-bar {
             background: rgba(10, 10, 12, 0.95);
             border-bottom: 1px solid var(--border-gold);
@@ -79,7 +77,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             50% { opacity: 0.6; transform: scale(1.15); }
         }
 
-        /* ===== EN-TÊTE DU DASHBOARD ===== */
         .dashboard-header {
             background: rgba(18, 18, 24, 0.75);
             backdrop-filter: blur(20px);
@@ -122,7 +119,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             color: var(--text-muted);
         }
 
-        /* ===== NAVIGATION BAR (ONGLETS) ===== */
         .nav-tabs-container {
             background: rgba(14, 14, 18, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -188,7 +184,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
 
-        /* ===== CONTENU PRINCIPAL ===== */
         .content-section {
             display: none;
             animation: fadeInTab 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -212,7 +207,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         }
 
-        /* ===== SOUS-NAVIGATION & CARTES STRANGERS/BLACKLIST ===== */
         .subsection-nav {
             display: flex;
             justify-content: center;
@@ -341,7 +335,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             background: rgba(218, 165, 32, 0.08);
         }
 
-        /* ===== SURCHARGES SPÉCIFIQUES POUR LE GESTIONNAIRE DE COMPTE (#manager-content) ===== */
         #manager-content {
             background: var(--bg-card);
             border: 1px solid var(--border-gold);
@@ -420,7 +413,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             background: rgba(45, 45, 55, 0.85);
         }
 
-        /* Console Log pour les Alertes */
         .log-console {
             background: #08080a;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -439,7 +431,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 </head>
 <body>
 
-    <!-- BARRE DE STATUT MINISTÉRIELLE -->
     <div class="ministry-status-bar">
         <div class="d-flex align-items-center">
             <span class="status-indicator"></span>
@@ -447,7 +438,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         </div>
     </div>
 
-    <!-- EN-TÊTE ET NAVIGATION -->
     <header class="dashboard-header">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
@@ -460,7 +450,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 </div>
             </div>
 
-            <!-- ONGLETS DE NAVIGATION -->
             <nav class="nav-tabs-container">
                 <button class="nav-tab active" onclick="switchTab('hosts')">
                     <i class="fa-solid fa-building-shield"></i> <span>Hôtes de l'Entreprise</span>
@@ -476,7 +465,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 </button>
             </nav>
 
-            <!-- UTILISATEUR & DECONNEXION -->
             <div class="d-flex align-items-center gap-3">
                 <div class="user-profile-pill d-none d-lg-flex align-items-center gap-2">
                     <i class="fa-solid fa-user-shield text-warning"></i>
@@ -495,10 +483,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         </div>
     </header>
 
-    <!-- CONTENU PRINCIPAL DES ONGLETS -->
     <main class="container-fluid py-4 px-3 px-md-4">
 
-        <!-- 1. ONGLET HÔTES / RADIUS INTERFACE -->
         <div id="hosts-content" class="content-section active">
             <iframe
                 src="radius_interface_admin.php" 
@@ -507,14 +493,12 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             </iframe>
         </div>
 
-        <!-- 2. ONGLET ACCÈS ÉTRANGERS -->
         <div id="strangers-content" class="content-section">
             <div class="text-center mb-4">
                 <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Étrangers & Surveillance</h2>
                 <p class="text-muted">Historique des visiteurs, liste noire d'appareils bloqués et détection d'intrusions en temps réel.</p>
             </div>
 
-            <!-- Navigation sous-sections -->
             <div class="subsection-nav">
                 <button class="subsection-btn active" data-section="visitor">
                     <i class="fas fa-users"></i> Visiteurs
@@ -527,7 +511,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 </button>
             </div>
 
-            <!-- VISITOR SUB-SECTION -->
             <div class="subsection-content active" id="visitor-section">
                 <div class="card-custom mb-4">
                     <div class="card-custom-header">
@@ -594,7 +577,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 </div>
             </div>
 
-            <!-- BLACKLIST SUB-SECTION -->
             <div class="subsection-content" id="blacklist-section">
                 <div class="row mb-4 g-3">
                     <div class="col-md-6">
@@ -611,7 +593,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     </div>
                 </div>
 
-                <!-- Formulaire d'ajout à la liste noire -->
                 <div class="card-custom mb-4">
                     <div class="card-custom-header">
                         <i class="fas fa-plus-circle me-2"></i> Bloquer manuellement une adresse MAC
@@ -642,7 +623,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     </div>
                 </div>
 
-                <!-- Tableau Blacklist -->
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -666,7 +646,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 </div>
             </div>
 
-            <!-- INTRUSION SUB-SECTION -->
             <div class="subsection-content" id="intrusion-section">
                 <div class="row mb-4 g-3">
                     <div class="col-md-4">
@@ -689,7 +668,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     </div>
                 </div>
 
-                <!-- Filtres -->
                 <div class="card-custom mb-4">
                     <div class="card-custom-header">
                         <i class="fas fa-filter me-2"></i> Filtres et critères de détection d'intrusions
@@ -729,7 +707,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     </div>
                 </div>
 
-                <!-- Tableau Intrusions -->
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -755,12 +732,10 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             </div>
         </div>
 
-        <!-- 3. ONGLET GESTIONNAIRE DE COMPTE -->
         <div id="manager-content" class="content-section">
             <?php include __DIR__ . '/managerAdmin.php'; ?>
         </div>
 
-        <!-- 4. ONGLET ALERTES SÉCURITÉ -->
         <div id="alerts-content" class="content-section">
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
@@ -810,7 +785,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         $("#intrusion-filter-btn").on('click', loadIntrusions);
         
         $('.subsection-btn').on('click', function() {
-            // Masquer le résumé des identifiants visiteur lors du changement de sous-section
             $('#visitor-credentials').addClass('d-none');
 
             const section = $(this).data('section');
@@ -838,7 +812,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     }
 
     function switchTab(tabName) {
-        // Masquer le résumé des identifiants visiteur lors du changement d'onglet
         $('#visitor-credentials').addClass('d-none');
 
         const sections = document.querySelectorAll('.content-section');
@@ -877,7 +850,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             });
     }
 
-    // ==================== VISITOR FUNCTIONS ====================
     function createVisitor() {
         const username = $('#visitor-username').val();
         const duration = $('#visitor-duration').val();
@@ -980,7 +952,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         return result.join(' ');
     }
 
-    // ==================== BLACKLIST FUNCTIONS ====================
     function loadBlacklist() {
         $('#blacklist-table').html('<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-warning"></i>Chargement de la liste noire...</td></tr>');
         
@@ -1043,7 +1014,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     }
 
     function addToBlacklist(forceMac, forceReason) {
-        // Quand appelé via .on('click'), forceMac est un Event jQuery — on l'ignore
         const mac = (typeof forceMac === 'string' && forceMac) ? forceMac : $('#blacklist-mac').val();
         const reason = (typeof forceReason === 'string' && forceReason) ? forceReason : $('#blacklist-reason').val();
         
@@ -1052,7 +1022,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             return;
         }
         
-        // D'abord vérifier le statut de la MAC dans radcheck
         $.ajax({
             url: 'blacklist.php',
             type: 'POST',
@@ -1069,13 +1038,11 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
                 var status = check.data;
 
-                // Déjà bloqué dans la liste noire
                 if (status.is_blocked && status.in_blacklist) {
                     alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
                     return;
                 }
 
-                // Appareil autorisé → demander confirmation
                 if (status.is_authorized) {
                     var dept = status.department ? ' (' + status.department + ')' : '';
                     if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
@@ -1084,11 +1051,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     return;
                 }
 
-                // Pas dans radcheck ou déjà bloqué → procéder directement
                 doAddBlacklist(mac, reason, false);
             },
             error: function() {
-                // Si check_mac_status échoue, on tente quand même l'ajout
                 doAddBlacklist(mac, reason, false);
             }
         });
@@ -1113,7 +1078,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     loadBlacklist();
                     loadBlacklistStats();
                 } else if (response.message === 'APPAREIL_DEJA_AUTORISE') {
-                    // Double vérification côté serveur : demander confirmation
                     if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
                         doAddBlacklist(mac, reason, true);
                     }
@@ -1147,7 +1111,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         }
     }
 
-    // ==================== INTRUSION FUNCTIONS ====================
     function loadIntrusions() {
         const severity = $('#intrusion-severity').val();
         const type = $('#intrusion-type').val();
@@ -1253,7 +1216,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         var reason = 'Intrusion détectée: ' + type;
 
-        // Vérifier d'abord le statut dans radcheck
         $.ajax({
             url: 'blacklist.php',
             type: 'POST',
@@ -1270,13 +1232,11 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
                 var status = check.data;
 
-                // Déjà bloqué
                 if (status.is_blocked && status.in_blacklist) {
                     alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
                     return;
                 }
 
-                // Appareil autorisé → confirmer la suppression de l'accès
                 if (status.is_authorized) {
                     var dept = status.department ? ' (' + status.department + ')' : '';
                     if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué suite à l\'intrusion.\n\nContinuer ?')) {
@@ -1285,7 +1245,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     return;
                 }
 
-                // Sinon, confirmation simple puis blocage
                 if (confirm('Voulez-vous bloquer cet appareil suite à cette intrusion ?')) {
                     doBlockFromIntrusion(mac, reason, false);
                 }

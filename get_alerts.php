@@ -10,16 +10,9 @@ if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     exit();
 }
 
-/*
-
- * Affiche les derniers événements de sécurité (table `security_event`)
- * sous forme de lignes colorées par sévérité, consommées par l'onglet
- * "Alertes" du dashboard (conteneur .log-console).
- */
 
 header('Content-Type: text/html; charset=utf-8');
 
-// Couleurs par niveau de sévérité (info / warning / critical)
 $severityColors = [
   'critical' => '#ef4444',
   'warning'  => '#f59e0b',
