@@ -3,7 +3,7 @@
  * fail2ban_sync.php — Synchronisation des bans Fail2ban vers security_event.
  *
  * Fail2ban tourne en local sur le Debian (même machine que PHP / FreeRADIUS).
- * Pas de SSH : on lit /var/log/fail2ban.log, puis POST intrusion.php.
+ * Sources : /var/log/fail2ban.log, journald, puis fail2ban-client (repli).
  *
  * URLs protégées (jail mine-login) :
  *   http://portail.cpanel/login.php
@@ -23,6 +23,7 @@ $FAIL2BAN_LOG      = env('FAIL2BAN_LOG', '/var/log/fail2ban.log');
 $CRON_API_TOKEN    = env('CRON_API_TOKEN', '');
 $INTRUSION_PHP_URL = env('INTRUSION_PHP_URL', 'http://portail.cpanel/intrusion.php');
 $LAST_SYNC_FILE    = __DIR__ . '/.fail2ban_last_sync';
+$SEEN_IPS_FILE     = __DIR__ . '/.fail2ban_seen_ips';
 
 function normalizeMacAddress($macRaw)
 {
@@ -89,17 +90,84 @@ function resolveMacFromIp($pdo, $ip)
 
 function fetchFail2banLog($logPath)
 {
-    if (!file_exists($logPath)) {
-        return ['success' => false, 'missing' => true, 'error' => "Fichier introuvable: $logPath"];
+    $chunks = [];
+
+    if (file_exists($logPath) && is_readable($logPath)) {
+        $content = file_get_contents($logPath);
+        if ($content !== false && trim($content) !== '') {
+            $chunks[] = $content;
+        }
     }
-    if (!is_readable($logPath)) {
-        return ['success' => false, 'error' => "Fichier illisible: $logPath"];
+
+    $journal = [];
+    exec('journalctl -u fail2ban --no-pager -o short-iso --since "7 days ago" 2>/dev/null', $journal);
+    if (!empty($journal)) {
+        $chunks[] = implode("\n", $journal);
     }
-    $content = file_get_contents($logPath);
-    if ($content === false) {
-        return ['success' => false, 'error' => "Impossible de lire: $logPath"];
+
+    if (empty($chunks)) {
+        if (!file_exists($logPath)) {
+            return ['success' => false, 'missing' => true, 'error' => "Fichier introuvable: $logPath"];
+        }
+        return ['success' => true, 'log' => '', 'empty' => true];
     }
-    return ['success' => true, 'log' => $content];
+
+    return ['success' => true, 'log' => implode("\n", $chunks)];
+}
+
+function fail2banClient($args)
+{
+    foreach (['fail2ban-client ', 'sudo -n fail2ban-client '] as $prefix) {
+        $out = [];
+        $code = 0;
+        exec($prefix . $args . ' 2>/dev/null', $out, $code);
+        if ($code === 0 && !empty($out)) {
+            return $out;
+        }
+    }
+    return [];
+}
+
+function fetchCurrentlyBanned()
+{
+    $banned = [];
+    $status = fail2banClient('status');
+    $jails = [];
+    foreach ($status as $line) {
+        if (preg_match('/Jail list:\s*(.+)$/i', $line, $m)) {
+            $jails = array_map('trim', explode(',', $m[1]));
+        }
+    }
+    foreach ($jails as $jail) {
+        if ($jail === '') {
+            continue;
+        }
+        $out = fail2banClient('status ' . escapeshellarg($jail));
+        foreach ($out as $line) {
+            if (preg_match('/Banned IP list:\s*(.*)$/i', $line, $m)) {
+                foreach (preg_split('/\s+/', trim($m[1])) as $ip) {
+                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                        $banned[] = ['jail' => $jail, 'ip' => $ip];
+                    }
+                }
+            }
+        }
+    }
+    return $banned;
+}
+
+function loadSeenIps($file)
+{
+    if (!file_exists($file)) {
+        return [];
+    }
+    $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    return is_array($lines) ? $lines : [];
+}
+
+function saveSeenIps($file, array $keys)
+{
+    file_put_contents($file, implode("\n", array_values(array_unique($keys))) . "\n");
 }
 
 function mapFail2banEvent($jail, $action)
@@ -119,14 +187,59 @@ function mapFail2banEvent($jail, $action)
     return ['event_type' => 'brute_force', 'severity' => 'warning'];
 }
 
+function parseLogTimestamp($raw)
+{
+    $raw = trim((string) $raw);
+    $ts = strtotime($raw);
+    if ($ts) {
+        return $ts;
+    }
+    $ts = strtotime($raw . ' ' . date('Y'));
+    return $ts ?: time();
+}
+
+function buildEvent($jail, $action, $ip, $attempts, $timestamp)
+{
+    $mapped = mapFail2banEvent($jail, $action);
+    if ($action === 'ban') {
+        $scope = ($mapped['severity'] === 'critical')
+            ? 'IP + MAC si l\'appareil est connu'
+            : 'IP uniquement';
+        $description = sprintf(
+            'Fail2ban a banni %s (%s, jail %s, %d tentative(s))',
+            $ip,
+            $scope,
+            $jail,
+            $attempts
+        );
+    } else {
+        $description = sprintf('Fail2ban a débanni l\'IP %s (jail %s)', $ip, $jail);
+    }
+
+    return [
+        'event_type'    => $mapped['event_type'],
+        'severity'      => $mapped['severity'],
+        'source_ip'     => $ip,
+        'mac_address'   => '',
+        'description'   => $description,
+        'source_info'   => 'Fail2ban',
+        'attempts'      => $attempts,
+        'raw_timestamp' => $timestamp,
+        'seen_key'      => strtolower($jail) . '|' . $action . '|' . $ip,
+    ];
+}
+
 function parseFail2banLog($logContent, $sinceTimestamp = null)
 {
     $events = [];
     $foundCounts = [];
     $lines = explode("\n", $logContent);
 
-    $actionPattern = '/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)?\s+fail2ban\.actions(?:\s+\[[^\]]+\])?:\s+\w+\s+\[([^\]]+)\]\s+(Ban|Unban|Restore Ban)\s+(\S+)/i';
-    $foundPattern  = '/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)?\s+fail2ban\.filter(?:\s+\[[^\]]+\])?:\s+\w+\s+\[([^\]]+)\]\s+Found\s+(\S+)/i';
+    $actionPatterns = [
+        '/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})(?:[.,]\d+)?(?:[+-]\d{2}:?\d{2})?\s+.*\[([^\]]+)\]\s+(Ban|Unban|Restore Ban)\s+(\S+)/i',
+        '/^(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+\S+\s+fail2ban(?:\[\d+\])?:\s+\w+\s+\[([^\]]+)\]\s+(Ban|Unban|Restore Ban)\s+(\S+)/i',
+    ];
+    $foundPattern = '/\[([^\]]+)\]\s+Found\s+(\S+)/i';
 
     foreach ($lines as $line) {
         $line = trim($line);
@@ -135,67 +248,39 @@ function parseFail2banLog($logContent, $sinceTimestamp = null)
         }
 
         if (preg_match($foundPattern, $line, $m)) {
-            $timestamp = strtotime($m[1]);
-            if (!$timestamp || ($sinceTimestamp && $timestamp <= $sinceTimestamp)) {
-                continue;
+            $ip = $m[2];
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                $key = strtolower($m[1]) . '|' . $ip;
+                $foundCounts[$key] = ($foundCounts[$key] ?? 0) + 1;
             }
-            $ip = $m[3];
-            if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-                continue;
+            continue;
+        }
+
+        $matched = null;
+        foreach ($actionPatterns as $pattern) {
+            if (preg_match($pattern, $line, $m)) {
+                $matched = $m;
+                break;
             }
-            $key = strtolower($m[2]) . '|' . $ip;
-            $foundCounts[$key] = ($foundCounts[$key] ?? 0) + 1;
+        }
+        if ($matched === null || strcasecmp($matched[3], 'Restore Ban') === 0) {
             continue;
         }
 
-        if (!preg_match($actionPattern, $line, $m)) {
-            continue;
-        }
-        if (strcasecmp($m[3], 'Restore Ban') === 0) {
-            continue;
-        }
-
-        $timestamp = strtotime($m[1]);
-        if (!$timestamp || ($sinceTimestamp && $timestamp <= $sinceTimestamp)) {
+        $timestamp = parseLogTimestamp($matched[1]);
+        if ($sinceTimestamp && $timestamp <= $sinceTimestamp) {
             continue;
         }
 
-        $jail   = $m[2];
-        $action = strtolower($m[3]);
-        $ip     = $m[4];
+        $jail   = $matched[2];
+        $action = strtolower($matched[3]);
+        $ip     = $matched[4];
         if (!filter_var($ip, FILTER_VALIDATE_IP)) {
             continue;
         }
 
-        $mapped   = mapFail2banEvent($jail, $action);
         $countKey = strtolower($jail) . '|' . $ip;
-        $attempts = max(1, (int) ($foundCounts[$countKey] ?? 1));
-
-        if ($action === 'ban') {
-            $scope = ($mapped['severity'] === 'critical')
-                ? 'IP + MAC si l\'appareil est connu'
-                : 'IP uniquement';
-            $description = sprintf(
-                'Fail2ban a banni %s (%s, jail %s, %d tentative(s))',
-                $ip,
-                $scope,
-                $jail,
-                $attempts
-            );
-        } else {
-            $description = sprintf('Fail2ban a débanni l\'IP %s (jail %s)', $ip, $jail);
-        }
-
-        $events[] = [
-            'event_type'    => $mapped['event_type'],
-            'severity'      => $mapped['severity'],
-            'source_ip'     => $ip,
-            'mac_address'   => '',
-            'description'   => $description,
-            'source_info'   => 'Fail2ban',
-            'attempts'      => $attempts,
-            'raw_timestamp' => $timestamp,
-        ];
+        $events[] = buildEvent($jail, $action, $ip, max(1, (int) ($foundCounts[$countKey] ?? 1)), $timestamp);
     }
 
     usort($events, function ($a, $b) {
@@ -244,20 +329,39 @@ if ($CRON_API_TOKEN === '') {
 }
 
 $lastSync = file_exists($LAST_SYNC_FILE) ? (int) file_get_contents($LAST_SYNC_FILE) : null;
+$seenIps  = loadSeenIps($SEEN_IPS_FILE);
 
-echo "[fail2ban_sync] Lecture locale de $FAIL2BAN_LOG...\n";
+echo "[fail2ban_sync] Lecture de $FAIL2BAN_LOG (+ journald)...\n";
 $result = fetchFail2banLog($FAIL2BAN_LOG);
 
 if (!$result['success']) {
     if (!empty($result['missing'])) {
         echo "[fail2ban_sync] Info: " . $result['error'] . " (Fail2ban pas encore installé ?)\n";
-        exit(0);
+    } else {
+        echo "[fail2ban_sync] Erreur: " . $result['error'] . "\n";
+        exit(1);
     }
-    echo "[fail2ban_sync] Erreur: " . $result['error'] . "\n";
-    exit(1);
+    $result = ['success' => true, 'log' => ''];
 }
 
-$events = parseFail2banLog($result['log'], $lastSync);
+$lineCount = substr_count($result['log'], "\n");
+echo "[fail2ban_sync] Journal: $lineCount ligne(s)\n";
+
+$events = parseFail2banLog($result['log'] ?? '', $lastSync);
+
+// Repli : IPs actuellement bannies, si le journal n'a rien donné
+if (empty($events)) {
+    $live = fetchCurrentlyBanned();
+    echo "[fail2ban_sync] Repli fail2ban-client: " . count($live) . " IP bannie(s) en cours\n";
+    foreach ($live as $row) {
+        $key = strtolower($row['jail']) . '|ban|' . $row['ip'];
+        if (in_array($key, $seenIps, true)) {
+            continue;
+        }
+        $events[] = buildEvent($row['jail'], 'ban', $row['ip'], 5, time());
+    }
+}
+
 echo "[fail2ban_sync] " . count($events) . " nouvel(le)(s) événement(s) Fail2ban\n";
 
 $pdo = tryDbConnection();
@@ -266,6 +370,11 @@ $blocked = 0;
 $latestTimestamp = $lastSync ?: 0;
 
 foreach ($events as $alert) {
+    $seenKey = $alert['seen_key'] ?? '';
+    if ($seenKey !== '' && in_array($seenKey, $seenIps, true)) {
+        continue;
+    }
+
     if ($alert['source_ip'] !== '') {
         $alert['mac_address'] = resolveMacFromIp($pdo, $alert['source_ip']);
     }
@@ -273,6 +382,9 @@ foreach ($events as $alert) {
     $res = pushIntrusion($INTRUSION_PHP_URL, $CRON_API_TOKEN, $alert);
     if ($res && ($res['success'] ?? false)) {
         $inserted++;
+        if ($seenKey !== '') {
+            $seenIps[] = $seenKey;
+        }
         if (strpos($res['message'] ?? '', 'bloqué') !== false) {
             $blocked++;
         }
@@ -288,5 +400,6 @@ foreach ($events as $alert) {
 if ($latestTimestamp > ($lastSync ?: 0)) {
     file_put_contents($LAST_SYNC_FILE, (string) $latestTimestamp);
 }
+saveSeenIps($SEEN_IPS_FILE, $seenIps);
 
 echo "[fail2ban_sync] Terminé: $inserted insérée(s), $blocked MAC bloquée(s)\n";
