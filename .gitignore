@@ -2,6 +2,8 @@ node_modules/
 
 .env
 .snort_last_sync
+.fail2ban_last_sync
+.fail2ban_seen_ips
 .env.local
 *.env
 !.env.example

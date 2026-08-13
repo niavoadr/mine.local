@@ -5,6 +5,9 @@
  * Ce script se connecte à pfSense via SSH (avec clé) pour lire les logs Snort,
  * puis insère les nouvelles alertes dans security_event via intrusion.php.
  *
+ * Snort n'écrit PAS dans la blacklist : affichage des tentatives uniquement.
+ * Le blocage IP / MAC est réservé à Fail2ban (fail2ban_sync.php).
+ *
  * Utilisation cron (toutes les 2 minutes) :
  *   *\/2 * * * * /usr/bin/php /chemin/vers/mine.local/snort_sync.php >> /var/log/snort_sync.log 2>&1
  * Prérequis :
@@ -25,7 +28,7 @@ $CRON_API_TOKEN       = env('CRON_API_TOKEN', '');
 $PFSENSE_SNORT_LOG    = env('PFSENSE_SNORT_LOG', '/var/log/snort/snort_re032559/alert');
 
 // URL vers intrusion.php (serveur web local)
-$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://localhost/intrusion.php');
+$INTRUSION_PHP_URL    = env('INTRUSION_PHP_URL', 'http://portail.cpanel/intrusion.php');
 
 // Fichier de horodatage pour ne pas importer les mêmes alertes deux fois
 $LAST_SYNC_FILE       = __DIR__ . '/.snort_last_sync';
@@ -247,7 +250,6 @@ if (!$result['success']) {
 $alerts = parseSnortLog($result['log'], $lastSync);
 echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\\n";
 
-$blocked = 0;
 $inserted = 0;
 $latestTimestamp = $lastSync;
 
@@ -255,9 +257,6 @@ foreach ($alerts as $alert) {
     $res = pushIntrusion($INTRUSION_PHP_URL, $CRON_API_TOKEN, $alert);
     if ($res && ($res['success'] ?? false)) {
         $inserted++;
-        if (strpos($res['message'] ?? '', 'bloqué') !== false) {
-            $blocked++;
-        }
     } else {
         echo "[snort_sync] Échec insertion: " . ($res['message'] ?? 'erreur inconnue') . "\n";
     }
@@ -276,4 +275,4 @@ if (file_exists($sshKeyTmpFile)) {
     unlink($sshKeyTmpFile);
 }
 
-echo "[snort_sync] Terminé: $inserted insérée(s), $blocked bloquée(s)\n";
+echo "[snort_sync] Terminé: $inserted insérée(s) (affichage seul, blocage délégué à Fail2ban)\n";
