@@ -21,13 +21,40 @@ try {
   $RADIUS_MAC_SECRET = '';
 }
 
+// C3 : actions en POST uniquement (plus d'action en GET)
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  ob_clean();
+  http_response_code(405);
+  header('Content-Type: application/json');
+  echo json_encode(['success' => false, 'error' => 'Méthode non autorisée']);
+  ob_end_flush();
+  exit();
+}
+
+$action = $_POST['action'] ?? '';
+
+// C2 : les actions d'écriture sont réservées aux administrateurs
+if (in_array($action, ['add_device', 'delete_device'], true)) {
+  $stmtRole = $connexion->prepare('SELECT role FROM users WHERE username = ?');
+  $stmtRole->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
+  if ($stmtRole->fetchColumn() !== 'ADMIN') {
+    ob_clean();
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Accès réservé aux administrateurs']);
+    ob_end_flush();
+    exit();
+  }
+}
+
+// C3 : jeton CSRF
+check_csrf();
+
 ob_clean();
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
-
-$action = $_POST['action'] ?? ($_GET['action'] ?? '');
 
 try {
   if (!isset($connexion) || !$connexion) {
@@ -70,34 +97,11 @@ try {
   echo json_encode([
     'success' => false,
     'error' => $e->getMessage(),
-    'line' => $e->getLine(),
-    'file' => basename($e->getFile()),
   ]);
 }
 
 ob_end_flush();
 exit();
-
-function normalizeMacAddress($macRaw)
-{
-  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
-
-  if (strlen($cleanMac) !== 12) {
-    throw new Exception("Format d'adresse MAC invalide (12 caractères hexadécimaux requis)");
-  }
-
-  return implode(':', str_split($cleanMac, 2));
-}
-
-function compactMacAddress($macRaw)
-{
-  return str_replace(':', '', normalizeMacAddress($macRaw));
-}
-
-function normalizedMacSqlWhere()
-{
-  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
-}
 
 function checkMacStatus(PDO $connexion)
 {
@@ -145,7 +149,7 @@ function getDevices(PDO $connexion)
 {
   try {
     $sql = "SELECT 
-                    MIN(rc.id) as id,
+                    MAX(rc.id) FILTER (WHERE rc.attribute = 'Cleartext-Password') AS id,
                     rc.username as mac_address,
                     MIN(rc.department) as department,
                     MAX(rg.groupname) as groupname,
@@ -162,9 +166,8 @@ function getDevices(PDO $connexion)
     $devices = [];
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-      try {
-        $displayMac = normalizeMacAddress($row['mac_address']);
-      } catch (Exception $e) {
+      $displayMac = normalizeMacAddress($row['mac_address']);
+      if ($displayMac === false) {
         $displayMac = strtolower((string) $row['mac_address']);
       }
 
@@ -194,6 +197,9 @@ function addDevice(PDO $connexion)
   }
 
   $mac = normalizeMacAddress($macRaw);
+  if ($mac === false) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
   $macCompact = compactMacAddress($mac);
 
   $connexion->beginTransaction();
@@ -258,27 +264,6 @@ function addDevice(PDO $connexion)
   }
 }
 
-function getDepartmentMap()
-{
-  return [
-    'communication' => ['enum' => 'Communication', 'group' => 'communication_group'],
-    'daj'           => ['enum' => 'Directeur des Affaires Juridiques', 'group' => 'daj_group'],
-    'finance'       => ['enum' => 'Finance', 'group' => 'finance_group'],
-    'rh'            => ['enum' => 'Ressources Humaines', 'group' => 'rh_group'],
-    'sg'            => ['enum' => 'Secrétariat Général', 'group' => 'sg_group'],
-  ];
-}
-
-function enumToShortcode($enumValue)
-{
-  foreach (getDepartmentMap() as $shortcode => $info) {
-    if ($info['enum'] === $enumValue) {
-      return $shortcode;
-    }
-  }
-  return strtolower((string) $enumValue);
-}
-
 function deleteDevice(PDO $connexion)
 {
   $macRaw = trim($_POST['mac_address'] ?? '');
@@ -288,6 +273,9 @@ function deleteDevice(PDO $connexion)
   }
 
   $mac = normalizeMacAddress($macRaw);
+  if ($mac === false) {
+    throw new Exception("Format d'adresse MAC invalide");
+  }
   $macCompact = compactMacAddress($mac);
 
   $connexion->beginTransaction();

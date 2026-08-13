@@ -9,15 +9,12 @@ if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     exit();
 }
 
+check_csrf();
+
 header('Content-Type: application/json');
 $pdo = $connexion;
 
 $action = $_POST['action'] ?? '';
-
-function jsonResponse($success, $message = '', $data = null) {
-    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
-    exit();
-}
 
 function generateRandomPassword($length = 10) {
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -31,11 +28,24 @@ function generateRandomPassword($length = 10) {
 
 switch ($action) {
     case 'create_visitor':
+        // C2 : création de visiteurs réservée aux administrateurs
+        $stmtRole = $pdo->prepare("SELECT role FROM users WHERE username = ?");
+        $stmtRole->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
+        if ($stmtRole->fetchColumn() !== 'ADMIN') {
+            http_response_code(403);
+            jsonResponse(false, 'Accès réservé aux administrateurs');
+        }
+
         $username = trim($_POST['username'] ?? '');
-        $duration = intval($_POST['duration'] ?? 0);
-        
-        if (empty($username) || $duration <= 0) {
-            jsonResponse(false, 'Le nom d\'utilisateur et une durée valide sont requis.');
+        $duration = (int) ($_POST['duration'] ?? 0);
+
+        if (empty($username)) {
+            jsonResponse(false, 'Le nom d\'utilisateur est requis.');
+        }
+
+        // M1 : durée limitée à 10 min, 30 min, 1 h ou 2 h
+        if (!in_array($duration, [10, 30, 60, 120], true)) {
+            jsonResponse(false, 'Durée invalide. Choisissez 10 min, 30 min, 1 h ou 2 h.');
         }
 
         try {
@@ -73,6 +83,14 @@ switch ($action) {
             $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)");
             $stmt->execute([$username, 'Cleartext-Password', ':=', $password]);
 
+            // M2 : limite de bande passante via le groupe visitor_group (si le groupe existe en base)
+            $stmtGroup = $pdo->prepare("SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'groupname_enum' AND e.enumlabel = 'visitor_group'");
+            $stmtGroup->execute();
+            if ($stmtGroup->fetchColumn()) {
+                $stmt = $pdo->prepare("INSERT INTO radusergroup (username, groupname, priority) VALUES (?, 'visitor_group', 1)");
+                $stmt->execute([$username]);
+            }
+
             $pdo->commit();
 
             jsonResponse(true, 'Visiteur créé avec succès !', [
@@ -83,7 +101,8 @@ switch ($action) {
 
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            jsonResponse(false, 'Erreur lors de la création du visiteur : ' . $e->getMessage());
+            error_log('Erreur création visiteur : ' . $e->getMessage());
+            jsonResponse(false, 'Erreur lors de la création du visiteur');
         }
         break;
 
@@ -111,35 +130,20 @@ switch ($action) {
             $stmt = $pdo->query($sql);
             $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $now = new DateTime();
+            // C4 : l'expiration est désormais gérée par le cron expire_visitors.php
             foreach ($visitors as &$v) {
-                $expiry = new DateTime($v['expires_at']);
-                if ($v['status'] === 'active' && $expiry < $now) {
-                    try {
-                        $pdo->beginTransaction();
-                        $updateStmt = $pdo->prepare("UPDATE visitor SET status = 'expired' WHERE username = ?");
-                        $updateStmt->execute([$v['username']]);
-                        
-                        $deleteStmt = $pdo->prepare("DELETE FROM radcheck WHERE username = ?");
-                        $deleteStmt->execute([$v['username']]);
-                        
-                        $pdo->commit();
-                        $v['status'] = 'expired';
-                    } catch (Exception $e) {
-                        if ($pdo->inTransaction()) $pdo->rollBack();
-                    }
-                }
-
                 $v['display_created_at'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
                 $v['display_duration'] = $v['duration'] . ' min';
                 
                 $v['mac_address'] = $v['mac_address'] ?: 'N/A';
                 $v['ip_address'] = $v['ip_address'] ?: 'N/A';
             }
+            unset($v);
 
             jsonResponse(true, '', $visitors);
         } catch (Exception $e) {
-            jsonResponse(false, 'Erreur lors de la récupération des visiteurs : ' . $e->getMessage());
+            error_log('Erreur récupération des visiteurs : ' . $e->getMessage());
+            jsonResponse(false, 'Erreur lors de la récupération des visiteurs');
         }
         break;
 

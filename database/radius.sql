@@ -199,3 +199,32 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('rh_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Down', ':=', '50000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000');
+-- =====================================================================
+-- Correctifs de sécurité / fonctionnalités (revue du 13/08/2026)
+-- À exécuter AUSSI sur une base existante, instruction par instruction.
+-- ⚠️ Ne pas rejouer tout radius.sql sur une base existante (CREATE TYPE
+--    échouerait) : exécuter uniquement les instructions ci-dessous.
+-- =====================================================================
+
+-- M4 : colonne department pour une base FreeRADIUS existante
+ALTER TABLE radcheck ADD COLUMN IF NOT EXISTS department DEPARTMENT_ENUM;
+
+-- M3 : index pour session_users (heartbeat des sessions)
+-- (en cas de doublons de session_id, supprimer d'abord :
+--  DELETE FROM session_users a USING session_users b
+--  WHERE a.session_id = b.session_id AND a.created_at < b.created_at;)
+ALTER TABLE session_users ADD PRIMARY KEY (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_users_last_seen ON session_users (last_seen);
+
+-- M2 : groupe visiteur + limite de bande passante (10 Mbps = 10 000 000 bps)
+-- ⚠️ PostgreSQL : exécuter l'ALTER TYPE ADD VALUE séparément des INSERT
+--    (pas dans la même transaction) si exécuté en une seule session.
+ALTER TYPE groupname_enum ADD VALUE IF NOT EXISTS 'visitor_group';
+
+INSERT INTO radgroupreply (groupname, attribute, op, value)
+SELECT 'visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'
+WHERE NOT EXISTS (SELECT 1 FROM radgroupreply WHERE groupname = 'visitor_group' AND attribute = 'WISPr-Bandwidth-Max-Down');
+
+INSERT INTO radgroupreply (groupname, attribute, op, value)
+SELECT 'visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000'
+WHERE NOT EXISTS (SELECT 1 FROM radgroupreply WHERE groupname = 'visitor_group' AND attribute = 'WISPr-Bandwidth-Max-Up');

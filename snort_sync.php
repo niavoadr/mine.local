@@ -54,12 +54,9 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
         if (preg_match($pfsensePattern, $line, $m)) {
             $tsStr = $m[1];
             if (preg_match('/^(\d{2})\/(\d{2})\/(\d{2})-(\d{2}:\d{2}:\d{2})/', $tsStr, $tm)) {
-                $tsForStrtotime = $tm[2] . '/' . $tm[1] . '/' . $tm[3] . ' ' . $tm[4];
-                $timestamp = strtotime($tsForStrtotime);
-                if (!$timestamp) {
-                    $tsForStrtotime = '20' . $tm[3] . '-' . $tm[1] . '-' . $tm[2] . ' ' . $tm[4];
-                    $timestamp = strtotime($tsForStrtotime);
-                }
+                // Format pfSense : MM/DD/YY-HH:MM:SS → $tm[1]=mois, $tm[2]=jour
+                // Format ISO direct : plus d'ambiguïté jour/mois (B1)
+                $timestamp = strtotime('20' . $tm[3] . '-' . $tm[1] . '-' . $tm[2] . ' ' . $tm[4]);
             } else {
                 $timestamp = strtotime($tsStr);
             }
@@ -181,12 +178,19 @@ $sshKeyTmpFile = tempnam(sys_get_temp_dir(), 'ssh_key_');
 file_put_contents($sshKeyTmpFile, $PFSENSE_SSH_KEY);
 chmod($sshKeyTmpFile, 0600);
 
+// C10 : suppression garantie de la clé privée, quel que soit le chemin de sortie
+register_shutdown_function(function () use ($sshKeyTmpFile) {
+    if (file_exists($sshKeyTmpFile)) {
+        @unlink($sshKeyTmpFile);
+    }
+});
+
 $lastSync = null;
 if (file_exists($LAST_SYNC_FILE)) {
     $lastSync = (int) file_get_contents($LAST_SYNC_FILE);
 }
 
-echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\\n";
+echo "[snort_sync] Connexion SSH à $PFSENSE_SSH_HOST...\n";
 $result = fetchSnortLogSsh($PFSENSE_SSH_HOST, $PFSENSE_SSH_PORT, $PFSENSE_SSH_USER, $sshKeyTmpFile, $PFSENSE_SNORT_LOG);
 
 if (!$result['success']) {
@@ -195,7 +199,7 @@ if (!$result['success']) {
 }
 
 $alerts = parseSnortLog($result['log'], $lastSync);
-echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\\n";
+echo "[snort_sync] " . count($alerts) . " nouvelle(s) alerte(s) Snort\n";
 
 $inserted = 0;
 $latestTimestamp = $lastSync;
@@ -204,12 +208,12 @@ foreach ($alerts as $alert) {
     $res = pushIntrusion($INTRUSION_PHP_URL, $CRON_API_TOKEN, $alert);
     if ($res && ($res['success'] ?? false)) {
         $inserted++;
+        // B2 : le curseur n'avance que si l'insertion a réussi
+        if ($alert['raw_timestamp'] > $latestTimestamp) {
+            $latestTimestamp = $alert['raw_timestamp'];
+        }
     } else {
         echo "[snort_sync] Échec insertion: " . ($res['message'] ?? 'erreur inconnue') . "\n";
-    }
-
-    if ($alert['raw_timestamp'] > $latestTimestamp) {
-        $latestTimestamp = $alert['raw_timestamp'];
     }
 }
 

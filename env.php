@@ -73,6 +73,8 @@ if (!function_exists('env')) {
 
 load_env(__DIR__ . '/.env');
 
+date_default_timezone_set('Indian/Antananarivo');
+
 if (!function_exists('get_radius_mac_secret')) {
   function get_radius_mac_secret()
   {

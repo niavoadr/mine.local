@@ -2,11 +2,6 @@
 require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 
-function manager_escape($value): string
-{
-  return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
-
 try {
   register_app_session($connexion);
   $stats = $connexion->query(
@@ -361,6 +356,7 @@ $statusLabels = [
         event.preventDefault();
         const formData = new FormData(event.target);
         formData.append('action', 'create_user');
+        formData.append('csrf_token', window.CSRF_TOKEN);
 
         try {
             const response = await fetch('manager.php', {
@@ -388,6 +384,7 @@ $statusLabels = [
             formData.append('action', 'update_status');
             formData.append('user_id', button.dataset.userId);
             formData.append('new_status', button.dataset.userStatus);
+            formData.append('csrf_token', window.CSRF_TOKEN);
 
             try {
                 const response = await fetch('manager.php', {

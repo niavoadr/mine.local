@@ -9,20 +9,12 @@ if (empty($_SESSION['user'])) {
   exit();
 }
 
+check_csrf();
+
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 $pdo = $connexion;
-
-function jsonResponse($success, $message = '', $data = null)
-{
-  echo json_encode([
-    'success' => $success,
-    'message' => $message,
-    'data' => $data,
-  ]);
-  exit();
-}
 
 function getEnumValues(PDO $pdo, $typeName)
 {

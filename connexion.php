@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/helpers.php';
 
 if (!function_exists('get_db_config')) {
   function get_db_config($prefix = 'DB')
@@ -42,5 +43,6 @@ if (!function_exists('get_db_connection')) {
 try {
   $connexion = get_db_connection('DB');
 } catch (Throwable $e) {
-  die('Erreur de connexion à la base de données radius : ' . $e->getMessage());
+  error_log('Erreur de connexion à la base de données radius : ' . $e->getMessage());
+  die('Erreur de connexion à la base de données.');
 }
