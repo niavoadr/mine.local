@@ -1,11 +1,22 @@
 <?php
 session_start();
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $connected_username = trim((string) ($_SESSION['user'] ?? ($_SESSION['nom_utilisateur'] ?? '')));
 if ($connected_username === '') {
   header('Location: login.php');
   exit();
 }
+
+// C2 : accès réservé aux administrateurs
+if (($_SESSION['role'] ?? '') !== 'ADMIN') {
+  header('Location: dashboard_user.php');
+  exit();
+}
+
 $user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
@@ -473,7 +484,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                       ENT_QUOTES,
                       'UTF-8',
                     ); ?></span>
-                    <span class="badge bg-warning text-dark ms-1">Admin</span>
+                    <span class="badge bg-warning text-dark ms-1"><?php echo htmlspecialchars($_SESSION['role_lib'] ?? 'Admin', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -482,6 +493,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             </div>
         </div>
     </header>
+
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
 
     <main class="container-fluid py-4 px-3 px-md-4">
 
@@ -524,8 +537,14 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                     <input type="text" class="form-control" id="visitor-username" placeholder="ex: visiteur_jean" required>
                                 </div>
                                 <div class="col-md-5">
-                                    <label for="visitor-duration" class="form-label text-muted small">Durée de la session (minutes)</label>
-                                    <input type="number" class="form-control" id="visitor-duration" placeholder="ex: 60" required>
+                                    <label for="visitor-duration" class="form-label text-muted small">Durée de la session</label>
+                                    <select class="form-select" id="visitor-duration" required>
+                                        <option value="">Choisir une durée...</option>
+                                        <option value="10">10 minutes</option>
+                                        <option value="30">30 minutes</option>
+                                        <option value="60">1 heure</option>
+                                        <option value="120">2 heures</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
                                     <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 12px; height: 42px;">
@@ -760,13 +779,33 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     $(document).ready(function() {
+        $.ajaxSetup({ data: { csrf_token: window.CSRF_TOKEN } });
+
         loadVisitors();
         loadBlacklist();
         loadBlacklistStats();
         loadIntrusions();
         loadIntrusionStats();
-        
+        loadIntrusionTypes();
+
+        $(document).on('click', '[data-unblock-mac]', function() {
+            unblockDevice($(this).data('unblock-mac'));
+        });
+        $(document).on('click', '[data-block-mac]', function() {
+            blockFromIntrusion($(this).data('block-mac'), $(this).data('block-type'));
+        });
+
         setInterval(function() {
             if ($('#visitor-section').hasClass('active')) {
                 loadVisitors();
@@ -911,45 +950,18 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td class="fw-semibold text-white">${record.username}</td>
-                        <td><code>${record.mac_address}</code></td>
-                        <td>${record.ip_address}</td>
-                        <td><small class="text-muted">${record.creator_name}</small></td>
-                        <td>${record.display_created_at}</td>
-                        <td>${record.display_duration}</td>
+                        <td class="fw-semibold text-white">${escapeHtml(record.username)}</td>
+                        <td><code>${escapeHtml(record.mac_address)}</code></td>
+                        <td>${escapeHtml(record.ip_address)}</td>
+                        <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
+                        <td>${escapeHtml(record.display_created_at)}</td>
+                        <td>${escapeHtml(record.display_duration)}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
                 `;
             });
         }
         $('#visitor-table-body').html(html);
-    }
-
-    function calculateTimeLeft(startTime, stopTime) {
-        if (stopTime) return '';
-        const sessionDuration = 2 * 60;
-        const now = new Date();
-        const start = new Date(startTime);
-        const elapsedSeconds = (now - start) / 1000;
-        const remainingSeconds = sessionDuration - elapsedSeconds;
-        if (remainingSeconds <= 0) return 'Expiré';
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = Math.floor(remainingSeconds % 60);
-        return `${minutes}min ${seconds}s`;
-    }
-    
-    function formatDuration(seconds) {
-        if (seconds === null || seconds === undefined || isNaN(seconds)) return 'N/A';
-        const totalSeconds = parseInt(seconds);
-        if (totalSeconds < 0) return 'N/A';
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const sec = totalSeconds % 60;
-        let result = [];
-        if (hours > 0) result.push(`${hours}h`);
-        if (minutes > 0 || hours > 0) result.push(`${minutes}min`);
-        result.push(`${sec}s`);
-        return result.join(' ');
     }
 
     function loadBlacklist() {
@@ -981,13 +993,13 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             records.forEach(function(record) {
                 html += `
                     <tr>
-                        <td><code>${record.mac_address}</code></td>
-                        <td>${record.ip_address || 'N/A'}</td>
-                        <td><span class="badge bg-danger px-3 py-2">${record.reason}</span></td>
-                        <td>${record.blocked_date}</td>
-                        <td><span class="badge bg-warning text-dark fw-bold">${record.blocked_attempts || 0}</span></td>
+                        <td><code>${escapeHtml(record.mac_address)}</code></td>
+                        <td>${escapeHtml(record.ip_address || 'N/A')}</td>
+                        <td><span class="badge bg-danger px-3 py-2">${escapeHtml(record.reason)}</span></td>
+                        <td>${escapeHtml(record.blocked_date)}</td>
+                        <td><span class="badge bg-warning text-dark fw-bold">${escapeHtml(record.blocked_attempts || 0)}</span></td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-success fw-semibold" onclick="unblockDevice('${record.mac_address}')" style="border-radius: 8px;">
+                            <button class="btn btn-sm btn-success fw-semibold" data-unblock-mac="${escapeHtml(record.mac_address)}" style="border-radius: 8px;">
                                 <i class="fas fa-unlock me-1"></i> Débloquer
                             </button>
                         </td>
@@ -1152,17 +1164,17 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td>${record.timestamp}</td>
-                        <td><span class="badge bg-info text-dark fw-semibold">${record.type}</span></td>
+                        <td>${escapeHtml(record.timestamp)}</td>
+                        <td><span class="badge bg-info text-dark fw-semibold">${escapeHtml(record.type)}</span></td>
                         <td>${severityBadge}</td>
                         <td>
-                            <small><strong>IP:</strong> ${record.ip_address || 'N/A'}</small><br/>
-                            <small><strong>MAC:</strong> <code>${record.mac_address || 'N/A'}</code></small>
+                            <small><strong>IP:</strong> ${escapeHtml(record.ip_address || 'N/A')}</small><br/>
+                            <small><strong>MAC:</strong> <code>${escapeHtml(record.mac_address || 'N/A')}</code></small>
                         </td>
-                        <td><small>${record.description}</small></td>
+                        <td><small>${escapeHtml(record.description)}</small></td>
                         <td>${sourceInfoBadge}</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-danger fw-semibold" onclick="blockFromIntrusion('${record.mac_address}', '${record.type}')" style="border-radius: 8px;">
+                            <button class="btn btn-sm btn-danger fw-semibold" data-block-mac="${escapeHtml(record.mac_address)}" data-block-type="${escapeHtml(record.type)}" style="border-radius: 8px;">
                                 <i class="fas fa-ban me-1"></i> Bloquer
                             </button>
                         </td>
@@ -1184,6 +1196,24 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                     $('#critical-alerts').text(response.data.critical || 0);
                     $('#medium-alerts').text(response.data.medium || 0);
                     $('#low-alerts').text(response.data.low || 0);
+                }
+            }
+        });
+    }
+
+    function loadIntrusionTypes() {
+        $.ajax({
+            url: 'intrusion.php',
+            type: 'POST',
+            data: { action: 'get_types' },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success && response.data) {
+                    const sel = $('#intrusion-type');
+                    sel.find('option:not(:first)').remove();
+                    response.data.forEach(function(t) {
+                        sel.append($('<option>', { value: t, text: t }));
+                    });
                 }
             }
         });

@@ -1,3 +1,9 @@
+<?php
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
 <head>
@@ -213,6 +219,7 @@
     <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body>
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
     <div class="container-fluid">
         <div class="row mb-4">
             <div class="col-12">
@@ -326,6 +333,16 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function formatToColon(mac) {
             let clean = mac.replace(/[^a-fA-F0-9]/g, '').toLowerCase();
             if (clean.length === 12) {
@@ -335,8 +352,14 @@
         }
 
         $(document).ready(function() {
+            $.ajaxSetup({ data: { csrf_token: window.CSRF_TOKEN } });
+
             loadDevices();
             loadStats();
+
+            $(document).on('click', '[data-delete-mac]', function() {
+                deleteDevice($(this).data('delete-mac'));
+            });
 
             $('#mac_address').on('blur', function() {
                 const formatted = formatToColon($(this).val());
@@ -374,12 +397,12 @@
                     
                     html += `
                         <tr>
-                            <td class="mac-address">${device.mac_address}</td>
-                            <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${device.department.toUpperCase()}</span></td>
-                            <td>${device.group}</td>
-                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${device.bandwidth}</span></td>
+                            <td class="mac-address">${escapeHtml(device.mac_address)}</td>
+                            <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${escapeHtml(device.department).toUpperCase()}</span></td>
+                            <td>${escapeHtml(device.group)}</td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
                             <td class="text-end">
-                                <button class="btn btn-danger btn-sm" onclick="deleteDevice('${device.mac_address}')" style="border-radius: 8px;">
+                                <button class="btn btn-danger btn-sm" data-delete-mac="${escapeHtml(device.mac_address)}" style="border-radius: 8px;">
                                     <i class="fas fa-trash me-1"></i> Supprimer
                                 </button>
                             </td>

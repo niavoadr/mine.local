@@ -20,31 +20,6 @@ $severityFilter = [
   'low'      => 'info',
 ];
 
-function jsonResponse($success, $message = '', $data = null)
-{
-  echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
-  exit();
-}
-
-function normalizeMacAddress($macRaw)
-{
-  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
-  if (strlen($cleanMac) !== 12) {
-    return false;
-  }
-  return implode(':', str_split($cleanMac, 2));
-}
-
-function compactMacAddress($mac)
-{
-  return str_replace(':', '', normalizeMacAddress($mac));
-}
-
-function normalizedMacSqlWhere()
-{
-  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   jsonResponse(false, 'Méthode non autorisée');
 }
@@ -53,7 +28,7 @@ $is_admin_session = false;
 $is_cron_api      = false;
 
 $cron_api_token = env('CRON_API_TOKEN', '');
-if ($cron_api_token !== '' && isset($_POST['cron_token']) && $_POST['cron_token'] === $cron_api_token) {
+if ($cron_api_token !== '' && isset($_POST['cron_token']) && hash_equals($cron_api_token, (string) $_POST['cron_token'])) {
     $is_cron_api = true;
 }
 
@@ -77,6 +52,8 @@ if (!$is_cron_api) {
     }
 
     $is_admin_session = true;
+
+    check_csrf();
 }
 
 if ($is_cron_api && $action !== 'auto_block_intrusion') {
@@ -118,8 +95,9 @@ if ($action === 'get_intrusions') {
     $params[] = $severityFilter[$severity];
   }
   if ($type !== '') {
-    $sql .= ' AND event_type = ?';
-    $params[] = $type;
+    $sql .= " AND (event_type ILIKE ? OR details->>'description' ILIKE ?)";
+    $params[] = '%' . $type . '%';
+    $params[] = '%' . $type . '%';
   }
   if ($date !== '') {
     $sql .= ' AND created_at::date = ?';
@@ -256,6 +234,13 @@ if ($action === 'get_intrusions') {
     } catch (Exception $e) {
       if ($pdo->inTransaction()) $pdo->rollBack();
       jsonResponse(false, "Erreur lors de l'enregistrement de l'intrusion");
+    }
+} elseif ($action === 'get_types') {
+    try {
+        $types = $pdo->query("SELECT DISTINCT event_type FROM security_event ORDER BY event_type")->fetchAll(PDO::FETCH_COLUMN);
+        jsonResponse(true, '', $types);
+    } catch (Exception $e) {
+        jsonResponse(false, 'Erreur lors du chargement des types');
     }
 } else {
   jsonResponse(false, 'Action non reconnue');

@@ -33,7 +33,8 @@ CREATE TYPE GROUPNAME_ENUM AS ENUM (
 	'daj_group',
 	'finance_group',
 	'rh_group',
-	'sg_group'
+	'sg_group',
+	'visitor_group'
 );
 
 CREATE TABLE IF NOT EXISTS radacct (
@@ -185,8 +186,11 @@ CREATE TABLE IF NOT EXISTS session_users (
     session_id VARCHAR(128) NOT NULL,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     last_seen TIMESTAMP NOT NULL DEFAULT now(),
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_session_users_last_seen ON session_users (last_seen);
 
 INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('communication_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
@@ -198,4 +202,9 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('rh_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
 ('rh_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Down', ':=', '50000000'),
-('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000');
+('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000'),
+('visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'),
+('visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000');
+
+INSERT INTO users (username, email, password_hash, department, role, status, date_creation, date_modification)
+VALUES ('admin', 'admin@mine.local', '$2b$10$mP0Wcj.yGQ.6OJeMo03FtOhIP7AVOmRzSCYWMHKTI2tRK2GNzb69K', 'Secrétariat Général', 'ADMIN', 'active', now(), now());

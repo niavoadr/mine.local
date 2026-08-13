@@ -1,5 +1,10 @@
 <?php
 session_start();
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $connected_username = trim((string) ($_SESSION['user'] ?? ($_SESSION['nom_utilisateur'] ?? '')));
 if ($connected_username === '') {
   header('Location: login.php');
@@ -397,7 +402,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                       ENT_QUOTES,
                       'UTF-8',
                     ); ?></span>
-                    <span class="badge bg-warning text-dark ms-1">User</span>
+                    <span class="badge bg-warning text-dark ms-1"><?php echo htmlspecialchars($_SESSION['role_lib'] ?? 'User', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <button onclick="confirmLogout()" class="btn-logout-modern" title="Déconnexion">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -406,6 +411,8 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             </div>
         </div>
     </header>
+
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
 
     <main class="container-fluid py-4 px-3 px-md-4">
 
@@ -421,39 +428,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             <div class="text-center mb-4">
                 <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Visiteurs</h2>
                 <p class="text-muted">Créez des accès temporaires pour les visiteurs et consultez l'historique.</p>
-            </div>
-
-            <div class="card-custom mb-4">
-                <div class="card-custom-header">
-                    <i class="fas fa-user-plus me-2"></i> Créer un Accès Visiteur
-                </div>
-                <div class="card-custom-body">
-                    <form id="create-visitor-form">
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <label for="visitor-username" class="form-label text-muted small">Nom d'utilisateur</label>
-                                <input type="text" class="form-control" id="visitor-username" placeholder="ex: visiteur_jean" required>
-                            </div>
-                            <div class="col-md-5">
-                                <label for="visitor-duration" class="form-label text-muted small">Durée de la session (minutes)</label>
-                                <input type="number" class="form-control" id="visitor-duration" placeholder="ex: 60" required>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 12px; height: 42px;">
-                                    <i class="fas fa-plus me-1"></i> Créer
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    <div id="visitor-credentials" class="mt-3 d-none">
-                        <div class="alert alert-success">
-                            <strong>Visiteur créé !</strong><br>
-                            Identifiant : <span id="res-username" class="fw-bold"></span><br>
-                            Mot de passe : <span id="res-password" class="fw-bold text-danger"></span><br>
-                            Expire le : <span id="res-expires" class="fw-bold"></span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="card-custom">
@@ -498,7 +472,19 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     $(document).ready(function() {
+        $.ajaxSetup({ data: { csrf_token: window.CSRF_TOKEN } });
+
         loadVisitors();
         
         setInterval(function() {
@@ -506,11 +492,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 loadVisitors();
             }
         }, 10000);
-        
-        $("#create-visitor-form").on('submit', function(e) {
-            e.preventDefault();
-            createVisitor();
-        });
     });
 
     function confirmLogout() {
@@ -539,37 +520,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
         if (tabName === 'strangers') {
             loadVisitors();
         }
-    }
-
-    function createVisitor() {
-        const username = $('#visitor-username').val();
-        const duration = $('#visitor-duration').val();
-        
-        $.ajax({
-            url: 'visitor_manager.php',
-            type: 'POST',
-            data: {
-                action: 'create_visitor',
-                username: username,
-                duration: duration
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    $('#res-username').text(response.data.username);
-                    $('#res-password').text(response.data.password);
-                    $('#res-expires').text(response.data.expires_at);
-                    $('#visitor-credentials').removeClass('d-none');
-                    $('#create-visitor-form')[0].reset();
-                    loadVisitors();
-                } else {
-                    alert('Erreur: ' + response.message);
-                }
-            },
-            error: function() {
-                alert('Une erreur est survenue lors de la création du visiteur.');
-            }
-        });
     }
 
     function loadVisitors() {
@@ -602,32 +552,18 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td class="fw-semibold text-white">${record.username}</td>
-                        <td><code>${record.mac_address}</code></td>
-                        <td>${record.ip_address}</td>
-                        <td><small class="text-muted">${record.creator_name}</small></td>
-                        <td>${record.display_created_at}</td>
-                        <td>${record.display_duration}</td>
+                        <td class="fw-semibold text-white">${escapeHtml(record.username)}</td>
+                        <td><code>${escapeHtml(record.mac_address)}</code></td>
+                        <td>${escapeHtml(record.ip_address)}</td>
+                        <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
+                        <td>${escapeHtml(record.display_created_at)}</td>
+                        <td>${escapeHtml(record.display_duration)}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
                 `;
             });
         }
         $('#visitor-table-body').html(html);
-    }
-    
-    function formatDuration(seconds) {
-        if (seconds === null || seconds === undefined || isNaN(seconds)) return 'N/A';
-        const totalSeconds = parseInt(seconds);
-        if (totalSeconds < 0) return 'N/A';
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const sec = totalSeconds % 60;
-        let result = [];
-        if (hours > 0) result.push(`${hours}h`);
-        if (minutes > 0 || hours > 0) result.push(`${minutes}min`);
-        result.push(`${sec}s`);
-        return result.join(' ');
     }
     </script>
 </body>

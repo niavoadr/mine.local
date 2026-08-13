@@ -1,4 +1,9 @@
-
+<?php
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
 <head>
@@ -158,6 +163,7 @@
     <link rel="stylesheet" href="css/animations.css?v=20260721">
 </head>
 <body>
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
     <div class="container-fluid">
         <div class="row mb-4">
             <div class="col-12">
@@ -233,7 +239,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         $(document).ready(function() {
+            $.ajaxSetup({ data: { csrf_token: window.CSRF_TOKEN } });
+
             loadDevices();
             loadStats();
         });
@@ -266,10 +284,10 @@
                     
                     html += `
                         <tr>
-                            <td class="mac-address">${device.mac_address}</td>
-                            <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${device.department.toUpperCase()}</span></td>
-                            <td>${device.group}</td>
-                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${device.bandwidth}</span></td>
+                            <td class="mac-address">${escapeHtml(device.mac_address)}</td>
+                            <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${escapeHtml(device.department).toUpperCase()}</span></td>
+                            <td>${escapeHtml(device.group)}</td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
                         </tr>
                     `;
                 });

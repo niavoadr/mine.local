@@ -10,6 +10,8 @@ if (empty($_SESSION['user']) && empty($_SESSION['nom_utilisateur'])) {
     exit();
 }
 
+check_csrf();
+
 $pdo_temp = $connexion;
 $stmt_role = $pdo_temp->prepare("SELECT role FROM users WHERE username = ?");
 $stmt_role->execute([$_SESSION['user'] ?? $_SESSION['nom_utilisateur']]);
@@ -25,31 +27,6 @@ if ($user_role !== 'ADMIN') {
 header('Content-Type: application/json');
 
 $pdo = $connexion;
-
-function jsonResponse($success, $message = '', $data = null)
-{
-  echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
-  exit();
-}
-
-function normalizeMacAddress($macRaw)
-{
-  $cleanMac = strtolower(preg_replace('/[^a-fA-F0-9]/', '', (string) $macRaw));
-  if (strlen($cleanMac) !== 12) {
-    return false;
-  }
-  return implode(':', str_split($cleanMac, 2));
-}
-
-function compactMacAddress($mac)
-{
-  return str_replace(':', '', normalizeMacAddress($mac));
-}
-
-function normalizedMacSqlWhere()
-{
-  return "regexp_replace(lower(username), '[^0-9a-f]', '', 'g') = ?";
-}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   jsonResponse(false, 'Méthode non autorisée');

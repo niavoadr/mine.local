@@ -369,12 +369,12 @@ foreach ($events as $alert) {
         if (strpos($res['message'] ?? '', 'appareil bloqué') !== false) {
             $blocked++;
         }
+        // B2 : le curseur n'avance que si l'insertion a réussi
+        if ($alert['raw_timestamp'] > $latestTimestamp) {
+            $latestTimestamp = $alert['raw_timestamp'];
+        }
     } else {
         echo "[fail2ban_sync] Échec insertion: " . ($res['message'] ?? 'erreur inconnue') . "\n";
-    }
-
-    if ($alert['raw_timestamp'] > $latestTimestamp) {
-        $latestTimestamp = $alert['raw_timestamp'];
     }
 }
 
@@ -382,5 +382,11 @@ if ($latestTimestamp > ($lastSync ?: 0)) {
     file_put_contents($LAST_SYNC_FILE, (string) $latestTimestamp);
 }
 saveSeenIps($SEEN_IPS_FILE, $seenIps);
+
+// B3 : borner le fichier des IP déjà vues (5000 max, on garde les 1000 plus récentes)
+if (count($seenIps) > 5000) {
+    $seenIps = array_slice($seenIps, -1000);
+    saveSeenIps($SEEN_IPS_FILE, $seenIps);
+}
 
 echo "[fail2ban_sync] Terminé: $inserted insérée(s), $blocked MAC bloquée(s)\n";

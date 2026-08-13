@@ -2,13 +2,6 @@
 require_once __DIR__ . '/connexion.php';
 require_once __DIR__ . '/manager_session.php';
 
-if (!function_exists('manager_escape')) {
-  function manager_escape($value): string
-  {
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-  }
-}
-
 try {
   register_app_session($connexion);
   $stats = $connexion->query(

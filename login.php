@@ -1,9 +1,12 @@
 <?php
 ob_start();
 session_start();
-require_once './connexion.php';
 
-define('CHEF_DEPT', 5);
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+require_once './connexion.php';
 
 $msg = '';
 $username_value = '';
@@ -19,6 +22,7 @@ function logFailedLogin($username)
     @mkdir($logDir, 0750, true);
   }
   @file_put_contents($logDir . '/auth.log', $line, FILE_APPEND | LOCK_EX);
+  @chmod($logDir . '/auth.log', 0640);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset($_POST['pass'])) {
@@ -639,13 +643,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
           <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" title="Afficher/Masquer">
             <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
           </button>
-        </div>
-
-        <div class="form-options">
-          <label class="custom-checkbox" for="flexCheckDefault">
-            <input type="checkbox" value="remember-me" id="flexCheckDefault" name="forget">
-            <span>Se souvenir de moi</span>
-          </label>
         </div>
 
         <button class="btn-submit" type="submit" name="ok">
