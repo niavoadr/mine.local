@@ -33,7 +33,8 @@ CREATE TYPE GROUPNAME_ENUM AS ENUM (
 	'daj_group',
 	'finance_group',
 	'rh_group',
-	'sg_group'
+	'sg_group',
+	'visitor_group'
 );
 
 CREATE TABLE IF NOT EXISTS radacct (
@@ -185,8 +186,11 @@ CREATE TABLE IF NOT EXISTS session_users (
     session_id VARCHAR(128) NOT NULL,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     last_seen TIMESTAMP NOT NULL DEFAULT now(),
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_session_users_last_seen ON session_users (last_seen);
 
 INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('communication_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
@@ -198,33 +202,18 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('rh_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
 ('rh_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Down', ':=', '50000000'),
-('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000');
+('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000'),
+('visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'),
+('visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000');
+
 -- =====================================================================
--- Correctifs de sécurité / fonctionnalités (revue du 13/08/2026)
--- À exécuter AUSSI sur une base existante, instruction par instruction.
--- ⚠️ Ne pas rejouer tout radius.sql sur une base existante (CREATE TYPE
---    échouerait) : exécuter uniquement les instructions ci-dessous.
+-- Compte administrateur par défaut
+-- Login : admin / Mot de passe : admin123
+-- ⚠️ IMPORTANT : changer ce mot de passe après la première connexion
+--    (onglet "Gestionnaire de Compte" -> le mot de passe ne se change pas
+--    encore dans l'interface ; contacter un admin ou le modifier en base
+--    avec : UPDATE users SET password_hash = '<nouveau hash bcrypt>'
+--    WHERE username = 'admin';)
 -- =====================================================================
-
--- M4 : colonne department pour une base FreeRADIUS existante
-ALTER TABLE radcheck ADD COLUMN IF NOT EXISTS department DEPARTMENT_ENUM;
-
--- M3 : index pour session_users (heartbeat des sessions)
--- (en cas de doublons de session_id, supprimer d'abord :
---  DELETE FROM session_users a USING session_users b
---  WHERE a.session_id = b.session_id AND a.created_at < b.created_at;)
-ALTER TABLE session_users ADD PRIMARY KEY (session_id);
-CREATE INDEX IF NOT EXISTS idx_session_users_last_seen ON session_users (last_seen);
-
--- M2 : groupe visiteur + limite de bande passante (10 Mbps = 10 000 000 bps)
--- ⚠️ PostgreSQL : exécuter l'ALTER TYPE ADD VALUE séparément des INSERT
---    (pas dans la même transaction) si exécuté en une seule session.
-ALTER TYPE groupname_enum ADD VALUE IF NOT EXISTS 'visitor_group';
-
-INSERT INTO radgroupreply (groupname, attribute, op, value)
-SELECT 'visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'
-WHERE NOT EXISTS (SELECT 1 FROM radgroupreply WHERE groupname = 'visitor_group' AND attribute = 'WISPr-Bandwidth-Max-Down');
-
-INSERT INTO radgroupreply (groupname, attribute, op, value)
-SELECT 'visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000'
-WHERE NOT EXISTS (SELECT 1 FROM radgroupreply WHERE groupname = 'visitor_group' AND attribute = 'WISPr-Bandwidth-Max-Up');
+INSERT INTO users (username, email, password_hash, department, role, status, date_creation, date_modification)
+VALUES ('admin', 'admin@mine.local', '$2b$10$mP0Wcj.yGQ.6OJeMo03FtOhIP7AVOmRzSCYWMHKTI2tRK2GNzb69K', 'Secrétariat Général', 'ADMIN', 'active', now(), now());
