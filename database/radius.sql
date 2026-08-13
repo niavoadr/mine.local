@@ -206,14 +206,5 @@ INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'),
 ('visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000');
 
--- =====================================================================
--- Compte administrateur par défaut
--- Login : admin / Mot de passe : admin123
--- ⚠️ IMPORTANT : changer ce mot de passe après la première connexion
---    (onglet "Gestionnaire de Compte" -> le mot de passe ne se change pas
---    encore dans l'interface ; contacter un admin ou le modifier en base
---    avec : UPDATE users SET password_hash = '<nouveau hash bcrypt>'
---    WHERE username = 'admin';)
--- =====================================================================
 INSERT INTO users (username, email, password_hash, department, role, status, date_creation, date_modification)
 VALUES ('admin', 'admin@mine.local', '$2b$10$mP0Wcj.yGQ.6OJeMo03FtOhIP7AVOmRzSCYWMHKTI2tRK2GNzb69K', 'Secrétariat Général', 'ADMIN', 'active', now(), now());
