@@ -5,8 +5,17 @@
  * Fail2ban tourne en local sur le Debian (même machine que PHP / FreeRADIUS).
  * Pas de SSH : on lit /var/log/fail2ban.log, puis POST intrusion.php.
  *
+<<<<<<< HEAD
  * Politique (Fail2ban seul, jamais Snort) :
  *   warning  → IP déjà bannie par iptables, pas de blacklist MAC
+=======
+ * URLs protégées :
+ *   mine-login      → portail.cpanel/login.php et 192.168.0.99/login.php
+ *   pfsense-portal  → 192.168.0.1:8002 (zone debian)
+ *
+ * Politique (Fail2ban seul, jamais Snort) :
+ *   warning  → IP (iptables Debian + table pf sur pfSense pour le captif)
+>>>>>>> 0ddb7b3 (feat: protéger les 3 URLs (admin + IP Debian + portail captif pfSense))
  *   critical → IP + MAC (blacklist / radcheck) si l'appareil est dans radacct
  *
  * Cron :
