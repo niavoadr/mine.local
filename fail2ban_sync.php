@@ -385,7 +385,7 @@ foreach ($events as $alert) {
         if ($seenKey !== '') {
             $seenIps[] = $seenKey;
         }
-        if (strpos($res['message'] ?? '', 'bloqué') !== false) {
+        if (strpos($res['message'] ?? '', 'appareil bloqué') !== false) {
             $blocked++;
         }
     } else {
