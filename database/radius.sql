@@ -192,19 +192,47 @@ CREATE TABLE IF NOT EXISTS session_users (
 
 CREATE INDEX IF NOT EXISTS idx_session_users_last_seen ON session_users (last_seen);
 
+-- Limitation de vitesse : un seul enregistrement par couple (groupe, attribut).
+CREATE UNIQUE INDEX IF NOT EXISTS radgroupreply_group_attr_uidx
+  ON radgroupreply (groupname, attribute);
+
+-- Débits statiques par groupe. Trois dialectes sont publiés simultanément :
+-- WISPr (CoovaChilli/hotspots), Mikrotik-Rate-Limit (RouterOS) et Ascend
+-- (pfSense/BRAS). Un NAS ignore les attributs vendor-specific qu'il ne connaît
+-- pas, donc la limite s'applique quel que soit l'équipement en place.
+-- L'opérateur ':=' force la valeur dans la réponse Access-Accept.
 INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES
 ('communication_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
 ('communication_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('communication_group', 'Mikrotik-Rate-Limit', ':=', '20M/20M'),
+('communication_group', 'Ascend-Data-Rate', ':=', '20000000'),
+('communication_group', 'Ascend-Xmit-Rate', ':=', '20000000'),
 ('daj_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
 ('daj_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('daj_group', 'Mikrotik-Rate-Limit', ':=', '20M/20M'),
+('daj_group', 'Ascend-Data-Rate', ':=', '20000000'),
+('daj_group', 'Ascend-Xmit-Rate', ':=', '20000000'),
 ('finance_group', 'WISPr-Bandwidth-Max-Down', ':=', '30000000'),
 ('finance_group', 'WISPr-Bandwidth-Max-Up', ':=', '30000000'),
+('finance_group', 'Mikrotik-Rate-Limit', ':=', '30M/30M'),
+('finance_group', 'Ascend-Data-Rate', ':=', '30000000'),
+('finance_group', 'Ascend-Xmit-Rate', ':=', '30000000'),
 ('rh_group', 'WISPr-Bandwidth-Max-Down', ':=', '20000000'),
 ('rh_group', 'WISPr-Bandwidth-Max-Up', ':=', '20000000'),
+('rh_group', 'Mikrotik-Rate-Limit', ':=', '20M/20M'),
+('rh_group', 'Ascend-Data-Rate', ':=', '20000000'),
+('rh_group', 'Ascend-Xmit-Rate', ':=', '20000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Down', ':=', '50000000'),
 ('sg_group', 'WISPr-Bandwidth-Max-Up', ':=', '50000000'),
+('sg_group', 'Mikrotik-Rate-Limit', ':=', '50M/50M'),
+('sg_group', 'Ascend-Data-Rate', ':=', '50000000'),
+('sg_group', 'Ascend-Xmit-Rate', ':=', '50000000'),
 ('visitor_group', 'WISPr-Bandwidth-Max-Down', ':=', '10000000'),
-('visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000');
+('visitor_group', 'WISPr-Bandwidth-Max-Up', ':=', '10000000'),
+('visitor_group', 'Mikrotik-Rate-Limit', ':=', '10M/10M'),
+('visitor_group', 'Ascend-Data-Rate', ':=', '10000000'),
+('visitor_group', 'Ascend-Xmit-Rate', ':=', '10000000')
+ON CONFLICT (groupname, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op;
 
 INSERT INTO users (username, email, password_hash, department, role, status, date_creation, date_modification)
 VALUES ('admin', 'admin@mine.local', '$2b$10$mP0Wcj.yGQ.6OJeMo03FtOhIP7AVOmRzSCYWMHKTI2tRK2GNzb69K', 'Secrétariat Général', 'ADMIN', 'active', now(), now());

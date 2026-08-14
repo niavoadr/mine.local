@@ -296,6 +296,42 @@ if (empty($_SESSION['csrf_token'])) {
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span><i class="fas fa-gauge-high me-2"></i> Limitation de vitesse (lecture seule)</span>
+                        <button class="btn btn-sm btn-outline-light" onclick="loadBandwidthStatus()" style="border-radius: 8px;">
+                            <i class="fas fa-sync-alt me-1"></i> Vérifier
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Les débits sont définis en base (<code>radgroupreply</code>) et ne se modifient pas depuis l'interface.
+                            Ce panneau vérifie qu'ils sont bien publiés vers le NAS.
+                        </p>
+                        <div id="bandwidthIssues"></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Groupe</th>
+                                        <th>Descendant</th>
+                                        <th>Montant</th>
+                                        <th>Mikrotik-Rate-Limit</th>
+                                        <th>État</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bandwidthTable">
+                                    <tr><td colspan="5" class="text-center py-4 text-muted">Chargement...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span><i class="fas fa-list me-2"></i> Appareils autorisés</span>
                         <button class="btn btn-sm btn-outline-light" onclick="loadDevices()" style="border-radius: 8px;">
                             <i class="fas fa-sync-alt me-1"></i> Actualiser
@@ -356,6 +392,7 @@ if (empty($_SESSION['csrf_token'])) {
 
             loadDevices();
             loadStats();
+            loadBandwidthStatus();
 
             $(document).on('click', '[data-delete-mac]', function() {
                 deleteDevice($(this).data('delete-mac'));
@@ -368,6 +405,53 @@ if (empty($_SESSION['csrf_token'])) {
                 }
             });
         });
+
+        function loadBandwidthStatus() {
+            $('#bandwidthTable').html('<tr><td colspan="5" class="text-center py-4 text-muted">Vérification...</td></tr>');
+            $.post('radius_devices.php', {action: 'bandwidth_status', csrf_token: window.CSRF_TOKEN}, function(response) {
+                if (!response.success) {
+                    $('#bandwidthTable').html('<tr><td colspan="5" class="text-center py-4 text-danger">Erreur: ' + escapeHtml(response.error) + '</td></tr>');
+                    return;
+                }
+                const data = response.data;
+                let html = '';
+                data.groups.forEach(function(g) {
+                    const badge = g.ok
+                        ? '<span class="badge bg-success">Appliqué</span>'
+                        : '<span class="badge bg-danger">Non appliqué</span>';
+                    let detail = '';
+                    if (g.missing.length) detail += '<div class="small text-warning">Absent : ' + escapeHtml(g.missing.join(', ')) + '</div>';
+                    if (g.wrong.length) detail += '<div class="small text-warning">' + escapeHtml(g.wrong.join(' ; ')) + '</div>';
+                    if (g.duplicates.length) detail += '<div class="small text-warning">Doublons : ' + escapeHtml(g.duplicates.join(', ')) + '</div>';
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(g.label)}<div class="small text-muted">${escapeHtml(g.groupname)}</div></td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(g.down_human)}</span></td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(g.up_human)}</span></td>
+                            <td><code>${escapeHtml(g.mikrotik)}</code></td>
+                            <td>${badge}${detail}</td>
+                        </tr>`;
+                });
+                $('#bandwidthTable').html(html);
+
+                let alerts = '';
+                if (data.issues.length) {
+                    alerts = '<div class="alert alert-warning py-2"><strong>Problèmes détectés :</strong><ul class="mb-0 small">'
+                           + data.issues.map(i => '<li>' + escapeHtml(i) + '</li>').join('')
+                           + '</ul></div>';
+                } else {
+                    alerts = '<div class="alert alert-success py-2 small mb-3">Tous les profils de débit sont correctement publiés vers le NAS.</div>';
+                }
+                if (data.active_sessions > 0) {
+                    alerts += '<div class="alert alert-info py-2 small mb-3">'
+                            + data.active_sessions + ' session(s) active(s) : la limite appliquée est celle reçue à la connexion. '
+                            + 'Une modification des profils ne prend effet qu\'à la reconnexion (ou via un CoA/Disconnect côté NAS).</div>';
+                }
+                $('#bandwidthIssues').html(alerts);
+            }, 'json').fail(function() {
+                $('#bandwidthTable').html('<tr><td colspan="5" class="text-center py-4 text-danger">Erreur de communication</td></tr>');
+            });
+        }
 
         function loadDevices() {
             $.post('radius_devices.php', {action: 'get_devices'}, function(response) {

@@ -83,13 +83,23 @@ switch ($action) {
             $stmt = $pdo->prepare("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)");
             $stmt->execute([$username, 'Cleartext-Password', ':=', $password]);
 
-            // M2 : limite de bande passante via le groupe visitor_group (si le groupe existe en base)
+            // M2 : limite de bande passante via le groupe visitor_group.
+            // Le rattachement au groupe est OBLIGATOIRE : sans lui, le visiteur
+            // s'authentifie mais le NAS ne reçoit aucune limite de débit.
             $stmtGroup = $pdo->prepare("SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'groupname_enum' AND e.enumlabel = 'visitor_group'");
             $stmtGroup->execute();
-            if ($stmtGroup->fetchColumn()) {
-                $stmt = $pdo->prepare("INSERT INTO radusergroup (username, groupname, priority) VALUES (?, 'visitor_group', 1)");
-                $stmt->execute([$username]);
+            if (!$stmtGroup->fetchColumn()) {
+                throw new Exception("Le groupe 'visitor_group' est absent de la base : impossible d'appliquer la limite de débit.");
             }
+
+            $stmtProfile = $pdo->prepare("SELECT COUNT(*) FROM radgroupreply WHERE groupname = 'visitor_group' AND attribute = 'WISPr-Bandwidth-Max-Down'");
+            $stmtProfile->execute();
+            if ((int) $stmtProfile->fetchColumn() === 0) {
+                throw new Exception("Aucun profil de débit défini pour 'visitor_group' (radgroupreply) : appliquez la migration database/migrations/2026_08_14_bandwidth_limits.sql.");
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO radusergroup (username, groupname, priority) VALUES (?, 'visitor_group', 1)");
+            $stmt->execute([$username]);
 
             $pdo->commit();
 

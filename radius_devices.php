@@ -3,6 +3,7 @@ ob_start();
 
 require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/connexion.php';
+require_once __DIR__ . '/bandwidth.php';
 
 session_start();
 
@@ -70,6 +71,10 @@ try {
       getDevices($connexion);
       break;
 
+    case 'bandwidth_status':
+      getBandwidthStatus($connexion);
+      break;
+
     case 'add_device':
       addDevice($connexion);
       break;
@@ -89,7 +94,7 @@ try {
     default:
       echo json_encode([
         'success' => false,
-        'error' => 'Action non spécifiée. Actions disponibles: get_devices, add_device, delete_device, test',
+        'error' => 'Action non spécifiée. Actions disponibles: get_devices, bandwidth_status, add_device, delete_device, test',
       ]);
   }
 } catch (Exception $e) {
@@ -148,15 +153,23 @@ function checkMacStatus(PDO $connexion)
 function getDevices(PDO $connexion)
 {
   try {
+    // La correspondance radcheck/radusergroup se fait sur la MAC normalisée :
+    // un simple LOWER() ne rapproche pas « aabbccddeeff » de « aa:bb:cc:dd:ee:ff »
+    // et l'appareil apparaissait alors sans groupe ni limite de débit.
     $sql = "SELECT 
                     MAX(rc.id) FILTER (WHERE rc.attribute = 'Cleartext-Password') AS id,
                     rc.username as mac_address,
                     MIN(rc.department) as department,
-                    MAX(rg.groupname) as groupname,
-                    MAX(rgr.value) as bandwidth_value
+                    MAX(rg.groupname::text) as groupname,
+                    MAX(rgr.value) FILTER (WHERE rgr.attribute = 'WISPr-Bandwidth-Max-Down') as bandwidth_down,
+                    MAX(rgr.value) FILTER (WHERE rgr.attribute = 'WISPr-Bandwidth-Max-Up') as bandwidth_up
                 FROM radcheck rc
-                LEFT JOIN radusergroup rg ON LOWER(rc.username) = LOWER(rg.username)  
-                LEFT JOIN radgroupreply rgr ON rg.groupname = rgr.groupname AND rgr.attribute = 'WISPr-Bandwidth-Max-Down'
+                LEFT JOIN radusergroup rg
+                       ON regexp_replace(lower(rc.username), '[^0-9a-z]', '', 'g')
+                        = regexp_replace(lower(rg.username), '[^0-9a-z]', '', 'g')
+                LEFT JOIN radgroupreply rgr
+                       ON rg.groupname = rgr.groupname
+                      AND rgr.attribute IN ('WISPr-Bandwidth-Max-Down', 'WISPr-Bandwidth-Max-Up')
                 WHERE rc.department IS NOT NULL
                   AND (rc.username ~* '^([0-9a-f]{2}[:.-]?){5}[0-9a-f]{2}$' OR rc.username ~* '^[0-9a-f]{12}$')
                 GROUP BY rc.username
@@ -171,18 +184,50 @@ function getDevices(PDO $connexion)
         $displayMac = strtolower((string) $row['mac_address']);
       }
 
+      // Un appareil sans groupe n'a AUCUNE limite appliquée par le NAS :
+      // on le signale explicitement au lieu d'afficher un « N/A » ambigu.
+      $hasGroup = !empty($row['groupname']);
+      $down     = (int) ($row['bandwidth_down'] ?? 0);
+      $up       = (int) ($row['bandwidth_up'] ?? 0);
+
+      if (!$hasGroup) {
+        $bandwidth = 'Non limité (sans groupe)';
+      } elseif ($down <= 0) {
+        $bandwidth = 'Non limité (profil absent)';
+      } else {
+        $bandwidth = formatBitsPerSecond($down);
+      }
+
       $devices[] = [
         'id' => $row['id'],
         'mac_address' => $displayMac,
         'department' => enumToShortcode($row['department']),
-        'bandwidth' => $row['bandwidth_value'] ? round($row['bandwidth_value'] / 1000000) . ' Mbps' : 'N/A',
-        'group' => $row['groupname'] ?: 'N/A',
+        'bandwidth' => $bandwidth,
+        'bandwidth_down' => $down,
+        'bandwidth_up' => $up,
+        'bandwidth_up_human' => $up > 0 ? formatBitsPerSecond($up) : '—',
+        'bandwidth_ok' => $hasGroup && $down > 0,
+        'group' => $row['groupname'] ?: 'Aucun',
       ];
     }
 
     echo json_encode(['success' => true, 'data' => $devices, 'count' => count($devices)]);
   } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => 'Erreur getDevices: ' . $e->getMessage()]);
+  }
+}
+
+/**
+ * Diagnostic en lecture seule de la limitation de vitesse.
+ * Les débits ne sont pas modifiables ici : ils viennent de radgroupreply.
+ */
+function getBandwidthStatus(PDO $connexion)
+{
+  try {
+    $report = bandwidthDiagnose($connexion);
+    echo json_encode(['success' => true, 'data' => $report]);
+  } catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => 'Erreur diagnostic débit: ' . $e->getMessage()]);
   }
 }
 
