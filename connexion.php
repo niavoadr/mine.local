@@ -36,6 +36,9 @@ if (!function_exists('get_db_connection')) {
 
     $pdo->exec("SET NAMES 'utf8'");
 
+    $pdo->exec("SET NAMES 'utf8'");
+    $pdo->exec("SET timezone TO 'Indian/Antananarivo'");   // ← ligne à ajouter
+
     return $pdo;
   }
 }
