@@ -20,7 +20,7 @@ if (($_SESSION['role'] ?? '') !== 'ADMIN') {
 $user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="dark">
+<html lang="fr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,417 +28,9 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-dark-1: #0a0a0c;
-            --bg-dark-2: #141418;
-            --bg-card: rgba(24, 24, 30, 0.8);
-            --gold-primary: #DAA520;
-            --gold-dark: #B8860B;
-            --gold-glow: rgba(218, 165, 32, 0.25);
-            --border-gold: rgba(218, 165, 32, 0.28);
-            --text-muted: #9ca3af;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-dark-1);
-            background-image: 
-                radial-gradient(circle at 15% 10%, rgba(184, 134, 11, 0.12) 0%, transparent 40%),
-                radial-gradient(circle at 85% 80%, rgba(218, 165, 32, 0.1) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(20, 20, 25, 1) 0%, var(--bg-dark-1) 100%);
-            color: #e5e7eb;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-        }
-
-        .ministry-status-bar {
-            background: rgba(10, 10, 12, 0.95);
-            border-bottom: 1px solid var(--border-gold);
-            padding: 0.45rem 1.5rem;
-            font-size: 0.75rem;
-            color: var(--gold-primary);
-            font-weight: 600;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-            box-shadow: 0 0 8px #10b981;
-            animation: pulseGreen 2s infinite;
-        }
-
-        @keyframes pulseGreen {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(1.15); }
-        }
-
-        .dashboard-header {
-            background: rgba(18, 18, 24, 0.75);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .header-logo-box {
-            width: 50px;
-            height: 50px;
-            background: #fff;
-            border-radius: 12px;
-            padding: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid var(--gold-primary);
-            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.25);
-        }
-
-        .header-logo-box img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .header-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin: 0;
-        }
-
-        .header-subtitle {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .nav-tabs-container {
-            background: rgba(14, 14, 18, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 50px;
-            padding: 6px;
-            display: inline-flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .nav-tab {
-            background: transparent;
-            border: none;
-            border-radius: 50px;
-            color: var(--text-muted);
-            padding: 0.55rem 1.25rem;
-            font-weight: 600;
-            font-size: 0.88rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-        }
-
-        .nav-tab:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-tab.active {
-            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
-            color: #000000 !important;
-            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.4);
-        }
-
-        .user-profile-pill {
-            background: rgba(218, 165, 32, 0.12);
-            border: 1px solid var(--border-gold);
-            padding: 0.4rem 1rem;
-            border-radius: 50px;
-            font-size: 0.85rem;
-        }
-
-        .btn-logout-modern {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.35);
-            color: #f87171;
-            padding: 0.45rem 1rem;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .btn-logout-modern:hover {
-            background: #ef4444;
-            color: #ffffff;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-        }
-
-        .content-section {
-            display: none;
-            animation: fadeInTab 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .content-section.active {
-            display: block;
-        }
-
-        @keyframes fadeInTab {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .glass-iframe {
-            border-radius: 18px;
-            background: transparent;
-            width: 100%;
-            height: 860px;
-            border: 1px solid var(--border-gold);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-        }
-
-        .subsection-nav {
-            display: flex;
-            justify-content: center;
-            gap: 0.75rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .subsection-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #d1d5db;
-            padding: 0.6rem 1.4rem;
-            border-radius: 14px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .subsection-btn:hover {
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
-        }
-
-        .subsection-btn.active {
-            background: rgba(218, 165, 32, 0.2);
-            border-color: var(--gold-primary);
-            color: #FFD700;
-            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.2);
-        }
-
-        .subsection-content {
-            display: none;
-        }
-
-        .subsection-content.active {
-            display: block;
-            animation: fadeInTab 0.3s ease-out;
-        }
-
-        .stats-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-            margin-bottom: 1.5rem;
-        }
-
-        .stats-card.danger { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); }
-        .stats-card.warning { border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08); }
-
-        .stats-card h5 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
-        .stats-card h2 { font-size: 2.2rem; font-weight: 700; color: #fff; margin: 0; }
-
-        .card-custom {
-            background: var(--bg-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            margin-bottom: 1.5rem;
-            overflow: hidden;
-        }
-
-        .card-custom-header {
-            background: linear-gradient(135deg, rgba(218, 165, 32, 0.15) 0%, rgba(184, 134, 11, 0.08) 100%);
-            border-bottom: 1px solid var(--border-gold);
-            padding: 1rem 1.5rem;
-            color: #FFD700;
-            font-weight: 600;
-        }
-
-        .card-custom-body {
-            padding: 1.5rem;
-        }
-
-        .form-control, .form-select {
-            background: rgba(18, 18, 22, 0.9) !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
-            border-radius: 12px !important;
-            color: #ffffff !important;
-            padding: 0.65rem 1rem !important;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--gold-primary) !important;
-            box-shadow: 0 0 0 4px var(--gold-glow) !important;
-        }
-
-        .table-responsive {
-            background: var(--bg-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            overflow: hidden;
-        }
-
-        .table {
-            margin-bottom: 0;
-            color: #e5e7eb;
-        }
-
-        .table thead th {
-            background: rgba(218, 165, 32, 0.15);
-            color: #FFD700;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.82rem;
-            letter-spacing: 0.5px;
-            border: none;
-            padding: 14px 18px;
-        }
-
-        .table tbody tr td {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 14px 18px;
-            vertical-align: middle;
-            font-size: 0.92rem;
-        }
-
-        .table tbody tr:hover td {
-            background: rgba(218, 165, 32, 0.08);
-        }
-
-        #manager-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 22px;
-            padding: 2.5rem;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-        }
-
-        #manager-content .section-title {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 1.5rem;
-        }
-
-        #manager-content .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
-
-        #manager-content .stat-card {
-            background: rgba(30, 30, 38, 0.8) !important;
-            border: 1px solid var(--border-gold) !important;
-            border-radius: 18px !important;
-            padding: 1.5rem !important;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
-            transition: transform 0.3s ease !important;
-        }
-
-        #manager-content .stat-card:hover {
-            transform: translateY(-4px) !important;
-            border-color: var(--gold-primary) !important;
-        }
-
-        #manager-content .stat-number {
-            color: #FFD700 !important;
-            font-size: 2.5rem !important;
-            font-weight: 700 !important;
-        }
-
-        #manager-content .stat-label {
-            color: var(--text-muted) !important;
-            font-size: 0.85rem !important;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-        }
-
-        #manager-content .ajax-users-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-top: 1.5rem;
-        }
-
-        #manager-content .ajax-users-table th {
-            background: rgba(218, 165, 32, 0.15);
-            color: #FFD700;
-            padding: 14px 18px;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.82rem;
-            letter-spacing: 0.5px;
-            border: none;
-        }
-
-        #manager-content .ajax-users-table td {
-            background: rgba(30, 30, 38, 0.7);
-            color: #e5e7eb;
-            padding: 14px 18px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        #manager-content .ajax-users-table tr:hover td {
-            background: rgba(45, 45, 55, 0.85);
-        }
-
-        .log-console {
-            background: #08080a;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 1.25rem;
-            font-family: 'Plus Jakarta Sans', monospace;
-            font-size: 0.88rem;
-            line-height: 1.7;
-            max-height: 650px;
-            overflow-y: auto;
-            color: #10b981;
-        }
-    </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="css/theme.css?v=20260817">
+    <link rel="stylesheet" href="css/responsive.css?v=20260817">
+    <link rel="stylesheet" href="css/animations.css?v=20260817">
 </head>
 <body>
 
@@ -501,7 +93,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <div id="strangers-content" class="content-section">
             <div class="text-center mb-4">
-                <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Étrangers & Surveillance</h2>
+                <h2 class="fw-bold"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Étrangers & Surveillance</h2>
                 <p class="text-muted">Historique des visiteurs, liste noire d'appareils bloqués et détection d'intrusions en temps réel.</p>
             </div>
 
@@ -540,7 +132,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                     </select>
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 12px; height: 42px;">
+                                    <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 2px; height: 42px;">
                                         <i class="fas fa-plus me-1"></i> Créer
                                     </button>
                                 </div>
@@ -627,7 +219,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                 </select>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
-                                <button class="btn btn-danger w-100 fw-bold" id="add-blacklist-btn" style="border-radius: 12px; height: 42px;">
+                                <button class="btn btn-danger w-100 fw-bold" id="add-blacklist-btn" style="border-radius: 2px; height: 42px;">
                                     <i class="fas fa-ban me-1"></i> Bloquer
                                 </button>
                             </div>
@@ -711,7 +303,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                 <input type="date" class="form-control" id="intrusion-date">
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
-                                <button class="btn btn-warning w-100 fw-bold" id="intrusion-filter-btn" style="border-radius: 12px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
+                                <button class="btn btn-warning w-100 fw-bold" id="intrusion-filter-btn" style="border-radius: 2px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
                                     <i class="fas fa-search me-1"></i> Rechercher
                                 </button>
                             </div>
@@ -752,7 +344,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-bell me-2"></i> Événements de Sécurité</span>
-                    <button class="btn btn-sm btn-outline-light" onclick="loadSystemAlerts()" style="border-radius: 8px;">
+                    <button class="btn btn-sm btn-outline-dark" onclick="loadSystemAlerts()" style="border-radius: 2px;">
                         <i class="fas fa-sync-alt me-1"></i> Actualiser
                     </button>
                 </div>
@@ -943,7 +535,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td class="fw-semibold text-white">${escapeHtml(record.username)}</td>
+                        <td class="fw-semibold">${escapeHtml(record.username)}</td>
                         <td><code>${escapeHtml(record.mac_address)}</code></td>
                         <td>${escapeHtml(record.ip_address)}</td>
                         <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
@@ -992,7 +584,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td>${escapeHtml(record.blocked_date)}</td>
                         <td><span class="badge bg-warning text-dark fw-bold">${escapeHtml(record.blocked_attempts || 0)}</span></td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-success fw-semibold" data-unblock-mac="${escapeHtml(record.mac_address)}" style="border-radius: 8px;">
+                            <button class="btn btn-sm btn-success fw-semibold" data-unblock-mac="${escapeHtml(record.mac_address)}" style="border-radius: 2px;">
                                 <i class="fas fa-unlock me-1"></i> Débloquer
                             </button>
                         </td>
@@ -1167,7 +759,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td><small>${escapeHtml(record.description)}</small></td>
                         <td>${sourceInfoBadge}</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-danger fw-semibold" data-block-mac="${escapeHtml(record.mac_address)}" data-block-type="${escapeHtml(record.type)}" style="border-radius: 8px;">
+                            <button class="btn btn-sm btn-danger fw-semibold" data-block-mac="${escapeHtml(record.mac_address)}" data-block-type="${escapeHtml(record.type)}" style="border-radius: 2px;">
                                 <i class="fas fa-ban me-1"></i> Bloquer
                             </button>
                         </td>
@@ -1226,7 +818,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             'Snort': '<span class="badge bg-primary"><i class="fas fa-shield-alt me-1"></i> Snort</span>',
             'Firewall': '<span class="badge bg-secondary"><i class="fas fa-fire me-1"></i> Firewall</span>',
             'Fail2ban': '<span class="badge bg-danger"><i class="fas fa-ban me-1"></i> Fail2ban</span>',
-            'Manual': '<span class="badge bg-dark border border-secondary"><i class="fas fa-user me-1"></i> Manuel</span>'
+            'Manual': '<span class="badge bg-light border"><i class="fas fa-user me-1"></i> Manuel</span>'
         };
         return badges[source] || '<span class="badge bg-info text-dark">Autre</span>';
     }

@@ -5,218 +5,16 @@ if (empty($_SESSION['csrf_token'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="dark">
+<html lang="fr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Appareils RADIUS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-body: #0e0e12;
-            --bg-card: rgba(24, 24, 30, 0.85);
-            --border-gold: rgba(218, 165, 32, 0.25);
-            --gold-primary: #DAA520;
-            --gold-dark: #B8860B;
-            --text-muted: #9ca3af;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-body);
-            color: #e5e7eb;
-            margin: 0;
-            padding: 1.5rem;
-        }
-
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 18px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-            transition: transform 0.3s ease, border-color 0.3s ease;
-        }
-
-        .card:hover {
-            border-color: var(--gold-primary);
-            box-shadow: 0 15px 35px rgba(218, 165, 32, 0.15);
-        }
-
-        .card-header {
-            background: linear-gradient(135deg, rgba(218, 165, 32, 0.18) 0%, rgba(184, 134, 11, 0.1) 100%);
-            border-bottom: 1px solid var(--border-gold);
-            padding: 1rem 1.5rem;
-            color: #FFD700;
-            font-weight: 600;
-        }
-
-        .card-title {
-            font-weight: 700;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .card-title i {
-            color: var(--gold-primary);
-        }
-
-        .form-control, .form-select {
-            background: rgba(18, 18, 22, 0.9) !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
-            border-radius: 12px !important;
-            color: #ffffff !important;
-            padding: 0.75rem 1rem !important;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--gold-primary) !important;
-            box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.2) !important;
-        }
-
-        .btn-marron {
-            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
-            border: none;
-            color: #000;
-            font-weight: 700;
-            border-radius: 12px;
-            padding: 0.75rem 1.25rem;
-            box-shadow: 0 6px 16px rgba(184, 134, 11, 0.35);
-            transition: all 0.3s ease;
-        }
-
-        .btn-marron:hover {
-            background: linear-gradient(135deg, #e5b32e 0%, #c99312 100%);
-            color: #000;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 22px rgba(184, 134, 11, 0.5);
-        }
-
-        .table-responsive {
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .table {
-            margin-bottom: 0;
-            color: #e5e7eb;
-        }
-
-        .table thead th {
-            background: rgba(218, 165, 32, 0.15);
-            color: #FFD700;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.82rem;
-            letter-spacing: 0.5px;
-            border: none;
-            padding: 14px 18px;
-        }
-
-        .table tbody tr td {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 14px 18px;
-            vertical-align: middle;
-            font-size: 0.92rem;
-        }
-
-        .table tbody tr:hover td {
-            background: rgba(218, 165, 32, 0.08);
-        }
-
-        .mac-address {
-            font-family: 'Plus Jakarta Sans', monospace;
-            font-weight: 600;
-            color: #6ea8fe;
-        }
-
-        .department-badge {
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 0.4rem 0.8rem;
-            border-radius: 50px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-finance { background: rgba(33, 150, 243, 0.2); color: #64b5f6; border: 1px solid rgba(33, 150, 243, 0.4); }
-        .badge-rh { background: rgba(255, 152, 0, 0.2); color: #ffb74d; border: 1px solid rgba(255, 152, 0, 0.4); }
-        .badge-daj { background: rgba(156, 39, 176, 0.2); color: #ba68c8; border: 1px solid rgba(156, 39, 176, 0.4); }
-        .badge-communication { background: rgba(244, 67, 54, 0.2); color: #e57373; border: 1px solid rgba(244, 67, 54, 0.4); }
-        .badge-sg { background: rgba(0, 188, 212, 0.2); color: #4dd0e1; border: 1px solid rgba(0, 188, 212, 0.4); }
-
-        .chart-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-        }
-
-        .pie-chart-container {
-            position: relative;
-            width: 180px;
-            height: 180px;
-        }
-
-        .center-label {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .total-number {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: #FFD700;
-            line-height: 1;
-        }
-
-        .total-text {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .legend {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-        }
-
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 4px;
-        }
-
-        .color-finance { background-color: #2196F3; }
-        .color-rh { background-color: #FF9800; }
-        .color-daj { background-color: #9C27B0; }
-        .color-comm { background-color: #F44336; }
-        .color-sg { background-color: #00BCD4; }
-        .color-dsi { background-color: #4CAF50; }
-        .color-dircab { background-color: #FFC107; }
-
-        .loading {
-            display: none;
-        }
-    </style>
-    <link rel="stylesheet" href="css/responsive.css?v=20260722">
-    <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="css/theme.css?v=20260817">
+    <link rel="stylesheet" href="css/responsive.css?v=20260817">
+    <link rel="stylesheet" href="css/animations.css?v=20260817">
 </head>
 <body>
     <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
@@ -297,7 +95,7 @@ if (empty($_SESSION['csrf_token'])) {
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span><i class="fas fa-list me-2"></i> Appareils autorisés</span>
-                        <button class="btn btn-sm btn-outline-light" onclick="loadDevices()" style="border-radius: 8px;">
+                        <button class="btn btn-sm btn-outline-dark" onclick="loadDevices()" style="border-radius: 2px;">
                             <i class="fas fa-sync-alt me-1"></i> Actualiser
                         </button>
                     </div>
@@ -400,9 +198,9 @@ if (empty($_SESSION['csrf_token'])) {
                             <td class="mac-address">${escapeHtml(device.mac_address)}</td>
                             <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${escapeHtml(device.department).toUpperCase()}</span></td>
                             <td>${escapeHtml(device.group)}</td>
-                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
+                            <td><span class="badge bg-light border px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
                             <td class="text-end">
-                                <button class="btn btn-danger btn-sm" data-delete-mac="${escapeHtml(device.mac_address)}" style="border-radius: 8px;">
+                                <button class="btn btn-danger btn-sm" data-delete-mac="${escapeHtml(device.mac_address)}" style="border-radius: 2px;">
                                     <i class="fas fa-trash me-1"></i> Supprimer
                                 </button>
                             </td>
@@ -539,12 +337,12 @@ if (empty($_SESSION['csrf_token'])) {
             if (total === 0) {
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.fillStyle = '#22222a';
+                ctx.fillStyle = '#edebe6';
                 ctx.fill();
                 
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
-                ctx.fillStyle = '#18181e';
+                ctx.fillStyle = '#ffffff';
                 ctx.fill();
                 return;
             }
@@ -562,7 +360,7 @@ if (empty($_SESSION['csrf_token'])) {
                 ctx.fillStyle = item.color;
                 ctx.fill();
 
-                ctx.strokeStyle = '#18181e';
+                ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
@@ -571,7 +369,7 @@ if (empty($_SESSION['csrf_token'])) {
 
             ctx.beginPath();
             ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
-            ctx.fillStyle = '#18181e';
+            ctx.fillStyle = '#ffffff';
             ctx.fill();
         }
 
