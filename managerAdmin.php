@@ -94,24 +94,24 @@ $statusLabels = [
             <div class="user-form-card h-100">
                 <div class="user-form-header">
                     <div class="icon-circle"><i class="fa-solid fa-user-plus"></i></div>
-                    <h4 class="mb-0 fw-bold fs-6">Créer un Nouveau Compte</h4>
+                    <h4 class="mb-0 text-white fw-bold fs-6">Créer un Nouveau Compte</h4>
                 </div>
                 <div class="user-form-body">
                     <form data-create-user>
                         <div class="form-field-group mb-3">
-                            <label class="form-label fw-semibold small">Nom d'utilisateur</label>
+                            <label class="form-label text-light fw-semibold small">Nom d'utilisateur</label>
                             <input type="text" name="username" class="custom-form-input" required autocomplete="off">
                         </div>
                         <div class="form-field-group mb-3">
-                            <label class="form-label fw-semibold small">Adresse Email</label>
+                            <label class="form-label text-light fw-semibold small">Adresse Email</label>
                             <input type="email" name="email" class="custom-form-input" required autocomplete="off">
                         </div>
                         <div class="form-field-group mb-3">
-                            <label class="form-label fw-semibold small">Mot de passe</label>
+                            <label class="form-label text-light fw-semibold small">Mot de passe</label>
                             <input type="password" name="password" class="custom-form-input" required minlength="6">
                         </div>
                         <div class="form-field-group mb-3">
-                            <label class="form-label fw-semibold small">Département</label>
+                            <label class="form-label text-light fw-semibold small">Département</label>
                             <select name="department" class="custom-form-select" required>
                                 <option value="">Sélectionnez un département</option>
                                 <?php foreach ($departments as $department): ?>
@@ -122,7 +122,7 @@ $statusLabels = [
                             </select>
                         </div>
                         <div class="form-field-group mb-4">
-                            <label class="form-label fw-semibold small">Rôle et Habilitation</label>
+                            <label class="form-label text-light fw-semibold small">Rôle et Habilitation</label>
                             <select name="role" class="custom-form-select" required>
                                 <option value="">Sélectionnez un rôle</option>
                                 <?php foreach ($roles as $role): ?>
@@ -150,7 +150,7 @@ $statusLabels = [
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="search" data-user-search placeholder="Rechercher…">
                         </label>
-                        <button type="button" class="btn btn-sm btn-outline-dark" data-manager-reload style="border-radius: 2px;">
+                        <button type="button" class="btn btn-sm btn-outline-light" data-manager-reload style="border-radius: 8px;">
                             <i class="fas fa-sync-alt me-1"></i>
                             Actualiser
                         </button>

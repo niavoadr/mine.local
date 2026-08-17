@@ -5,13 +5,14 @@ if (empty($_SESSION['csrf_token'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Appareils RADIUS - Vue Lecture Seule</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/theme.css?v=20260817">
     <link rel="stylesheet" href="css/responsive.css?v=20260817">
     <link rel="stylesheet" href="css/animations.css?v=20260817">
@@ -141,7 +142,7 @@ if (empty($_SESSION['csrf_token'])) {
                             <td class="mac-address">${escapeHtml(device.mac_address)}</td>
                             <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${escapeHtml(device.department).toUpperCase()}</span></td>
                             <td>${escapeHtml(device.group)}</td>
-                            <td><span class="badge bg-light border px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
                         </tr>
                     `;
                 });

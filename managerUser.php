@@ -88,7 +88,7 @@ $statusLabels = [
           <i class="fa-solid fa-magnifying-glass"></i>
           <input type="search" data-user-search placeholder="Rechercher…">
         </label>
-        <button type="button" class="btn btn-sm btn-outline-dark" data-manager-reload style="border-radius: 2px;">
+        <button type="button" class="btn btn-sm btn-outline-light" data-manager-reload style="border-radius: 8px;">
           <i class="fas fa-sync-alt me-1"></i>
           Actualiser
         </button>

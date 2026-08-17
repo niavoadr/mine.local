@@ -13,7 +13,7 @@ if ($connected_username === '') {
 $user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,6 +21,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/theme.css?v=20260817">
     <link rel="stylesheet" href="css/responsive.css?v=20260817">
     <link rel="stylesheet" href="css/animations.css?v=20260817">
@@ -83,7 +84,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <div id="strangers-content" class="content-section">
             <div class="text-center mb-4">
-                <h2 class="fw-bold"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Visiteurs</h2>
+                <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Visiteurs</h2>
                 <p class="text-muted">Créez des accès temporaires pour les visiteurs et consultez l'historique.</p>
             </div>
 
@@ -209,7 +210,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td class="fw-semibold">${escapeHtml(record.username)}</td>
+                        <td class="fw-semibold text-white">${escapeHtml(record.username)}</td>
                         <td><code>${escapeHtml(record.mac_address)}</code></td>
                         <td>${escapeHtml(record.ip_address)}</td>
                         <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>

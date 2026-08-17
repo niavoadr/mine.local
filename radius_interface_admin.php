@@ -5,13 +5,14 @@ if (empty($_SESSION['csrf_token'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Appareils RADIUS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/theme.css?v=20260817">
     <link rel="stylesheet" href="css/responsive.css?v=20260817">
     <link rel="stylesheet" href="css/animations.css?v=20260817">
@@ -95,7 +96,7 @@ if (empty($_SESSION['csrf_token'])) {
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span><i class="fas fa-list me-2"></i> Appareils autorisés</span>
-                        <button class="btn btn-sm btn-outline-dark" onclick="loadDevices()" style="border-radius: 2px;">
+                        <button class="btn btn-sm btn-outline-light" onclick="loadDevices()" style="border-radius: 8px;">
                             <i class="fas fa-sync-alt me-1"></i> Actualiser
                         </button>
                     </div>
@@ -198,9 +199,9 @@ if (empty($_SESSION['csrf_token'])) {
                             <td class="mac-address">${escapeHtml(device.mac_address)}</td>
                             <td><span class="badge ${departmentColors[device.department] || 'bg-secondary'} department-badge">${escapeHtml(device.department).toUpperCase()}</span></td>
                             <td>${escapeHtml(device.group)}</td>
-                            <td><span class="badge bg-light border px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
+                            <td><span class="badge bg-dark border border-secondary px-3 py-1">${escapeHtml(device.bandwidth)}</span></td>
                             <td class="text-end">
-                                <button class="btn btn-danger btn-sm" data-delete-mac="${escapeHtml(device.mac_address)}" style="border-radius: 2px;">
+                                <button class="btn btn-danger btn-sm" data-delete-mac="${escapeHtml(device.mac_address)}" style="border-radius: 8px;">
                                     <i class="fas fa-trash me-1"></i> Supprimer
                                 </button>
                             </td>
@@ -337,12 +338,12 @@ if (empty($_SESSION['csrf_token'])) {
             if (total === 0) {
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.fillStyle = '#edebe6';
+                ctx.fillStyle = '#22222a';
                 ctx.fill();
                 
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = '#18181e';
                 ctx.fill();
                 return;
             }
@@ -360,7 +361,7 @@ if (empty($_SESSION['csrf_token'])) {
                 ctx.fillStyle = item.color;
                 ctx.fill();
 
-                ctx.strokeStyle = '#ffffff';
+                ctx.strokeStyle = '#18181e';
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
@@ -369,7 +370,7 @@ if (empty($_SESSION['csrf_token'])) {
 
             ctx.beginPath();
             ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = '#18181e';
             ctx.fill();
         }
 

@@ -20,7 +20,7 @@ if (($_SESSION['role'] ?? '') !== 'ADMIN') {
 $user_role_id = $_SESSION['role_lib'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,6 +28,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/theme.css?v=20260817">
     <link rel="stylesheet" href="css/responsive.css?v=20260817">
     <link rel="stylesheet" href="css/animations.css?v=20260817">
@@ -93,7 +94,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 
         <div id="strangers-content" class="content-section">
             <div class="text-center mb-4">
-                <h2 class="fw-bold"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Étrangers & Surveillance</h2>
+                <h2 class="fw-bold text-white"><i class="fas fa-user-shield text-warning me-2"></i>Gestion des Accès Étrangers & Surveillance</h2>
                 <p class="text-muted">Historique des visiteurs, liste noire d'appareils bloqués et détection d'intrusions en temps réel.</p>
             </div>
 
@@ -132,7 +133,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                     </select>
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 2px; height: 42px;">
+                                    <button type="submit" class="btn btn-warning w-100 fw-bold" style="border-radius: 12px; height: 42px;">
                                         <i class="fas fa-plus me-1"></i> Créer
                                     </button>
                                 </div>
@@ -219,7 +220,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                 </select>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
-                                <button class="btn btn-danger w-100 fw-bold" id="add-blacklist-btn" style="border-radius: 2px; height: 42px;">
+                                <button class="btn btn-danger w-100 fw-bold" id="add-blacklist-btn" style="border-radius: 12px; height: 42px;">
                                     <i class="fas fa-ban me-1"></i> Bloquer
                                 </button>
                             </div>
@@ -303,7 +304,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                 <input type="date" class="form-control" id="intrusion-date">
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
-                                <button class="btn btn-warning w-100 fw-bold" id="intrusion-filter-btn" style="border-radius: 2px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
+                                <button class="btn btn-warning w-100 fw-bold" id="intrusion-filter-btn" style="border-radius: 12px; height: 42px; background: var(--gold-primary); border: none; color: #000;">
                                     <i class="fas fa-search me-1"></i> Rechercher
                                 </button>
                             </div>
@@ -344,7 +345,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             <div class="card-custom">
                 <div class="card-custom-header d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-bell me-2"></i> Événements de Sécurité</span>
-                    <button class="btn btn-sm btn-outline-dark" onclick="loadSystemAlerts()" style="border-radius: 2px;">
+                    <button class="btn btn-sm btn-outline-light" onclick="loadSystemAlerts()" style="border-radius: 8px;">
                         <i class="fas fa-sync-alt me-1"></i> Actualiser
                     </button>
                 </div>
@@ -535,7 +536,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 
                 html += `
                     <tr>
-                        <td class="fw-semibold">${escapeHtml(record.username)}</td>
+                        <td class="fw-semibold text-white">${escapeHtml(record.username)}</td>
                         <td><code>${escapeHtml(record.mac_address)}</code></td>
                         <td>${escapeHtml(record.ip_address)}</td>
                         <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
@@ -584,7 +585,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td>${escapeHtml(record.blocked_date)}</td>
                         <td><span class="badge bg-warning text-dark fw-bold">${escapeHtml(record.blocked_attempts || 0)}</span></td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-success fw-semibold" data-unblock-mac="${escapeHtml(record.mac_address)}" style="border-radius: 2px;">
+                            <button class="btn btn-sm btn-success fw-semibold" data-unblock-mac="${escapeHtml(record.mac_address)}" style="border-radius: 8px;">
                                 <i class="fas fa-unlock me-1"></i> Débloquer
                             </button>
                         </td>
@@ -759,7 +760,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td><small>${escapeHtml(record.description)}</small></td>
                         <td>${sourceInfoBadge}</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-danger fw-semibold" data-block-mac="${escapeHtml(record.mac_address)}" data-block-type="${escapeHtml(record.type)}" style="border-radius: 2px;">
+                            <button class="btn btn-sm btn-danger fw-semibold" data-block-mac="${escapeHtml(record.mac_address)}" data-block-type="${escapeHtml(record.type)}" style="border-radius: 8px;">
                                 <i class="fas fa-ban me-1"></i> Bloquer
                             </button>
                         </td>
@@ -818,7 +819,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             'Snort': '<span class="badge bg-primary"><i class="fas fa-shield-alt me-1"></i> Snort</span>',
             'Firewall': '<span class="badge bg-secondary"><i class="fas fa-fire me-1"></i> Firewall</span>',
             'Fail2ban': '<span class="badge bg-danger"><i class="fas fa-ban me-1"></i> Fail2ban</span>',
-            'Manual': '<span class="badge bg-light border"><i class="fas fa-user me-1"></i> Manuel</span>'
+            'Manual': '<span class="badge bg-dark border border-secondary"><i class="fas fa-user me-1"></i> Manuel</span>'
         };
         return badges[source] || '<span class="badge bg-info text-dark">Autre</span>';
     }
