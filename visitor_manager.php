@@ -43,7 +43,6 @@ switch ($action) {
             jsonResponse(false, 'Le nom d\'utilisateur est requis.');
         }
 
-        // M1 : durée limitée à 10 min, 30 min, 1 h ou 2 h
         if (!in_array($duration, [10, 30, 60, 120], true)) {
             jsonResponse(false, 'Durée invalide. Choisissez 10 min, 30 min, 1 h ou 2 h.');
         }
@@ -130,9 +129,11 @@ switch ($action) {
             $stmt = $pdo->query($sql);
             $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // C4 : l'expiration est désormais gérée par le cron expire_visitors.php
             foreach ($visitors as &$v) {
                 $v['display_created_at'] = date('d/m/Y H:i:s', strtotime($v['date_creation']));
+                $v['display_expires_at'] = $v['expires_at']
+                    ? date('d/m/Y H:i:s', strtotime($v['expires_at']))
+                    : 'N/A';
                 $v['display_duration'] = $v['duration'] . ' min';
                 
                 $v['mac_address'] = $v['mac_address'] ?: 'N/A';

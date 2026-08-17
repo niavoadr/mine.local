@@ -442,13 +442,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 </head>
 <body>
 
-    <div class="ministry-status-bar">
-        <div class="d-flex align-items-center">
-            <span class="status-indicator"></span>
-            <span>SYSTÈME SÉCURISÉ | TABLEAU DE BORD ADMINISTRATION — MINISTÈRE DES MINES</span>
-        </div>
-    </div>
-
     <header class="dashboard-header">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
@@ -578,7 +571,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                         <th>MAC</th>
                                         <th>IP</th>
                                         <th>Créé par</th>
-                                        <th>Date de création</th>
+                                        <th>Date d'expiration</th>
                                         <th>Durée</th>
                                         <th>Statut</th>
                                     </tr>
@@ -845,7 +838,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     });
 
     function confirmLogout() {
-        if (confirm("⚠️ Êtes-vous sûr de vouloir vous déconnecter du portail d'administration ?")) {
+        if (confirm("Êtes-vous sûr de vouloir vous déconnecter du portail d'administration ?")) {
             window.location.href = "logout.php";
         }
     }
@@ -954,7 +947,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td><code>${escapeHtml(record.mac_address)}</code></td>
                         <td>${escapeHtml(record.ip_address)}</td>
                         <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
-                        <td>${escapeHtml(record.display_created_at)}</td>
+                        <td>${escapeHtml(record.display_expires_at)}</td>
                         <td>${escapeHtml(record.display_duration)}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>
@@ -1044,20 +1037,20 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             dataType: 'json',
             success: function(check) {
                 if (!check.success) {
-                    alert('❌ Erreur: ' + check.message);
+                    alert('Erreur: ' + check.message);
                     return;
                 }
 
                 var status = check.data;
 
                 if (status.is_blocked && status.in_blacklist) {
-                    alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
+                    alert('Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
                     return;
                 }
 
                 if (status.is_authorized) {
                     var dept = status.department ? ' (' + status.department + ')' : '';
-                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
                         doAddBlacklist(mac, reason, true);
                     }
                     return;
@@ -1084,17 +1077,17 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    alert('✅ Appareil ajouté à la liste noire et bloqué sur le réseau');
+                    alert('Appareil ajouté à la liste noire et bloqué sur le réseau');
                     $('#blacklist-mac').val('');
                     $('#blacklist-reason').val('');
                     loadBlacklist();
                     loadBlacklistStats();
                 } else if (response.message === 'APPAREIL_DEJA_AUTORISE') {
-                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué sur le réseau.\n\nContinuer ?')) {
                         doAddBlacklist(mac, reason, true);
                     }
                 } else {
-                    alert('❌ Erreur: ' + response.message);
+                    alert('Erreur: ' + response.message);
                 }
             }
         });
@@ -1112,11 +1105,11 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
-                        alert('✅ Appareil débloqué avec succès');
+                        alert('Appareil débloqué avec succès');
                         loadBlacklist();
                         loadBlacklistStats();
                     } else {
-                        alert('❌ Erreur: ' + response.message);
+                        alert('Erreur: ' + response.message);
                     }
                 }
             });
@@ -1256,20 +1249,20 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             dataType: 'json',
             success: function(check) {
                 if (!check.success) {
-                    alert('❌ Erreur: ' + check.message);
+                    alert('Erreur: ' + check.message);
                     return;
                 }
 
                 var status = check.data;
 
                 if (status.is_blocked && status.in_blacklist) {
-                    alert('⚠️ Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
+                    alert('Cet appareil est déjà dans la liste noire et bloqué sur le réseau.');
                     return;
                 }
 
                 if (status.is_authorized) {
                     var dept = status.department ? ' (' + status.department + ')' : '';
-                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué suite à l\'intrusion.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est déjà autorisé à accéder à internet' + dept + '.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué suite à l\'intrusion.\n\nContinuer ?')) {
                         doBlockFromIntrusion(mac, reason, true);
                     }
                     return;
@@ -1300,16 +1293,16 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    alert('✅ Appareil bloqué avec succès');
+                    alert('Appareil bloqué avec succès');
                     loadIntrusions();
                     loadBlacklist();
                     loadBlacklistStats();
                 } else if (response.message === 'APPAREIL_DEJA_AUTORISE') {
-                    if (confirm('⚠️ Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est déjà autorisé à accéder à internet.\n\nSi vous continuez, son accès sera supprimé et il sera bloqué.\n\nContinuer ?')) {
                         doBlockFromIntrusion(mac, reason, true);
                     }
                 } else {
-                    alert('❌ Erreur: ' + response.message);
+                    alert('Erreur: ' + response.message);
                 }
             }
         });

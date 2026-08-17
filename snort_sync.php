@@ -54,8 +54,6 @@ function parseSnortLog($logContent, $sinceTimestamp = null)
         if (preg_match($pfsensePattern, $line, $m)) {
             $tsStr = $m[1];
             if (preg_match('/^(\d{2})\/(\d{2})\/(\d{2})-(\d{2}:\d{2}:\d{2})/', $tsStr, $tm)) {
-                // Format pfSense : MM/DD/YY-HH:MM:SS → $tm[1]=mois, $tm[2]=jour
-                // Format ISO direct : plus d'ambiguïté jour/mois (B1)
                 $timestamp = strtotime('20' . $tm[3] . '-' . $tm[1] . '-' . $tm[2] . ' ' . $tm[4]);
             } else {
                 $timestamp = strtotime($tsStr);

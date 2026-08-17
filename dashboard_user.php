@@ -363,13 +363,6 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
 </head>
 <body>
 
-    <div class="ministry-status-bar">
-        <div class="d-flex align-items-center">
-            <span class="status-indicator"></span>
-            <span>SYSTÈME SÉCURISÉ | TABLEAU DE BORD ADMINISTRATION RESTREINTE — MINISTÈRE DES MINES</span>
-        </div>
-    </div>
-
     <header class="dashboard-header">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
@@ -444,7 +437,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                                     <th>MAC</th>
                                     <th>IP</th>
                                     <th>Créé par</th>
-                                    <th>Date de création</th>
+                                    <th>Date d'expiration</th>
                                     <th>Durée</th>
                                     <th>Statut</th>
                                 </tr>
@@ -495,7 +488,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
     });
 
     function confirmLogout() {
-        if (confirm("⚠️ Êtes-vous sûr de vouloir vous déconnecter du tableau de bord ?")) {
+        if (confirm("Êtes-vous sûr de vouloir vous déconnecter du tableau de bord ?")) {
             window.location.href = "logout.php";
         }
     }
@@ -556,7 +549,7 @@ $user_role_id = $_SESSION['role_lib'] ?? '';
                         <td><code>${escapeHtml(record.mac_address)}</code></td>
                         <td>${escapeHtml(record.ip_address)}</td>
                         <td><small class="text-muted">${escapeHtml(record.creator_name)}</small></td>
-                        <td>${escapeHtml(record.display_created_at)}</td>
+                        <td>${escapeHtml(record.display_expires_at)}</td>
                         <td>${escapeHtml(record.display_duration)}</td>
                         <td><span class="${statusClass}">${statusLabel}</span></td>
                     </tr>

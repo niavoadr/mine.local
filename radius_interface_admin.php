@@ -430,7 +430,7 @@ if (empty($_SESSION['csrf_token'])) {
                 mac_address: macColon
             }, function(check) {
                 if (check.success && check.data.is_rejected) {
-                    if (confirm('⚠️ Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
                         doAddDevice(macColon, department, true);
                     }
                     return;
@@ -452,19 +452,19 @@ if (empty($_SESSION['csrf_token'])) {
                 force: force ? '1' : '0'
             }, function(response) {
                 if (response.success) {
-                    alert('✅ Appareil ajouté avec succès (Format : ' + mac + ')');
+                    alert('Appareil ajouté avec succès');
                     $('#addDeviceForm')[0].reset();
                     loadDevices();
                     loadStats();
                 } else if (response.error === 'APPAREIL_DEJA_BLOQUE') {
-                    if (confirm('⚠️ Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
+                    if (confirm('Cet appareil est actuellement bloqué (liste noire).\n\nSi vous continuez, il sera retiré de la liste noire et autorisé à accéder à internet.\n\nContinuer ?')) {
                         doAddDevice(mac, department, true);
                     }
                 } else {
-                    alert('❌ Erreur: ' + response.error);
+                    alert('Erreur: ' + response.error);
                 }
             }, 'json').fail(function() {
-                alert('❌ Erreur de communication avec le serveur');
+                alert('Erreur de communication avec le serveur');
             }).always(function() {
                 $('.loading').hide();
                 $('button[type="submit"]').prop('disabled', false);
@@ -478,11 +478,11 @@ if (empty($_SESSION['csrf_token'])) {
                     mac_address: mac
                 }, function(response) {
                     if (response.success) {
-                        alert('✅ Appareil supprimé !');
+                        alert('Appareil supprimé !');
                         loadDevices();
                         loadStats();
                     } else {
-                        alert('❌ Erreur: ' + response.error);
+                        alert('Erreur: ' + response.error);
                     }
                 }, 'json');
             }
