@@ -217,6 +217,7 @@ if (empty($_SESSION['csrf_token'])) {
     </style>
     <link rel="stylesheet" href="css/responsive.css?v=20260722">
     <link rel="stylesheet" href="css/animations.css?v=20260721">
+    <link rel="stylesheet" href="css/brockmann.css?v=20260817">
 </head>
 <body>
     <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>';</script>
