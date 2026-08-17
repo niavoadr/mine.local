@@ -1,0 +1,107 @@
+/*
+ * Système visuel inspiré de Josef Müller-Brockmann : grille stricte,
+ * typographie sans-serif, contrastes francs et couleurs primaires mesurées.
+ * Cette feuille ne modifie aucune structure ni comportement applicatif.
+ */
+:root {
+  --ink: #101010;
+  --paper: #f4f1e8;
+  --panel: #fffdf7;
+  --line: #171717;
+  --signal-red: #e33420;
+  --signal-blue: #0757b8;
+  --signal-yellow: #f0c419;
+  --muted-ink: #625f59;
+}
+
+* { border-radius: 0 !important; }
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  background: var(--paper) !important;
+  background-image: linear-gradient(rgba(16,16,16,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(16,16,16,.045) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+  color: var(--ink) !important;
+  letter-spacing: .01em;
+}
+
+/* Header / navigation — compact, horizontal and aligned to a visible grid */
+.ministry-status-bar { background: var(--ink) !important; border-bottom: 0 !important; color: var(--paper) !important; }
+.dashboard-header {
+  background: rgba(244,241,232,.97) !important;
+  backdrop-filter: none !important;
+  border-top: 10px solid var(--signal-red) !important;
+  border-bottom: 2px solid var(--line) !important;
+  padding: 1.25rem 2rem !important;
+  box-shadow: none !important;
+}
+.header-logo-box { width: 52px !important; height: 52px !important; padding: 3px !important; background: var(--paper) !important; border: 2px solid var(--ink) !important; box-shadow: none !important; }
+.header-title, .card-title { color: var(--ink) !important; font-weight: 800 !important; letter-spacing: -.04em; text-transform: uppercase; }
+.header-subtitle { color: var(--muted-ink) !important; font-size: .72rem !important; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.nav-tabs-container { background: transparent !important; border: 1px solid var(--line) !important; padding: 0 !important; gap: 0 !important; }
+.nav-tab { color: var(--ink) !important; border-right: 1px solid var(--line) !important; padding: .7rem 1rem !important; font-size: .75rem !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .04em; }
+.nav-tab:last-child { border-right: 0 !important; }
+.nav-tab:hover { color: var(--paper) !important; background: var(--ink) !important; }
+.nav-tab.active { color: var(--ink) !important; background: var(--signal-yellow) !important; box-shadow: none !important; }
+.user-profile-pill { color: var(--ink) !important; background: transparent !important; border: 1px solid var(--line) !important; padding: .48rem .7rem !important; }
+.user-profile-pill .badge, .badge.bg-warning { background: var(--signal-yellow) !important; color: var(--ink) !important; }
+.btn-logout-modern { color: #fff !important; background: var(--signal-red) !important; border: 1px solid var(--signal-red) !important; padding: .55rem .8rem !important; font-size: .75rem !important; font-weight: 800 !important; text-transform: uppercase; }
+.btn-logout-modern:hover { background: var(--ink) !important; border-color: var(--ink) !important; box-shadow: none !important; }
+
+/* Data surfaces */
+.glass-iframe { background: var(--panel) !important; border: 2px solid var(--line) !important; box-shadow: 8px 8px 0 var(--signal-blue) !important; }
+.stats-card, .card-custom, .card, .manager-view .user-form-card {
+  background: var(--panel) !important; color: var(--ink) !important; border: 1.5px solid var(--line) !important; box-shadow: 6px 6px 0 var(--ink) !important;
+}
+.stats-card { border-left: 10px solid var(--signal-blue) !important; }
+.stats-card.warning { border-left-color: var(--signal-yellow) !important; }
+.stats-card.danger { border-left-color: var(--signal-red) !important; }
+.stats-card h5, .stats-card h2 { color: var(--ink) !important; }
+.card-custom-header, .card-header, .manager-view .user-form-header {
+  background: var(--ink) !important; color: var(--paper) !important; border-bottom: 1px solid var(--line) !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .06em;
+}
+.card-custom-header *, .card-header *, .manager-view .user-form-header * { color: inherit !important; }
+.card-custom-body, .card-body, .manager-view .user-form-body { color: var(--ink) !important; }
+
+/* Forms and actions */
+.form-control, .form-select, .manager-view .custom-form-input {
+  background: #fff !important; color: var(--ink) !important; border: 1.5px solid var(--ink) !important; padding: .7rem .8rem !important; box-shadow: none !important;
+}
+.form-control:focus, .form-select:focus, .manager-view .custom-form-input:focus { border-color: var(--signal-blue) !important; outline: 3px solid rgba(7,87,184,.2) !important; box-shadow: none !important; }
+.form-label, .text-muted, p.text-muted, small.text-muted { color: var(--muted-ink) !important; }
+.btn, .btn-marron, .btn-submit, .manager-view button[type="submit"] { border-radius: 0 !important; font-weight: 800 !important; letter-spacing: .03em; text-transform: uppercase; box-shadow: none !important; }
+.btn-warning, .btn-marron, .btn-submit { background: var(--signal-yellow) !important; border: 1.5px solid var(--ink) !important; color: var(--ink) !important; }
+.btn-warning:hover, .btn-marron:hover, .btn-submit:hover { background: var(--ink) !important; color: var(--paper) !important; transform: none !important; }
+.btn-primary { background: var(--signal-blue) !important; border-color: var(--signal-blue) !important; }
+.btn-danger { background: var(--signal-red) !important; border-color: var(--signal-red) !important; }
+
+/* Tables: documentary hierarchy instead of decorative chrome */
+.table-responsive { background: var(--panel) !important; border: 1.5px solid var(--line) !important; box-shadow: none !important; }
+.table { color: var(--ink) !important; }
+.table thead th, .manager-view .ajax-users-table th { background: var(--ink) !important; color: var(--paper) !important; border: 0 !important; font-size: .7rem !important; font-weight: 800 !important; letter-spacing: .09em; text-transform: uppercase; }
+.table tbody tr td, .manager-view .ajax-users-table td { color: var(--ink) !important; background: transparent !important; border-color: rgba(16,16,16,.18) !important; }
+.table tbody tr:nth-child(even) td { background: rgba(7,87,184,.045) !important; }
+.table tbody tr:hover td, .manager-view .ajax-users-table tr:hover td { background: rgba(240,196,25,.24) !important; }
+.alert { border: 1.5px solid var(--ink) !important; border-left: 10px solid var(--signal-blue) !important; }
+
+/* Login: two rational panels, no gradients or floating ornament */
+.bg-orb { display: none !important; }
+.login-card { max-width: 1040px !important; background: var(--panel) !important; border: 2px solid var(--line) !important; box-shadow: 12px 12px 0 var(--signal-blue) !important; }
+.brand-panel { background: var(--ink) !important; border-right: 0 !important; position: relative; }
+.brand-panel::before { content: ""; position: absolute; top: 0; left: 0; width: 34%; height: 12px; background: var(--signal-red); }
+.brand-panel *, .brand-panel p { color: var(--paper) !important; }
+.brand-hero h1 span, .feature-pill i { color: var(--signal-yellow) !important; }
+.logo-img-box { background: var(--paper) !important; border: 2px solid var(--paper) !important; box-shadow: none !important; }
+.feature-pill { background: transparent !important; border: 1px solid rgba(244,241,232,.6) !important; }
+.form-panel { background: var(--panel) !important; }
+.form-header h2 { color: var(--ink) !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: -.04em; }
+.form-header p { color: var(--muted-ink) !important; }
+.form-floating label, .input-icon, .password-toggle { color: var(--muted-ink) !important; }
+.btn-ghost { color: var(--ink) !important; background: transparent !important; border: 1px solid var(--ink) !important; border-radius: 0 !important; }
+.btn-ghost:hover { color: var(--paper) !important; background: var(--ink) !important; }
+
+@media (max-width: 767.98px) {
+  .dashboard-header { padding: 1rem !important; }
+  .nav-tabs-container { width: 100%; }
+  .nav-tab { flex: 1 1 40%; justify-content: center; border-bottom: 1px solid var(--line) !important; }
+  .login-card { box-shadow: 7px 7px 0 var(--signal-blue) !important; }
+}
